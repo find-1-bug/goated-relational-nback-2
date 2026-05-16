@@ -82,17 +82,26 @@ function getStillRenderer(width, height) {
   return _stillRenderer;
 }
 
-// One-shot 3D render of a SPATIAL_3D relationship into a fresh 2D canvas.
-// Returned canvas can be drawn into any 2D context as if it were a static
-// image. Internally disposes scene resources after rendering so a session
-// of 100s of trials doesn't leak GPU memory.
-export function renderSpatial3DToCanvas(width, height, relationship, stimulus, colors) {
-  const renderer = getStillRenderer(width, height);
+// Animated 3D-snapshot controller. Returns { canvas, update, dispose }.
+// `canvas` is a 2D canvas the caller can drawImage from. Each update() call
+// rotates the meshes by elapsed time, applies any relation-specific motion
+// (ORBITING, ROTATING_PAIR), renders the scene through the singleton
+// renderer, and copies the freshly-rendered pixels into the snapshot canvas.
+//
+// Multiple snapshot instances coexist by sharing the singleton renderer
+// sequentially — each update() resets the renderer's size, renders its own
+// scene, then immediately copies the pixels out, so callers never read each
+// other's output. This keeps total WebGL context usage to 1 regardless of
+// how many alien streams are on screen.
+export function createSpatial3DSnapshot(width, height, relationship, stimulus, colors) {
   const scene = new THREE.Scene();
   scene.background = new THREE.Color(0x080d16);
 
-  const camera = new THREE.PerspectiveCamera(45, width / height, 0.1, 1000);
-  camera.position.set(0, 1, 7.5);
+  // Camera pulled back to z=14 with FOV 45 so even the widest SPATIAL_3D
+  // arrangements (REPELLING ±3, BOUND_BY_GRAVITY y=-3, ORBITING radius 4)
+  // sit comfortably inside the frustum and aren't clipped by the panel.
+  const camera = new THREE.PerspectiveCamera(45, width / height, 0.1, 100);
+  camera.position.set(0, 1, 14);
   camera.lookAt(0, 0, 0);
 
   scene.add(new THREE.AmbientLight(0xffffff, 0.55));
@@ -111,24 +120,64 @@ export function renderSpatial3DToCanvas(width, height, relationship, stimulus, c
   scene.add(mesh1);
   scene.add(mesh2);
 
-  renderer.render(scene, camera);
+  const canvas = document.createElement('canvas');
+  canvas.width = width;
+  canvas.height = height;
+  const ctx = canvas.getContext('2d');
 
-  // Snapshot pixels into an independent canvas so the next call's render
-  // doesn't overwrite this one's content.
-  const out = document.createElement('canvas');
-  out.width = width;
-  out.height = height;
-  out.getContext('2d').drawImage(renderer.domElement, 0, 0, width, height);
+  let elapsed = 0;
+  let lastT = performance.now();
 
-  // Free scene GPU resources.
-  scene.traverse((object) => {
-    if (object.geometry) object.geometry.dispose();
-    if (object.material) {
-      if (Array.isArray(object.material)) object.material.forEach(m => m.dispose());
-      else object.material.dispose();
+  function update() {
+    const now = performance.now();
+    const dt = Math.min(0.1, (now - lastT) / 1000);
+    lastT = now;
+    elapsed += dt;
+
+    // Spin both meshes so the player sees them as 3D, not flat.
+    mesh1.rotation.x += dt * 0.55;
+    mesh1.rotation.y += dt * 0.75;
+    mesh2.rotation.x += dt * 0.50;
+    mesh2.rotation.y += dt * 0.65;
+
+    // Relation-specific motion (mirrors the standalone 3D renderer so the
+    // semantics of ORBITING / ROTATING_PAIR are still legible inside the
+    // alien panels).
+    if (relationship === 'ORBITING') {
+      const a = elapsed * 0.6;
+      mesh2.position.x = Math.cos(a) * 4;
+      mesh2.position.z = Math.sin(a) * 3;
+    } else if (relationship === 'ROTATING_PAIR') {
+      const a = elapsed * 0.6;
+      mesh1.position.x = Math.cos(a) * 2.5;
+      mesh2.position.x = -Math.cos(a) * 2.5;
+    } else if (relationship === 'ASCENDING_SPIRAL') {
+      mesh1.position.y = -2 + Math.sin(elapsed * 1.0) * 0.4;
+      mesh2.position.y = 2 + Math.sin(elapsed * 1.0 + Math.PI) * 0.4;
+    } else if (relationship === 'FLOATING_ABOVE') {
+      mesh1.position.y = 2 + Math.sin(elapsed * 1.6) * 0.25;
     }
-  });
-  return out;
+
+    const renderer = getStillRenderer(width, height);
+    renderer.render(scene, camera);
+    ctx.clearRect(0, 0, width, height);
+    ctx.drawImage(renderer.domElement, 0, 0, width, height);
+  }
+
+  function dispose() {
+    scene.traverse((object) => {
+      if (object.geometry) object.geometry.dispose();
+      if (object.material) {
+        if (Array.isArray(object.material)) object.material.forEach(m => m.dispose());
+        else object.material.dispose();
+      }
+    });
+  }
+
+  // Prime the canvas so callers can draw it immediately.
+  update();
+
+  return { canvas, update, dispose };
 }
 
 function createRelationPanelTexture(relationship, stimulus, alienCubeScale = 1) {
@@ -141,42 +190,52 @@ function createRelationPanelTexture(relationship, stimulus, alienCubeScale = 1) 
   contentCanvas.width = 900;
   contentCanvas.height = 560;
   const contentCtx = contentCanvas.getContext('2d');
-  if (is3D(relationship)) {
-    // SPATIAL_3D rels deserve real 3D rendering inside the alien panel,
-    // not a flat 2D fallback that looks like an ordinary spatial rel.
-    const still = renderSpatial3DToCanvas(contentCanvas.width, contentCanvas.height, relationship, stimulus, [stimulus?.colorA, stimulus?.colorB]);
-    contentCtx.drawImage(still, 0, 0);
-  } else {
-    const contentScale = Math.min(1.28, 1 + Math.max(0, alienCubeScale - 1) * 0.75);
-    renderRelationship(contentCtx, contentCanvas.width, contentCanvas.height, relationship, null, {
-      ...stimulus,
-      renderScale: contentScale,
-    });
-  }
 
-  ctx.fillStyle = 'rgba(8, 13, 22, 0.92)';
-  ctx.fillRect(0, 0, panelCanvas.width, panelCanvas.height);
-  ctx.strokeStyle = 'rgba(148, 163, 184, 0.35)';
-  ctx.lineWidth = 3;
-  ctx.beginPath();
-  ctx.roundRect(18, 18, panelCanvas.width - 36, panelCanvas.height - 36, 22);
-  ctx.stroke();
-
+  const snapshot = is3D(relationship)
+    ? createSpatial3DSnapshot(contentCanvas.width, contentCanvas.height, relationship, stimulus, [stimulus?.colorA, stimulus?.colorB])
+    : null;
+  const contentScale = Math.min(1.28, 1 + Math.max(0, alienCubeScale - 1) * 0.75);
   const zoom = Math.min(1.32, 1.08 * alienCubeScale);
   const scaledW = panelCanvas.width * zoom;
   const scaledH = panelCanvas.height * zoom;
-  ctx.drawImage(
-    contentCanvas,
-    (panelCanvas.width - scaledW) / 2,
-    (panelCanvas.height - scaledH) / 2,
-    scaledW,
-    scaledH
-  );
+
+  function refresh() {
+    // Refresh content area first (snapshot tick OR 2D re-render)
+    contentCtx.clearRect(0, 0, contentCanvas.width, contentCanvas.height);
+    if (snapshot) {
+      contentCtx.drawImage(snapshot.canvas, 0, 0);
+    } else {
+      renderRelationship(contentCtx, contentCanvas.width, contentCanvas.height, relationship, null, {
+        ...stimulus,
+        renderScale: contentScale,
+      });
+    }
+
+    // Re-composite the panel: background fill, border, scaled content.
+    ctx.clearRect(0, 0, panelCanvas.width, panelCanvas.height);
+    ctx.fillStyle = 'rgba(8, 13, 22, 0.92)';
+    ctx.fillRect(0, 0, panelCanvas.width, panelCanvas.height);
+    ctx.strokeStyle = 'rgba(148, 163, 184, 0.35)';
+    ctx.lineWidth = 3;
+    ctx.beginPath();
+    ctx.roundRect(18, 18, panelCanvas.width - 36, panelCanvas.height - 36, 22);
+    ctx.stroke();
+    ctx.drawImage(
+      contentCanvas,
+      (panelCanvas.width - scaledW) / 2,
+      (panelCanvas.height - scaledH) / 2,
+      scaledW,
+      scaledH
+    );
+  }
+
+  // Prime once so the texture's first paint is non-empty.
+  refresh();
 
   const texture = new THREE.CanvasTexture(panelCanvas);
   texture.colorSpace = THREE.SRGBColorSpace;
   texture.needsUpdate = true;
-  return texture;
+  return { texture, snapshot, refresh };
 }
 
 function setupScene(canvas) {
@@ -228,12 +287,11 @@ export function render3DRelationship(canvas, relationship, colors, rintChain = n
     camera.lookAt(0, 0, 0);
   } else if (!rintChain || rintChain.length === 0) {
     // Non-alien SPATIAL_3D meshes are placed at z = ±2-3 with size ~2-3.5;
-    // the default camera at z=3.15 puts them ~1 unit from the lens, which
-    // looks bug-eyed (especially in a single-stream full-screen canvas).
-    // Pull camera back and tighten FOV so meshes feel like 3D objects in
-    // space rather than pressed against the glass.
-    camera.position.set(0, 1.0, 7.5);
-    camera.fov = 45;
+    // the default camera at z=3.15 puts them ~1 unit from the lens. Pull
+    // back and widen FOV slightly so even the broadest arrangements
+    // (REPELLING ±3 with shapes up to size 3.5) fit comfortably.
+    camera.position.set(0, 1.0, 12);
+    camera.fov = 50;
     camera.updateProjectionMatrix();
     camera.lookAt(0, 0, 0);
   }
@@ -245,6 +303,9 @@ export function render3DRelationship(canvas, relationship, colors, rintChain = n
   };
 
   let meshes = [];
+  // Collected panel snapshot+texture controllers so the animate loop can
+  // tick them each frame (and the cleanup can dispose them).
+  const panelInfos = [];
 
   if (stimulus?.tesseractPosition) {
     const tesseractGroup = new THREE.Group();
@@ -292,10 +353,11 @@ export function render3DRelationship(canvas, relationship, colors, rintChain = n
     const isCompactView = canvas.clientWidth < 420 || canvas.clientHeight < 320;
     const panelWidth = (isCompactView ? 2.0 : 2.5) * alienCubeScale;
     const panelHeight = (isCompactView ? 1.25 : 1.55) * alienCubeScale;
-    const texture = createRelationPanelTexture(relationship, stimulus, alienCubeScale);
+    const panelInfo = createRelationPanelTexture(relationship, stimulus, alienCubeScale);
+    panelInfos.push(panelInfo);
     const relPanel = new THREE.Mesh(
       new THREE.PlaneGeometry(panelWidth, panelHeight),
-      new THREE.MeshBasicMaterial({ map: texture, transparent: false, side: THREE.DoubleSide })
+      new THREE.MeshBasicMaterial({ map: panelInfo.texture, transparent: false, side: THREE.DoubleSide })
     );
     relPanel.position.set(
       THREE.MathUtils.clamp(p.x * 0.36, -0.42, 0.42),
@@ -398,10 +460,11 @@ export function render3DRelationship(canvas, relationship, colors, rintChain = n
     const isCompactView = canvas.clientWidth < 420 || canvas.clientHeight < 320;
     const panelWidth = (isCompactView ? 2.1 : 2.65) * alienCubeScale;
     const panelHeight = (isCompactView ? 1.3 : 1.65) * alienCubeScale;
-    const texture = createRelationPanelTexture(relationship, stimulus, alienCubeScale);
+    const panelInfo = createRelationPanelTexture(relationship, stimulus, alienCubeScale);
+    panelInfos.push(panelInfo);
     const relPanel = new THREE.Mesh(
       new THREE.PlaneGeometry(panelWidth, panelHeight),
-      new THREE.MeshBasicMaterial({ map: texture, transparent: false, side: THREE.DoubleSide })
+      new THREE.MeshBasicMaterial({ map: panelInfo.texture, transparent: false, side: THREE.DoubleSide })
     );
     const safePanelX = THREE.MathUtils.clamp(p.x * 0.48, -0.52, 0.52);
     const safePanelY = THREE.MathUtils.clamp(p.y * 0.48, -0.52, 0.52);
@@ -473,6 +536,7 @@ export function render3DRelationship(canvas, relationship, colors, rintChain = n
 
   // Animation loop: keep rotating for the full trial duration
   let animationId;
+  let lastPanelTick = 0;
   const animate = () => {
     animationId = requestAnimationFrame(animate);
 
@@ -492,7 +556,7 @@ export function render3DRelationship(canvas, relationship, colors, rintChain = n
     if (!stimulus?.cubePosition && !stimulus?.tesseractPosition && (!rintChain || rintChain.length === 0)) {
       const mesh1 = meshes[0];
       const mesh2 = meshes[1];
-      
+
       if (relationship === 'ORBITING') {
         const angle = performance.now() * 0.0005;
         mesh2.position.x = Math.cos(angle) * 4;
@@ -504,6 +568,20 @@ export function render3DRelationship(canvas, relationship, colors, rintChain = n
       }
     }
 
+    // Tick any animated SPATIAL_3D snapshots embedded in alien panels.
+    // Throttled to ~30 fps so we don't double the GPU work per stream.
+    const now = performance.now();
+    if (now - lastPanelTick > 33 && panelInfos.length > 0) {
+      lastPanelTick = now;
+      for (const info of panelInfos) {
+        if (info.snapshot) {
+          info.snapshot.update();
+          info.refresh();
+          info.texture.needsUpdate = true;
+        }
+      }
+    }
+
     renderer.render(scene, camera);
   };
 
@@ -512,6 +590,7 @@ export function render3DRelationship(canvas, relationship, colors, rintChain = n
   // Cleanup function
   return () => {
     cancelAnimationFrame(animationId);
+    panelInfos.forEach(info => info.snapshot?.dispose());
     scene.traverse((object) => {
       if (object.geometry) object.geometry.dispose();
       if (object.material) {

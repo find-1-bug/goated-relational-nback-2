@@ -1,6 +1,6 @@
 import React, { useRef, useEffect } from 'react';
 import { renderRelationship, renderAlienSquare, is3D } from '@/lib/relationshipRenderer';
-import { render3DRelationship, renderSpatial3DToCanvas } from '@/lib/threeRenderer';
+import { render3DRelationship, createSpatial3DSnapshot } from '@/lib/threeRenderer';
 
 export default function GameCanvas({ relationship, stimulus, clearCanvas, rintChain, streamCount = 1 }) {
   const canvasRef = useRef(null);
@@ -53,24 +53,41 @@ export default function GameCanvas({ relationship, stimulus, clearCanvas, rintCh
       panelCanvas.width = 640;
       panelCanvas.height = 400;
       const panelCtx = panelCanvas.getContext('2d');
-      if (is3D(relationship)) {
-        // Bake a real 3D snapshot for SPATIAL_3D rels so the alien-square
-        // panel doesn't show a flat 2D fallback that's indistinguishable
-        // from non-3D spatial rels.
-        const still = renderSpatial3DToCanvas(panelCanvas.width, panelCanvas.height, relationship, stimulus, [stimulus?.colorA, stimulus?.colorB]);
-        panelCtx.drawImage(still, 0, 0);
-      } else {
-        renderRelationship(panelCtx, panelCanvas.width, panelCanvas.height, relationship, null, { ...stimulus, renderScale: 0.95 });
-      }
+
+      // For SPATIAL_3D rels, build a live 3D-snapshot controller and refresh
+      // its frame inside the square's animation loop. For other rels we
+      // render the 2D depiction once into the panel.
+      const snapshot = is3D(relationship)
+        ? createSpatial3DSnapshot(panelCanvas.width, panelCanvas.height, relationship, stimulus, [stimulus?.colorA, stimulus?.colorB])
+        : null;
+      const paintPanel = () => {
+        if (snapshot) {
+          panelCtx.clearRect(0, 0, panelCanvas.width, panelCanvas.height);
+          panelCtx.drawImage(snapshot.canvas, 0, 0);
+        } else {
+          renderRelationship(panelCtx, panelCanvas.width, panelCanvas.height, relationship, null, { ...stimulus, renderScale: 0.95 });
+        }
+      };
+      paintPanel();
 
       let animationId;
+      let lastPanelTick = 0;
       const draw = () => {
         ctx.setTransform(dpr, 0, 0, dpr, 0, 0);
+        const now = performance.now();
+        if (snapshot && now - lastPanelTick > 33) {
+          lastPanelTick = now;
+          snapshot.update();
+          paintPanel();
+        }
         renderAlienSquare(ctx, rect.width, rect.height, relationship, stimulus, panelCanvas);
         animationId = requestAnimationFrame(draw);
       };
       draw();
-      cleanupRef.current = () => cancelAnimationFrame(animationId);
+      cleanupRef.current = () => {
+        cancelAnimationFrame(animationId);
+        snapshot?.dispose();
+      };
     } else if (stimulus?.cubePosition || stimulus?.tesseractPosition || is3D(relationship)) {
       // Use 3D renderer
       if (cleanupRef.current) cleanupRef.current();
