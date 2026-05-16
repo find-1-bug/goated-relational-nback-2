@@ -66,7 +66,7 @@ export default function InstallAppButton({ className = '' }) {
     <>
       <button
         onClick={handleClick}
-        className={`flex items-center gap-1.5 px-2.5 sm:px-3 py-1.5 rounded-lg bg-primary/15 border border-primary/40 text-primary hover:bg-primary/25 hover:border-primary text-xs font-mono transition-colors ${className}`}
+        className={`flex items-center gap-1.5 px-2.5 sm:px-3 py-1.5 rounded-lg bg-primary/20 border border-primary/60 text-primary hover:bg-primary/30 hover:border-primary text-xs font-mono font-semibold transition-colors shadow-[0_0_18px_rgba(43,227,198,0.18)] ${className}`}
         title="Install GOATED n-Back as an app"
       >
         <Download className="w-3.5 h-3.5" />

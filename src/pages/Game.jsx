@@ -152,10 +152,10 @@ export default function Game() {
         {screen === 'start' && (
           <>
             <InstallAppButton />
-            <Link to="/tutorial" className="px-2.5 sm:px-3 py-1.5 rounded-lg bg-secondary border border-border text-muted-foreground hover:text-foreground text-xs font-mono transition-colors">
+            <Link to="/tutorial" className="px-2.5 sm:px-3 py-1.5 rounded-lg bg-accent/15 border border-accent/50 text-accent hover:bg-accent/25 hover:border-accent text-xs font-mono font-semibold transition-colors">
               Tutorial
             </Link>
-            <Link to="/stats" className="px-2.5 sm:px-3 py-1.5 rounded-lg bg-secondary border border-border text-muted-foreground hover:text-foreground text-xs font-mono transition-colors">
+            <Link to="/stats" className="px-2.5 sm:px-3 py-1.5 rounded-lg bg-chart-3/15 border border-chart-3/50 text-chart-3 hover:bg-chart-3/25 hover:border-chart-3 text-xs font-mono font-semibold transition-colors">
               Stats
             </Link>
           </>

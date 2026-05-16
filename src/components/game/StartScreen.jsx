@@ -414,8 +414,13 @@ export default function StartScreen({ onStart, suggestedN, lastSettings }) {
 
   return (
     <motion.div initial={{ opacity: 0 }} animate={{ opacity: 1 }}
-      className="flex flex-col items-center min-h-[100dvh] px-3 sm:px-4 py-5 sm:py-8"
-      style={{ paddingTop: 'max(1.25rem, env(safe-area-inset-top))', paddingBottom: 'max(1rem, env(safe-area-inset-bottom))' }}>
+      className="flex flex-col items-center min-h-[100dvh] px-3 sm:px-4 pb-5 sm:pb-8"
+      style={{
+        // Generous top padding so the floating nav (Install / Tutorial /
+        // Stats) doesn't sit on top of the title.
+        paddingTop: 'calc(max(0.75rem, env(safe-area-inset-top)) + 4rem)',
+        paddingBottom: 'max(1rem, env(safe-area-inset-bottom))',
+      }}>
       <div className="max-w-lg w-full space-y-4 sm:space-y-5">
 
         {/* Title */}
