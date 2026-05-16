@@ -514,7 +514,39 @@ export function renderRelationship(ctx, canvasW, canvasH, relationship, prevVisu
       break;
   }
 
+  // RINT entity labels — when the engine generated this stim through the
+  // RINT pipeline (verbal or complex), the entities (alpha/beta/gamma) carry
+  // the logical chain. Verbal renderers already display them; non-verbal ones
+  // don't, so we overlay a compact "α · β" header so the player can see who's
+  // being related.
+  if (stimulus?.isRINTStim && !isVerbal(relationship) && stimulus?.wordA && stimulus?.wordB) {
+    drawRINTEntityHeader(ctx, canvasW, canvasH, stimulus.wordA, stimulus.wordB);
+  }
+
   return visuals;
+}
+
+function drawRINTEntityHeader(ctx, canvasW, canvasH, entityA, entityB) {
+  ctx.save();
+  const padding = 10;
+  ctx.font = `bold ${Math.min(canvasW * 0.044, 16)}px 'JetBrains Mono', monospace`;
+  ctx.textAlign = 'center';
+  ctx.textBaseline = 'top';
+  const text = `${entityA}  ·  ${entityB}`;
+  const w = ctx.measureText(text).width + padding * 2;
+  const h = 22;
+  const x = canvasW / 2 - w / 2;
+  const y = 6;
+  ctx.fillStyle = 'rgba(34, 211, 238, 0.16)';
+  ctx.strokeStyle = 'rgba(34, 211, 238, 0.55)';
+  ctx.lineWidth = 1;
+  ctx.beginPath();
+  ctx.roundRect(x, y, w, h, 6);
+  ctx.fill();
+  ctx.stroke();
+  ctx.fillStyle = 'hsl(168, 80%, 65%)';
+  ctx.fillText(text, canvasW / 2, y + 4);
+  ctx.restore();
 }
 
 // ─── 3D-relation 2D fallbacks ──────────────────────────────────────────────────

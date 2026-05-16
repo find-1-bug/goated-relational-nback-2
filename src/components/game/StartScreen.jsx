@@ -440,7 +440,12 @@ export default function StartScreen({ onStart, suggestedN, lastSettings }) {
           </label>
           <div className="flex items-center justify-center gap-4">
             <button
-              onClick={() => setNLevel(n => Math.max(1, n - 1))}
+              onClick={() => setNLevel(n => {
+                // Honor minN requirements from any active mode so the user can't
+                // bring N below what RINT / NRINT / etc. need.
+                const activeMinN = Math.max(1, ...modes.map(m => MODE_OPTIONS.find(o => o.id === m)?.minN || 1));
+                return Math.max(activeMinN, n - 1);
+              })}
               className="w-10 h-10 rounded-lg bg-secondary border border-border text-muted-foreground hover:border-muted-foreground/50 flex items-center justify-center transition-colors">
               <Minus className="w-4 h-4" />
             </button>

@@ -128,6 +128,16 @@ export function render3DRelationship(canvas, relationship, colors, rintChain = n
   if (stimulus?.cubePosition || stimulus?.tesseractPosition) {
     camera.position.z = Math.min(4.85, 3.65 + streamDepthOffset * 0.14);
     camera.lookAt(0, 0, 0);
+  } else if (!rintChain || rintChain.length === 0) {
+    // Non-alien SPATIAL_3D meshes are placed at z = ±2-3 with size ~2-3.5;
+    // the default camera at z=3.15 puts them ~1 unit from the lens, which
+    // looks bug-eyed (especially in a single-stream full-screen canvas).
+    // Pull camera back and tighten FOV so meshes feel like 3D objects in
+    // space rather than pressed against the glass.
+    camera.position.set(0, 1.0, 7.5);
+    camera.fov = 45;
+    camera.updateProjectionMatrix();
+    camera.lookAt(0, 0, 0);
   }
 
   const toThreeColor = (c) => {

@@ -236,7 +236,10 @@ function rollTrialMode(modes, effectiveN) {
   if (isMixed) {
     return Math.random() < 0.5 ? 'type' : 'normal';
   }
-  if (isNRINT && effectiveN >= RINT_MIN_N) return 'nrint';
+  // NRINT always uses the nrint branch (it gracefully emits non-target stims
+  // until enough history accumulates). Without this, N<2 falls into 'normal'
+  // and tries to copy a non-existent stim, producing blank panels.
+  if (isNRINT) return 'nrint';
   if (isRINT && effectiveN >= RINT_MIN_N) return 'rint';
   if (isTypeNback) return 'type';
   return 'normal';
@@ -284,13 +287,15 @@ function pickNonMatchingAttrs(targetAttrs) {
 }
 
 function makeNRINTStim(attrs) {
+  const shapeA = pickRandom(SHAPES);
+  const colorA = pickRandom(COLORS);
   return {
     rel: 'NRINT_COMPOSITE',
     attrs,
-    shapeA: pickRandom(SHAPES),
-    shapeB: pickRandomExcluding(SHAPES, undefined),
-    colorA: pickRandom(COLORS),
-    colorB: pickRandomExcluding(COLORS, undefined),
+    shapeA,
+    shapeB: pickRandomExcluding(SHAPES, shapeA),
+    colorA,
+    colorB: pickRandomExcluding(COLORS, colorA),
     renderMode: 0,
     isNRINTStim: true,
   };

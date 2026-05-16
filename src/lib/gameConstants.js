@@ -88,6 +88,11 @@ export const TRANSITIVE_RELATIONSHIPS = [
   'LEFT_OF', 'RIGHT_OF', 'ABOVE', 'BELOW',
   'NORTH_OF', 'SOUTH_OF', 'EAST_OF', 'WEST_OF',
   'PART_OF', 'CAUSES', 'CONTAINS', 'DEPENDS_ON', 'TRANSFORMS_INTO',
+  // Complex composite relations chain symmetrically: if (A complexRel B) and
+  // (B complexRel C), then (A complexRel C). Lets RINT generate visual targets
+  // from complex stims alongside verbal ones, per Grapist's request.
+  'THREE_PAIRS_ONE_DIFFERENT', 'FOUR_PAIRS_GRID',
+  'TWO_OF_THREE_HOLLOW', 'ODD_COLOR_OUT', 'ODD_SHAPE_OUT',
 ];
 
 export function filterTransitiveRelationships(rels, isRINTMode, isTypeMode) {

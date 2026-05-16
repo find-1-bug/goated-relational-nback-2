@@ -38,6 +38,13 @@ const TRANSITIVE_FAMILIES = [
   { rels: ['PART_OF', 'CONTAINS'], inv: { PART_OF: 'CONTAINS', CONTAINS: 'PART_OF' } },
   { rels: ['CAUSES', 'DEPENDS_ON'], inv: { CAUSES: 'DEPENDS_ON', DEPENDS_ON: 'CAUSES' } },
   { rels: ['TRANSFORMS_INTO'], inv: {} },
+  // Complex composite relations — each treated as its own symmetric family so
+  // RINT can chain them (A rel B, B rel C → A rel C) like verbal ones.
+  { rels: ['THREE_PAIRS_ONE_DIFFERENT'], inv: {} },
+  { rels: ['FOUR_PAIRS_GRID'], inv: {} },
+  { rels: ['TWO_OF_THREE_HOLLOW'], inv: {} },
+  { rels: ['ODD_COLOR_OUT'], inv: {} },
+  { rels: ['ODD_SHAPE_OUT'], inv: {} },
 ];
 
 // Build a quick lookup: rel → family index
