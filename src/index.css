@@ -1,0 +1,125 @@
+@import url('https://fonts.googleapis.com/css2?family=JetBrains+Mono:wght@300;400;500;600;700&family=Inter:wght@300;400;500;600&display=swap');
+
+@tailwind base;
+@tailwind components;
+@tailwind utilities;
+
+@layer base {
+  :root {
+    --background: 220 20% 6%;
+    --foreground: 210 20% 92%;
+    --card: 220 18% 10%;
+    --card-foreground: 210 20% 92%;
+    --popover: 220 18% 10%;
+    --popover-foreground: 210 20% 92%;
+    --primary: 168 80% 50%;
+    --primary-foreground: 220 20% 6%;
+    --secondary: 220 16% 16%;
+    --secondary-foreground: 210 20% 80%;
+    --muted: 220 16% 14%;
+    --muted-foreground: 210 10% 50%;
+    --accent: 260 60% 60%;
+    --accent-foreground: 210 20% 92%;
+    --destructive: 0 72% 55%;
+    --destructive-foreground: 0 0% 98%;
+    --border: 220 16% 18%;
+    --input: 220 16% 18%;
+    --ring: 168 80% 50%;
+    --chart-1: 168 80% 50%;
+    --chart-2: 260 60% 60%;
+    --chart-3: 30 90% 60%;
+    --chart-4: 340 75% 55%;
+    --chart-5: 200 80% 55%;
+    --radius: 0.5rem;
+    --sidebar-background: 220 18% 8%;
+    --sidebar-foreground: 210 20% 92%;
+    --sidebar-primary: 168 80% 50%;
+    --sidebar-primary-foreground: 220 20% 6%;
+    --sidebar-accent: 220 16% 14%;
+    --sidebar-accent-foreground: 210 20% 92%;
+    --sidebar-border: 220 16% 18%;
+    --sidebar-ring: 168 80% 50%;
+
+    --font-mono: 'JetBrains Mono', monospace;
+    --font-sans: 'Inter', sans-serif;
+  }
+
+  .dark {
+    --background: 220 20% 6%;
+    --foreground: 210 20% 92%;
+    --card: 220 18% 10%;
+    --card-foreground: 210 20% 92%;
+    --popover: 220 18% 10%;
+    --popover-foreground: 210 20% 92%;
+    --primary: 168 80% 50%;
+    --primary-foreground: 220 20% 6%;
+    --secondary: 220 16% 16%;
+    --secondary-foreground: 210 20% 80%;
+    --muted: 220 16% 14%;
+    --muted-foreground: 210 10% 50%;
+    --accent: 260 60% 60%;
+    --accent-foreground: 210 20% 92%;
+    --destructive: 0 72% 55%;
+    --destructive-foreground: 0 0% 98%;
+    --border: 220 16% 18%;
+    --input: 220 16% 18%;
+    --ring: 168 80% 50%;
+    --chart-1: 168 80% 50%;
+    --chart-2: 260 60% 60%;
+    --chart-3: 30 90% 60%;
+    --chart-4: 340 75% 55%;
+    --chart-5: 200 80% 55%;
+    --sidebar-background: 220 18% 8%;
+    --sidebar-foreground: 210 20% 92%;
+    --sidebar-primary: 168 80% 50%;
+    --sidebar-primary-foreground: 220 20% 6%;
+    --sidebar-accent: 220 16% 14%;
+    --sidebar-accent-foreground: 210 20% 92%;
+    --sidebar-border: 220 16% 18%;
+    --sidebar-ring: 168 80% 50%;
+  }
+}
+
+@layer base {
+  * {
+    @apply border-border outline-ring/50;
+  }
+  html, body, #root {
+    @apply h-full;
+  }
+  body {
+    @apply bg-background text-foreground;
+    /* Better feel on iOS: prevent rubber-band scroll inside the game, allow text selection only where intended. */
+    overscroll-behavior-y: contain;
+    -webkit-tap-highlight-color: transparent;
+  }
+  /* Honor iOS safe-areas (notches / home indicator). */
+  body {
+    padding-left: env(safe-area-inset-left);
+    padding-right: env(safe-area-inset-right);
+  }
+  /* Custom range slider thumb sizes for touch */
+  input[type="range"] {
+    -webkit-appearance: none;
+    appearance: none;
+    background: transparent;
+  }
+  input[type="range"]::-webkit-slider-thumb {
+    -webkit-appearance: none;
+    appearance: none;
+    width: 20px;
+    height: 20px;
+    border-radius: 50%;
+    background: hsl(var(--primary));
+    border: 2px solid hsl(var(--background));
+    cursor: pointer;
+  }
+  input[type="range"]::-moz-range-thumb {
+    width: 20px;
+    height: 20px;
+    border-radius: 50%;
+    background: hsl(var(--primary));
+    border: 2px solid hsl(var(--background));
+    cursor: pointer;
+  }
+}
