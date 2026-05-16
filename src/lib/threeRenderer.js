@@ -1,5 +1,5 @@
 import * as THREE from 'three';
-import { renderRelationship } from './relationshipRenderer';
+import { renderRelationship, drawAlienPanelLabel } from './relationshipRenderer';
 
 // 3D shapes using Three.js
 const SHAPES_3D = ['cube', 'sphere', 'pyramid', 'cone', 'torus', 'octahedron'];
@@ -74,6 +74,12 @@ function createRelationPanelTexture(relationship, stimulus, alienCubeScale = 1) 
     scaledW,
     scaledH
   );
+
+  // Relation-name + category pill so the player can verify which relation
+  // type they're looking at. Without it the SPATIAL_3D 2D fallbacks look
+  // indistinguishable from non-3D spatial rels and players think the engine
+  // is ignoring their pool selection.
+  drawAlienPanelLabel(ctx, panelCanvas.width, relationship);
 
   const texture = new THREE.CanvasTexture(panelCanvas);
   texture.colorSpace = THREE.SRGBColorSpace;

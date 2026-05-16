@@ -1,5 +1,5 @@
 import React, { useRef, useEffect } from 'react';
-import { renderRelationship, renderAlienSquare, is3D } from '@/lib/relationshipRenderer';
+import { renderRelationship, renderAlienSquare, is3D, drawAlienPanelLabel } from '@/lib/relationshipRenderer';
 import { render3DRelationship } from '@/lib/threeRenderer';
 
 export default function GameCanvas({ relationship, stimulus, clearCanvas, rintChain, streamCount = 1 }) {
@@ -54,6 +54,9 @@ export default function GameCanvas({ relationship, stimulus, clearCanvas, rintCh
       panelCanvas.height = 400;
       const panelCtx = panelCanvas.getContext('2d');
       renderRelationship(panelCtx, panelCanvas.width, panelCanvas.height, relationship, null, { ...stimulus, renderScale: 0.95 });
+      // Same affordance as the cube panel — stamp the relation name so the
+      // player can read it through the rotating grid.
+      drawAlienPanelLabel(panelCtx, panelCanvas.width, relationship);
 
       let animationId;
       const draw = () => {
