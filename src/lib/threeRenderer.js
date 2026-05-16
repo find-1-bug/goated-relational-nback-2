@@ -1,5 +1,5 @@
 import * as THREE from 'three';
-import { renderRelationship, drawAlienPanelLabel } from './relationshipRenderer';
+import { renderRelationship, is3D } from './relationshipRenderer';
 
 // 3D shapes using Three.js
 const SHAPES_3D = ['cube', 'sphere', 'pyramid', 'cone', 'torus', 'octahedron'];
@@ -40,6 +40,97 @@ function createShape3D(shapeType, size, color) {
   return mesh;
 }
 
+// Position two meshes per a SPATIAL_3D relationship's semantics. Shared by
+// the standalone 3D renderer and the offscreen still-render used inside
+// alien-cube / square / tesseract panels.
+function applySpatial3DPositioning(relationship, mesh1, mesh2) {
+  switch (relationship) {
+    case 'DEPTH_LAYERED':       mesh1.position.z = -2; mesh2.position.z = 2; break;
+    case 'ORBITING':            mesh1.position.set(0, 0, 0); mesh2.position.set(3, 0, 0); break;
+    case 'ROTATING_PAIR':       mesh1.position.set(-2, 0, 0); mesh2.position.set(2, 0, 0); break;
+    case 'NESTED_VOLUME':       mesh1.position.set(0, 0, 0); mesh2.position.set(0, 0, 0); mesh2.scale.set(0.5, 0.5, 0.5); break;
+    case 'ASCENDING_SPIRAL':    mesh1.position.set(0, -2, 0); mesh2.position.set(2, 2, 0); break;
+    case 'COLLIDING':           mesh1.position.set(-1.5, 0, 0); mesh2.position.set(1.5, 0, 0); break;
+    case 'REPELLING':           mesh1.position.set(-3, 0, 0); mesh2.position.set(3, 0, 0); break;
+    case 'BOUND_BY_GRAVITY':    mesh1.position.set(0, 0, 0); mesh2.position.set(0, -3, 0); break;
+    case 'INTERSECTING_PLANES': mesh1.position.set(-1, 0, 0); mesh2.position.set(1, 0, 0); mesh2.rotation.z = Math.PI / 4; break;
+    case 'IN_FRONT_OF':         mesh1.position.z = 2; mesh2.position.z = -1; break;
+    case 'BEHIND':              mesh1.position.z = -2; mesh2.position.z = 1; break;
+    case 'STACKED_3D':          mesh1.position.set(0, 0.8, 0); mesh2.position.set(0, -0.8, 0); break;
+    case 'LEANING_AGAINST':     mesh1.position.set(-1.5, 0, 0); mesh1.rotation.z = 0.3; mesh2.position.set(1.5, 0, 0); break;
+    case 'FLOATING_ABOVE':      mesh1.position.set(0, 2, 0); mesh2.position.set(0, -1, 0); break;
+    case 'CASTING_SHADOW':      mesh1.position.set(-1, 1.5, 1); mesh2.position.set(-1, -1.5, -2); break;
+  }
+}
+
+// Singleton offscreen renderer for one-shot 3D snapshots used as 2D
+// textures inside the alien panels. Reusing a single GL context avoids
+// hitting the browser's per-page WebGL context cap (typically ~16) when
+// trials fire in rapid succession.
+let _stillRenderer = null;
+let _stillRendererSize = { w: 0, h: 0 };
+function getStillRenderer(width, height) {
+  if (!_stillRenderer) {
+    const canvas = document.createElement('canvas');
+    _stillRenderer = new THREE.WebGLRenderer({ canvas, antialias: true, preserveDrawingBuffer: true });
+    _stillRenderer.setPixelRatio(1);
+  }
+  if (_stillRendererSize.w !== width || _stillRendererSize.h !== height) {
+    _stillRenderer.setSize(width, height, false);
+    _stillRendererSize = { w: width, h: height };
+  }
+  return _stillRenderer;
+}
+
+// One-shot 3D render of a SPATIAL_3D relationship into a fresh 2D canvas.
+// Returned canvas can be drawn into any 2D context as if it were a static
+// image. Internally disposes scene resources after rendering so a session
+// of 100s of trials doesn't leak GPU memory.
+export function renderSpatial3DToCanvas(width, height, relationship, stimulus, colors) {
+  const renderer = getStillRenderer(width, height);
+  const scene = new THREE.Scene();
+  scene.background = new THREE.Color(0x080d16);
+
+  const camera = new THREE.PerspectiveCamera(45, width / height, 0.1, 1000);
+  camera.position.set(0, 1, 7.5);
+  camera.lookAt(0, 0, 0);
+
+  scene.add(new THREE.AmbientLight(0xffffff, 0.55));
+  const directional = new THREE.DirectionalLight(0xffffff, 1);
+  directional.position.set(8, 10, 8);
+  scene.add(directional);
+
+  const toColor = c => typeof c === 'string' && c.startsWith('#') ? parseInt(c.slice(1), 16) : c;
+  const shape1 = stimulus?.shape3DA || SHAPES_3D[0];
+  const shape2 = stimulus?.shape3DB || SHAPES_3D[1];
+  const size1 = stimulus?.size3DA || 2.5;
+  const size2 = stimulus?.size3DB || 2.5;
+  const mesh1 = createShape3D(shape1, size1, toColor((colors && colors[0]) || stimulus?.colorA || '#22d3ee'));
+  const mesh2 = createShape3D(shape2, size2, toColor((colors && colors[1]) || stimulus?.colorB || '#a78bfa'));
+  applySpatial3DPositioning(relationship, mesh1, mesh2);
+  scene.add(mesh1);
+  scene.add(mesh2);
+
+  renderer.render(scene, camera);
+
+  // Snapshot pixels into an independent canvas so the next call's render
+  // doesn't overwrite this one's content.
+  const out = document.createElement('canvas');
+  out.width = width;
+  out.height = height;
+  out.getContext('2d').drawImage(renderer.domElement, 0, 0, width, height);
+
+  // Free scene GPU resources.
+  scene.traverse((object) => {
+    if (object.geometry) object.geometry.dispose();
+    if (object.material) {
+      if (Array.isArray(object.material)) object.material.forEach(m => m.dispose());
+      else object.material.dispose();
+    }
+  });
+  return out;
+}
+
 function createRelationPanelTexture(relationship, stimulus, alienCubeScale = 1) {
   const panelCanvas = document.createElement('canvas');
   panelCanvas.width = 900;
@@ -50,11 +141,18 @@ function createRelationPanelTexture(relationship, stimulus, alienCubeScale = 1) 
   contentCanvas.width = 900;
   contentCanvas.height = 560;
   const contentCtx = contentCanvas.getContext('2d');
-  const contentScale = Math.min(1.28, 1 + Math.max(0, alienCubeScale - 1) * 0.75);
-  renderRelationship(contentCtx, contentCanvas.width, contentCanvas.height, relationship, null, {
-    ...stimulus,
-    renderScale: contentScale,
-  });
+  if (is3D(relationship)) {
+    // SPATIAL_3D rels deserve real 3D rendering inside the alien panel,
+    // not a flat 2D fallback that looks like an ordinary spatial rel.
+    const still = renderSpatial3DToCanvas(contentCanvas.width, contentCanvas.height, relationship, stimulus, [stimulus?.colorA, stimulus?.colorB]);
+    contentCtx.drawImage(still, 0, 0);
+  } else {
+    const contentScale = Math.min(1.28, 1 + Math.max(0, alienCubeScale - 1) * 0.75);
+    renderRelationship(contentCtx, contentCanvas.width, contentCanvas.height, relationship, null, {
+      ...stimulus,
+      renderScale: contentScale,
+    });
+  }
 
   ctx.fillStyle = 'rgba(8, 13, 22, 0.92)';
   ctx.fillRect(0, 0, panelCanvas.width, panelCanvas.height);
@@ -74,12 +172,6 @@ function createRelationPanelTexture(relationship, stimulus, alienCubeScale = 1) 
     scaledW,
     scaledH
   );
-
-  // Relation-name + category pill so the player can verify which relation
-  // type they're looking at. Without it the SPATIAL_3D 2D fallbacks look
-  // indistinguishable from non-3D spatial rels and players think the engine
-  // is ignoring their pool selection.
-  drawAlienPanelLabel(ctx, panelCanvas.width, relationship);
 
   const texture = new THREE.CanvasTexture(panelCanvas);
   texture.colorSpace = THREE.SRGBColorSpace;
@@ -374,73 +466,7 @@ export function render3DRelationship(canvas, relationship, colors, rintChain = n
   if (!stimulus?.cubePosition && !stimulus?.tesseractPosition && (!rintChain || rintChain.length === 0)) {
     const mesh1 = meshes[0];
     const mesh2 = meshes[1];
-    
-    switch (relationship) {
-      case 'DEPTH_LAYERED':
-        mesh1.position.z = -2;
-        mesh2.position.z = 2;
-        break;
-      case 'ORBITING':
-        mesh1.position.set(0, 0, 0);
-        mesh2.position.set(3, 0, 0);
-        break;
-      case 'ROTATING_PAIR':
-        mesh1.position.set(-2, 0, 0);
-        mesh2.position.set(2, 0, 0);
-        break;
-      case 'NESTED_VOLUME':
-        mesh1.position.set(0, 0, 0);
-        mesh2.position.set(0, 0, 0);
-        mesh2.scale.set(0.5, 0.5, 0.5);
-        break;
-      case 'ASCENDING_SPIRAL':
-        mesh1.position.set(0, -2, 0);
-        mesh2.position.set(2, 2, 0);
-        break;
-      case 'COLLIDING':
-        mesh1.position.set(-1.5, 0, 0);
-        mesh2.position.set(1.5, 0, 0);
-        break;
-      case 'REPELLING':
-        mesh1.position.set(-3, 0, 0);
-        mesh2.position.set(3, 0, 0);
-        break;
-      case 'BOUND_BY_GRAVITY':
-        mesh1.position.set(0, 0, 0);
-        mesh2.position.set(0, -3, 0);
-        break;
-      case 'INTERSECTING_PLANES':
-        mesh1.position.set(-1, 0, 0);
-        mesh2.position.set(1, 0, 0);
-        mesh2.rotation.z = Math.PI / 4;
-        break;
-      case 'IN_FRONT_OF':
-        mesh1.position.z = 2;
-        mesh2.position.z = -1;
-        break;
-      case 'BEHIND':
-        mesh1.position.z = -2;
-        mesh2.position.z = 1;
-        break;
-      case 'STACKED_3D':
-        mesh1.position.set(0, 0.8, 0);
-        mesh2.position.set(0, -0.8, 0);
-        break;
-      case 'LEANING_AGAINST':
-        mesh1.position.set(-1.5, 0, 0);
-        mesh1.rotation.z = 0.3;
-        mesh2.position.set(1.5, 0, 0);
-        break;
-      case 'FLOATING_ABOVE':
-        mesh1.position.set(0, 2, 0);
-        mesh2.position.set(0, -1, 0);
-        break;
-      case 'CASTING_SHADOW':
-        mesh1.position.set(-1, 1.5, 1);
-        mesh2.position.set(-1, -1.5, -2);
-        break;
-    }
-    
+    applySpatial3DPositioning(relationship, mesh1, mesh2);
     scene.add(mesh1);
     scene.add(mesh2);
   }

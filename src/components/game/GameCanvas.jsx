@@ -1,6 +1,6 @@
 import React, { useRef, useEffect } from 'react';
-import { renderRelationship, renderAlienSquare, is3D, drawAlienPanelLabel } from '@/lib/relationshipRenderer';
-import { render3DRelationship } from '@/lib/threeRenderer';
+import { renderRelationship, renderAlienSquare, is3D } from '@/lib/relationshipRenderer';
+import { render3DRelationship, renderSpatial3DToCanvas } from '@/lib/threeRenderer';
 
 export default function GameCanvas({ relationship, stimulus, clearCanvas, rintChain, streamCount = 1 }) {
   const canvasRef = useRef(null);
@@ -53,10 +53,15 @@ export default function GameCanvas({ relationship, stimulus, clearCanvas, rintCh
       panelCanvas.width = 640;
       panelCanvas.height = 400;
       const panelCtx = panelCanvas.getContext('2d');
-      renderRelationship(panelCtx, panelCanvas.width, panelCanvas.height, relationship, null, { ...stimulus, renderScale: 0.95 });
-      // Same affordance as the cube panel — stamp the relation name so the
-      // player can read it through the rotating grid.
-      drawAlienPanelLabel(panelCtx, panelCanvas.width, relationship);
+      if (is3D(relationship)) {
+        // Bake a real 3D snapshot for SPATIAL_3D rels so the alien-square
+        // panel doesn't show a flat 2D fallback that's indistinguishable
+        // from non-3D spatial rels.
+        const still = renderSpatial3DToCanvas(panelCanvas.width, panelCanvas.height, relationship, stimulus, [stimulus?.colorA, stimulus?.colorB]);
+        panelCtx.drawImage(still, 0, 0);
+      } else {
+        renderRelationship(panelCtx, panelCanvas.width, panelCanvas.height, relationship, null, { ...stimulus, renderScale: 0.95 });
+      }
 
       let animationId;
       const draw = () => {

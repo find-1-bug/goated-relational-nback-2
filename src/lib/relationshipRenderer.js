@@ -1,54 +1,9 @@
 import { drawShape } from './shapeRenderer';
-import { SHAPES, COLORS, pickRandom, pickRandomExcluding, randomBetween, isVerbal, isSound, getVerbalPair, buildVerbalDisplay, buildSoundDisplay, VORONOI_TOKEN_PREFIX, RELATIONSHIP_CATEGORIES, getCategory } from './gameConstants';
+import { SHAPES, COLORS, pickRandom, pickRandomExcluding, randomBetween, isVerbal, isSound, getVerbalPair, buildVerbalDisplay, buildSoundDisplay, VORONOI_TOKEN_PREFIX, RELATIONSHIP_CATEGORIES } from './gameConstants';
 
 // Check if a relationship is 3D
 export function is3D(relationship) {
   return RELATIONSHIP_CATEGORIES.SPATIAL_3D.includes(relationship);
-}
-
-const CATEGORY_DISPLAY = {
-  SPATIAL: 'Spatial', SPATIAL_3D: 'Spatial 3D', TRAIT: 'Trait',
-  QUANT: 'Quant', COMPLEX: 'Complex', VERBAL: 'Verbal', SOUND: 'Sound',
-};
-const CATEGORY_COLOR = {
-  SPATIAL: 'hsl(190, 90%, 65%)', SPATIAL_3D: 'hsl(205, 90%, 65%)',
-  TRAIT: 'hsl(265, 85%, 70%)', QUANT: 'hsl(40, 90%, 60%)',
-  COMPLEX: 'hsl(305, 85%, 70%)', VERBAL: 'hsl(150, 75%, 60%)',
-  SOUND: 'hsl(350, 80%, 65%)',
-};
-
-// Public helper used by the alien-cube / square / tesseract panels so the
-// player can read which relation type they're being shown. The cube spins,
-// the panel can sit behind a grid edge, and the new SPATIAL_3D 2D fallbacks
-// look like ordinary 2D Spatial rels — without this label, players think
-// the engine is ignoring their pool selection.
-export function drawAlienPanelLabel(ctx, canvasW, relationship) {
-  if (!relationship) return;
-  const pretty = String(relationship).replace(/_/g, ' ');
-  const category = getCategory(relationship);
-  const catLabel = CATEGORY_DISPLAY[category] || '';
-  const catColor = CATEGORY_COLOR[category] || 'hsl(168, 80%, 70%)';
-  ctx.save();
-  ctx.font = `bold ${Math.min(canvasW * 0.034, 18)}px 'JetBrains Mono', monospace`;
-  ctx.textAlign = 'center';
-  ctx.textBaseline = 'top';
-  const text = catLabel ? `${catLabel} · ${pretty}` : pretty;
-  const padX = 14;
-  const textW = ctx.measureText(text).width;
-  const pillW = textW + padX * 2;
-  const pillH = 28;
-  const x = canvasW / 2 - pillW / 2;
-  const y = 10;
-  ctx.fillStyle = 'rgba(8, 13, 22, 0.82)';
-  ctx.strokeStyle = catColor;
-  ctx.lineWidth = 1.5;
-  ctx.beginPath();
-  ctx.roundRect(x, y, pillW, pillH, 10);
-  ctx.fill();
-  ctx.stroke();
-  ctx.fillStyle = catColor;
-  ctx.fillText(text, canvasW / 2, y + 6);
-  ctx.restore();
 }
 
 export function renderAlienSquare(ctx, canvasW, canvasH, relationship, stimulus, panelCanvas = null) {
