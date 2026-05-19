@@ -2,7 +2,7 @@ import React from 'react';
 import { Link } from 'react-router-dom';
 import { motion } from 'framer-motion';
 import { Button } from '@/components/ui/button';
-import { ChevronLeft, Brain, Zap, Layers, Gamepad2 } from 'lucide-react';
+import { ChevronLeft, Brain, Zap, Layers, Gamepad2, GitBranch, Hash } from 'lucide-react';
 
 export default function Tutorial() {
   const sections = [
@@ -19,12 +19,12 @@ export default function Tutorial() {
     {
       icon: Zap,
       title: 'Controls',
-      description: 'Each stream has dedicated relationship keys. Alien modes also add separate position keys, so press REL for relationship matches and POS for square/cube/tesseract position matches.'
+      description: 'Each stream has dedicated keys: REL for relationship matches, POS when an alien mode adds a position axis, and CCT when the CCT side-task or a CCT stream is in play. Press all axes that fire on a given trial — they\'re scored independently.'
     },
     {
       icon: Layers,
       title: 'Enhancement Modes',
-      description: 'Type N-Back matches by relationship type only. RINT uses logical reasoning. Mixed/Impossible randomize rules. Binary Logic combines two conditions.'
+      description: 'Type N-Back matches by relationship type only. RINT uses logical reasoning across transitive relations. Nonverbal RINT uses cross-modal attribute composites. CCT is arithmetic n-back. Mixed/Impossible randomize rules; Binary Logic combines two conditions per trial.'
     },
   ];
 
@@ -42,10 +42,11 @@ export default function Tutorial() {
           <h2 className="text-lg font-mono font-semibold text-primary mb-3">Quick Start</h2>
           <ol className="space-y-2 text-sm font-mono text-foreground/90">
             <li><span className="text-primary font-bold">1.</span> Choose N-level (how many trials back to remember)</li>
-            <li><span className="text-primary font-bold">2.</span> Pick relationship types (spatial, trait, quantitative, verbal, sound)</li>
-            <li><span className="text-primary font-bold">3.</span> Set trial count, trial speed, and optional carousel speed</li>
-            <li><span className="text-primary font-bold">4.</span> Press the key when you see a match</li>
-            <li><span className="text-primary font-bold">5.</span> Get feedback on accuracy & track progress in Stats</li>
+            <li><span className="text-primary font-bold">2.</span> Pick relationship types (spatial, trait, quantitative, complex, verbal, sound) — ignored when Nonverbal RINT or pure-CCT streams are in play</li>
+            <li><span className="text-primary font-bold">3.</span> Add streams; toggle each stream's REL / CCT type, or layer on alien-position and CCT-side-task axes for dual/triple-task training</li>
+            <li><span className="text-primary font-bold">4.</span> Set trial count, trial speed, and optional carousel speed</li>
+            <li><span className="text-primary font-bold">5.</span> Press the matching key when you see a target — every axis is scored independently</li>
+            <li><span className="text-primary font-bold">6.</span> Review feedback after each trial (if Per-Trial Feedback is on), or check the session-end summary &amp; Stats page</li>
           </ol>
         </div>
 
@@ -81,13 +82,13 @@ export default function Tutorial() {
               <span className="text-primary font-semibold">N-Level:</span> How many trials back to match (1 = easiest, higher = harder)
             </div>
             <div>
-              <span className="text-primary font-semibold">Relationship Types:</span> Categories of visual/verbal relationships to include
+              <span className="text-primary font-semibold">Relationship Types:</span> Categories of visual/verbal relationships to include — Spatial, Spatial 3D, Trait, Quantitative, <span className="text-foreground">Complex</span> (scan-for-difference composites), Verbal, Sound. <span className="text-foreground/60">Ignored when Nonverbal RINT is the active mode.</span>
             </div>
             <div>
-              <span className="text-primary font-semibold">Stimuli Mix:</span> Balance category distribution (equal or custom weights)
+              <span className="text-primary font-semibold">Stimuli Mix:</span> Balance category distribution (equal or custom weights). Lets you focus a session on, e.g., 70% Spatial 3D + 30% Complex.
             </div>
             <div>
-              <span className="text-primary font-semibold">Streams:</span> Multiple simultaneous sequences (Stream A, B, C, etc.). Up to 20 streams can be configured for extreme training.
+              <span className="text-primary font-semibold">Streams:</span> Multiple simultaneous sequences (Stream A, B, C, etc.). Up to 20 streams. Each row has a <span className="text-foreground">REL / CCT</span> pill — switch a stream to <span className="text-foreground">CCT</span> to make it a pure arithmetic stream while others run relations.
             </div>
             <div>
               <span className="text-primary font-semibold">Automated Carousel:</span> When many streams cannot fit comfortably, the game splits them into timed slides. Watch all slides first, then responses unlock for the response window. Carousel Speed controls slide timing separately from Trial Speed.
@@ -128,6 +129,15 @@ export default function Tutorial() {
               <span className="text-accent font-semibold">RINT (Relational Integration):</span> Use <span className="text-foreground font-semibold">logical reasoning</span> to chain facts. E.g., "A &gt; B" + "B &gt; C" logically proves "A &gt; C"—that's a match. Only uses <span className="text-foreground">transitive relationships</span> (comparisons, directions, temporal) to ensure valid logical chains. Tests <span className="text-foreground">transitive reasoning & working memory</span>. Requires N≥2.
             </div>
             <div>
+              <span className="text-accent font-semibold">Nonverbal RINT:</span> Each stim carries up to <span className="text-foreground font-semibold">4 independent attribute flags</span> — <span className="text-foreground">touching</span>, <span className="text-foreground">hollow</span>, <span className="text-foreground">size-mismatch</span>, and <span className="text-foreground">audio</span> (a brief tone). A target fires when the <span className="text-foreground">union (OR)</span> of the last N stims' attribute sets exactly equals the current stim. Genuinely cross-modal (visual + auditory). Replaces the entire relationship pool. Requires N≥2.
+            </div>
+            <div>
+              <span className="text-accent font-semibold">CCT (Cognitive Control Training):</span> Pure arithmetic n-back. Each trial shows a digit (1–9); from trial N onwards a candidate result also appears. Press REL when <span className="text-foreground font-semibold">result == current_digit + digit_from_N-back</span>. Replaces the entire relationship pool for that stream. No relations, no shapes — just numbers + working memory. Available as a global mode (all streams CCT) or as a per-stream type via the row's REL/CCT toggle.
+            </div>
+            <div>
+              <span className="text-accent font-semibold">CCT Side-Task:</span> Layers CCT onto every relation stream as a <span className="text-foreground font-semibold">separate response axis</span> (mirrors how Alien modes add a position axis). Each stream then has REL (relation), POS (if alien is on), and CCT (digit+result) keys. All three axes score independently — true dual/triple-task training.
+            </div>
+            <div>
               <span className="text-accent font-semibold">Mixed N-Back:</span> Randomly <span className="text-foreground font-semibold">switches between Normal and Type</span> each trial. You never know which rule applies, forcing <span className="text-foreground">cognitive flexibility</span>.
             </div>
             <div>
@@ -160,6 +170,59 @@ export default function Tutorial() {
             <div>
               <span className="text-accent font-semibold">Distractors:</span> Near-match stimuli from the same category appear as <span className="text-foreground font-semibold">interference</span>. Tests <span className="text-foreground">selective attention & resistance to confusion</span>.
             </div>
+            <div>
+              <span className="text-accent font-semibold">Per-Trial Feedback:</span> After every trial, each stream briefly flashes a verdict tag — <span className="text-foreground">HIT</span> · <span className="text-foreground">MISS</span> · <span className="text-foreground">FALSE ALARM</span> · <span className="text-foreground">CORRECT REJECTION</span> — alongside the relation name. Slows the session slightly but dramatically accelerates rule learning. Turn it on while you're new to a mode; turn it off once you can sight-read the visuals.
+            </div>
+          </div>
+        </div>
+
+        {/* Worked Examples for the new modes */}
+        <div className="rounded-lg bg-fuchsia-500/10 border border-fuchsia-500/30 p-6 mb-8">
+          <h2 className="text-lg font-mono font-semibold text-fuchsia-400 mb-4 flex items-center gap-2">
+            <GitBranch className="w-4 h-4" /> Worked Examples (N = 2)
+          </h2>
+
+          <div className="space-y-5 text-sm font-mono text-foreground/90">
+            <div>
+              <div className="text-fuchsia-300 font-semibold mb-2">Nonverbal RINT</div>
+              <p className="text-muted-foreground mb-2">Target = the <span className="text-foreground">union</span> of the last 2 attribute sets equals the current one.</p>
+              <div className="rounded bg-background/60 border border-border p-3 text-xs space-y-1">
+                <div>Trial 1: <span className="text-cyan-300">touching ✓</span> · <span className="text-emerald-300">audio ✓</span></div>
+                <div>Trial 2: <span className="text-violet-300">hollow ✓</span> · <span className="text-amber-300">size!= ✓</span></div>
+                <div className="text-muted-foreground/70">union = touching ✓ · hollow ✓ · size!= ✓ · audio ✓</div>
+                <div>Trial 3 shows all 4 flags ON → <span className="text-emerald-400 font-bold">TARGET, press REL</span></div>
+                <div>Trial 3 missing audio → <span className="text-red-400 font-bold">not a target</span></div>
+              </div>
+            </div>
+
+            <div>
+              <div className="text-fuchsia-300 font-semibold mb-2 flex items-center gap-2">
+                <Hash className="w-3.5 h-3.5" /> CCT (arithmetic)
+              </div>
+              <p className="text-muted-foreground mb-2">Target = candidate <span className="text-foreground">equals</span> current digit + digit from 2 trials ago.</p>
+              <div className="rounded bg-background/60 border border-border p-3 text-xs space-y-1">
+                <div>Trial 1: digit <span className="text-cyan-300 font-bold">3</span> (observe)</div>
+                <div>Trial 2: digit <span className="text-cyan-300 font-bold">5</span> (observe)</div>
+                <div>Trial 3: digit <span className="text-cyan-300 font-bold">4</span>, candidate <span className="text-amber-300 font-bold">7</span> → 4 + 3 = 7 → <span className="text-emerald-400 font-bold">TARGET</span></div>
+                <div>Trial 4: digit <span className="text-cyan-300 font-bold">2</span>, candidate <span className="text-amber-300 font-bold">9</span> → 2 + 5 = 7 ≠ 9 → <span className="text-red-400 font-bold">not a target</span></div>
+              </div>
+            </div>
+
+            <div>
+              <div className="text-fuchsia-300 font-semibold mb-2">CCT Side-Task on a relation stream</div>
+              <p className="text-muted-foreground mb-2">Same arithmetic rule, but it runs <span className="text-foreground">alongside</span> the relation n-back on the same stream. Two response axes:</p>
+              <div className="rounded bg-background/60 border border-border p-3 text-xs space-y-1">
+                <div>Trial 5 shows: <span className="text-primary">Inside</span> relation + <span className="text-cyan-300">CCT 6 ≟ <span className="text-amber-300">11</span></span></div>
+                <div>Press <span className="text-primary font-bold">REL</span> if Inside matches the relation from trial 3 (independent of CCT)</div>
+                <div>Press <span className="text-rose-300 font-bold">CCT</span> if 6 + (trial 3's digit) equals 11 (independent of relation)</div>
+                <div className="text-muted-foreground/70">Each axis scores its own hit / miss / FA / CR.</div>
+              </div>
+            </div>
+
+            <div>
+              <div className="text-fuchsia-300 font-semibold mb-2">Complex relations</div>
+              <p className="text-muted-foreground">Five new scan-for-difference relations live in their own <span className="text-foreground">Complex</span> category — e.g. "3 Pairs · 1 Different" shows three pairs of shapes where two pairs are touching and one has a gap. You play them like any normal n-back relation, except the visual content forces you to scan multiple groups rather than just compare two shapes. Try the Stimuli Mix slider with Complex weighted at 30–50% for a focused session.</p>
+            </div>
           </div>
         </div>
 
@@ -172,6 +235,14 @@ export default function Tutorial() {
             <li>• <span className="text-accent">Review Sessions:</span> Check your performance in Stats to identify weak modes</li>
             <li>• <span className="text-accent">Progressive Difficulty:</span> Use Adaptive Mode to auto-adjust N-level</li>
           </ul>
+        </div>
+
+        {/* Install hint */}
+        <div className="rounded-lg bg-primary/5 border border-primary/20 p-5 mb-8">
+          <h2 className="text-base font-mono font-semibold text-primary mb-2">Install as an app</h2>
+          <p className="text-sm font-mono text-muted-foreground">
+            On Chrome / Edge / Android the dashboard shows an <span className="text-primary">Install app</span> button — one tap installs a home-screen icon and runs the trainer full-screen with no browser chrome. On iOS Safari, tap <span className="text-foreground">Share → Add to Home Screen</span>. The app also works offline after the first load — all sessions live in your browser.
+          </p>
         </div>
 
         {/* Back Button */}
