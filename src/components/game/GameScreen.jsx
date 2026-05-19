@@ -558,21 +558,22 @@ export default function GameScreen({ nLevel, modes, relationshipPool, totalRound
                     {audioEarForIndex(idx)}
                   </div>
                 )}
-                {/* CCT side-task pill — visible whenever the engine attached
-                    a CCT layer to this stream's stim. The relation visual
-                    underneath stays untouched; the player must press the
-                    stream's CCT key when result === current + N-back. */}
+                {/* CCT side-task banner — visible whenever the engine
+                    attached a CCT layer to this stream's stim. Sits at the
+                    top-center of the card with large, contrasted digits so
+                    the player can scan it without dragging eyes off the
+                    relation visual underneath. */}
                 {hasCCTOverlay && allStreams[idx]?.streamType !== 'cct' && phase === 'stimulus' && !clearCanvas && s.stimulus?.cctNumber != null && (
-                  <div className="absolute top-2 right-3 pointer-events-none flex items-center gap-1 px-2 py-1 rounded-md bg-secondary/85 border border-rose-400/60 shadow-[0_0_18px_rgba(251,113,133,0.25)] font-mono text-sm z-10">
-                    <span className="text-[10px] text-rose-300/80 mr-1 uppercase tracking-widest">CCT</span>
-                    <span className="font-bold text-cyan-300 text-lg leading-none">{s.stimulus.cctNumber}</span>
+                  <div className="absolute top-1.5 left-1/2 -translate-x-1/2 pointer-events-none flex items-center gap-1.5 sm:gap-2 px-2.5 sm:px-3.5 py-1 sm:py-1.5 rounded-xl bg-background/85 backdrop-blur-sm border-2 border-rose-400/70 shadow-[0_0_28px_rgba(251,113,133,0.45)] font-mono z-10 whitespace-nowrap">
+                    <span className="text-[10px] sm:text-xs text-rose-300 uppercase tracking-widest font-bold">CCT</span>
+                    <span className="font-bold text-cyan-300 text-2xl sm:text-3xl leading-none drop-shadow-[0_0_6px_rgba(34,211,238,0.6)]">{s.stimulus.cctNumber}</span>
                     {s.stimulus.cctResult != null ? (
                       <>
-                        <span className="text-muted-foreground/70 text-xs mx-1">≟</span>
-                        <span className="font-bold text-amber-300 text-lg leading-none">{s.stimulus.cctResult}</span>
+                        <span className="text-rose-300 text-sm sm:text-base font-bold leading-none">+N≟</span>
+                        <span className="font-bold text-amber-300 text-2xl sm:text-3xl leading-none drop-shadow-[0_0_6px_rgba(251,191,36,0.6)]">{s.stimulus.cctResult}</span>
                       </>
                     ) : (
-                      <span className="text-muted-foreground/50 text-xs ml-1">observe</span>
+                      <span className="text-muted-foreground/70 text-xs sm:text-sm italic ml-0.5">observe</span>
                     )}
                   </div>
                 )}
