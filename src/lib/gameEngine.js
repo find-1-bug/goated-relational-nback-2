@@ -120,9 +120,14 @@ function makeDistractor(targetRelationship, pool) {
   return pickRandomExcluding(candidates, targetRelationship);
 }
 
-function pickSoundStreamIndexes(totalStreams) {
-  const indexes = Array.from({ length: totalStreams }, (_, i) => i).sort(() => Math.random() - 0.5);
-  return indexes.slice(0, Math.min(2, totalStreams));
+function pickSoundStreamIndexes(candidates) {
+  // Accepts either a count (legacy) or a list of candidate stream indexes
+  // (current; relation-only streams) and returns up to 2 of them.
+  const indexes = Array.isArray(candidates)
+    ? [...candidates]
+    : Array.from({ length: candidates }, (_, i) => i);
+  indexes.sort(() => Math.random() - 0.5);
+  return indexes.slice(0, Math.min(2, indexes.length));
 }
 
 function pickCubePosition(excludePosition = null) {
@@ -503,9 +508,17 @@ function randomBinaryConfig(effectiveN) {
 
 // ─── State Creation ──────────────────────────────────────────────────────────
 
-export function createGameState({ nLevel, modes, relationshipPool, totalRounds, extraStreams = [], alienSettings = {} }) {
+export function createGameState({ nLevel, modes, relationshipPool, totalRounds, extraStreams = [], alienSettings = {}, streamA = null }) {
   const numExtra = extraStreams.length;
   const totalStreams = 1 + numExtra;
+  // Per-stream type: 'relation' (default) or 'cct'. Falls back to global 'cct'
+  // mode for backward compat — if user toggled the legacy global Enhancement
+  // Mode "CCT" on but never set per-stream streamTypes, every stream gets cct.
+  const defaultType = (modes || []).includes('cct') ? 'cct' : 'relation';
+  const streamTypes = [
+    streamA?.streamType || defaultType,
+    ...extraStreams.map(s => s?.streamType || defaultType),
+  ];
 
   return {
     nLevel,
@@ -515,6 +528,7 @@ export function createGameState({ nLevel, modes, relationshipPool, totalRounds, 
     round: 0,
     totalRounds: totalRounds || TOTAL_ROUNDS,
     numExtraStreams: numExtra,
+    streamTypes,
     // Per-trial randomized binary configs (only used when binary_logic mode is active)
     trialBinaryConfigs: Array(totalStreams).fill(null).map(() => ({ primaryMode: 'normal', binaryMode: null, binaryOp: 'AND' })),
     audioStreamIndexes: [],
@@ -577,19 +591,21 @@ export function generateNextStimulus(state) {
   const {
     nLevel, round, historyA, typeHistoryA, modes, relationshipPool,
     extraHistories, extraTypeHistories, rintStates, hierHistories, alienSettings,
+    streamTypes,
   } = state;
 
   const isNRINT = modes.includes('nonverbal_rint');
-  const isCCT = modes.includes('cct');
-  // When CCT or nonverbal-RINT is active, the only "relationship" is the
-  // mode-specific stimulus; ignore the user's pool selection.
-  const pool = isCCT
-    ? ['CCT_NUMERIC']
-    : isNRINT
-      ? ['NRINT_COMPOSITE']
-      : ((relationshipPool && relationshipPool.length > 0) ? relationshipPool : ALL_RELATIONSHIPS);
+  // CCT lives per-stream now (see streamTypes). The global pool for relation
+  // streams ignores CCT entirely. NRINT still owns the global pool when on.
+  const pool = isNRINT
+    ? ['NRINT_COMPOSITE']
+    : ((relationshipPool && relationshipPool.length > 0) ? relationshipPool : ALL_RELATIONSHIPS);
   const hasDistractors = modes.includes('distractors');
   const isImpossible = modes.includes('impossible');
+  // Modes without 'cct' — used for rollTrialMode on relation streams so a
+  // global cct toggle doesn't drag relation streams into cct mode.
+  const relationModes = (modes || []).filter(m => m !== 'cct');
+  const stypeOf = (idx) => (streamTypes && streamTypes[idx]) || 'relation';
 
   // Variable N
   const isVariableN = modes.includes('variable_n');
@@ -609,8 +625,12 @@ export function generateNextStimulus(state) {
   const soundPool = pool.filter(isSound);
   const nonSoundPool = pool.filter(rel => !isSound(rel));
   const allNonSoundPool = ALL_RELATIONSHIPS.filter(rel => !isSound(rel));
-  const audioStreamIndexes = totalStreams >= 2 && soundPool.length > 0 ? pickSoundStreamIndexes(totalStreams) : [];
+  // Only relation streams compete for the (limited) audio assignment — CCT
+  // streams ignore the pool entirely.
+  const relationStreamIndexes = Array.from({ length: totalStreams }, (_, i) => i).filter(i => stypeOf(i) === 'relation');
+  const audioStreamIndexes = relationStreamIndexes.length >= 2 && soundPool.length > 0 ? pickSoundStreamIndexes(relationStreamIndexes) : [];
   const streamPoolFor = (index) => {
+    if (stypeOf(index) === 'cct') return ['CCT_NUMERIC'];
     if (audioStreamIndexes.includes(index)) return soundPool;
     if (audioStreamIndexes.length > 0) return nonSoundPool.length > 0 ? nonSoundPool : allNonSoundPool;
     return pool;
@@ -622,13 +642,17 @@ export function generateNextStimulus(state) {
     : Array(totalStreams).fill({ primaryMode: 'normal', binaryMode: null, binaryOp: 'AND' });
 
   // ── Stream A ──
-  // When binary_logic: override trialMode with the randomized primary mode
-  const trialModeA = isBinaryLogic
+  // Per-stream streamType wins over global modes. A CCT stream always uses
+  // cct trialMode; a relation stream uses binary_logic / rollTrialMode based
+  // on the relation-only modes (so a stream typed "relation" isn't dragged
+  // into cct just because the legacy global cct flag is set).
+  const baseTrialModeA = isBinaryLogic
     ? (trialBinaryConfigs[0].primaryMode === 'rint' && effectiveN >= RINT_MIN_N ? 'rint'
         : trialBinaryConfigs[0].primaryMode === 'type' ? 'type'
         : trialBinaryConfigs[0].primaryMode === 'hierarchical' ? 'hierarchical'
         : 'normal')
-    : rollTrialMode(modes, effectiveN);
+    : rollTrialMode(relationModes, effectiveN);
+  const trialModeA = stypeOf(0) === 'cct' ? 'cct' : baseTrialModeA;
 
   const rintStateA = (rintStates && rintStates[0]) ? rintStates[0] : createRINTState();
   const cfgA = trialBinaryConfigs[0];
@@ -655,11 +679,13 @@ export function generateNextStimulus(state) {
 
   // ── Extra streams ──
   const extraStreamModes = (extraHistories || []).map((_, i) => {
+    const idx = 1 + i;
+    if (stypeOf(idx) === 'cct') return 'cct';
     if (isBinaryLogic) {
-      const pm = trialBinaryConfigs[1 + i]?.primaryMode;
+      const pm = trialBinaryConfigs[idx]?.primaryMode;
       return pm === 'rint' && effectiveN >= RINT_MIN_N ? 'rint' : pm === 'type' ? 'type' : pm === 'hierarchical' ? 'hierarchical' : 'normal';
     }
-    return isImpossible ? rollTrialMode(modes, effectiveN) : trialModeA;
+    return isImpossible ? rollTrialMode(relationModes, effectiveN) : baseTrialModeA;
   });
 
   const extraResults = (extraHistories || []).map((hist, i) => {

@@ -42,15 +42,15 @@ const MODE_OPTIONS = [
 ];
 
 // Modes that are mutually exclusive with each other (only one from each group active)
+// CCT is intentionally *not* in any exclusive group anymore — it's a stream
+// type, not a core matching rule, so it freely blends with type_nback / rint /
+// mixed / binary_logic / alien-modes via the per-stream REL/CCT toggle.
 const EXCLUSIVE_GROUPS = [
-  ['type_nback', 'mixed_nback', 'mixed_rint', 'impossible', 'nonverbal_rint', 'cct'],
-  ['rint', 'mixed_rint', 'impossible', 'nonverbal_rint', 'cct'],
+  ['type_nback', 'mixed_nback', 'mixed_rint', 'impossible', 'nonverbal_rint'],
+  ['rint', 'mixed_rint', 'impossible', 'nonverbal_rint'],
   // binary_logic overrides the primary nback type selection per trial so conflicts with fixed-mode selectors
-  ['binary_logic', 'mixed_nback', 'mixed_rint', 'impossible', 'nonverbal_rint', 'cct'],
+  ['binary_logic', 'mixed_nback', 'mixed_rint', 'impossible', 'nonverbal_rint'],
   ['alien_cube', 'alien_tesseract', 'alien_square'],
-  // CCT replaces the entire relationship pool with a single arithmetic stim;
-  // distractors / hierarchical / variable_n still work but mode-mixers don't.
-  ['cct', 'nonverbal_rint'],
 ];
 
 const CATEGORY_META = {
@@ -181,12 +181,44 @@ const CAROUSEL_SPEED_OPTIONS = [
   { label: 'Turbo', ms: 1400 },
 ];
 
-function StreamRow({ label, labelColor, borderColor, keyCode, positionKeyCode, showPositionKey, onKeyChange, onPositionKeyChange, allStreamKeys, thisKey, thisPositionKey, onRemove }) {
+function StreamRow({ label, labelColor, borderColor, keyCode, positionKeyCode, showPositionKey, onKeyChange, onPositionKeyChange, allStreamKeys, thisKey, thisPositionKey, onRemove, streamType, onStreamTypeChange }) {
+  const isCCT = streamType === 'cct';
   return (
-    <div className={`rounded-lg bg-secondary/50 border ${borderColor} p-2`}>
+    <div className={`rounded-lg bg-secondary/50 border ${borderColor} p-2 space-y-1.5`}>
+      <div className="flex items-center gap-2 flex-wrap">
+        <span className={`text-xs font-mono font-semibold ${labelColor} shrink-0`}>{label}</span>
+        {/* Per-stream type selector: Relation (default) | CCT (arithmetic).
+            Streams can run independent rules — e.g. A on type-n-back relations,
+            B on CCT arithmetic — without one bleeding into the other. */}
+        {onStreamTypeChange && (
+          <div className="flex rounded border border-border overflow-hidden text-[10px] sm:text-xs font-mono shrink-0">
+            <button
+              type="button"
+              onClick={() => onStreamTypeChange('relation')}
+              className={`px-2 py-0.5 transition-colors ${!isCCT ? 'bg-primary/25 text-primary font-semibold' : 'text-muted-foreground hover:text-foreground'}`}
+              title="Relation n-back stream"
+            >
+              REL
+            </button>
+            <button
+              type="button"
+              onClick={() => onStreamTypeChange('cct')}
+              className={`px-2 py-0.5 transition-colors ${isCCT ? 'bg-amber-500/25 text-amber-400 font-semibold' : 'text-muted-foreground hover:text-foreground'}`}
+              title="CCT arithmetic stream"
+            >
+              CCT
+            </button>
+          </div>
+        )}
+        {onRemove && (
+          <button onClick={onRemove}
+            className="ml-auto w-6 h-6 rounded bg-secondary border border-border text-muted-foreground hover:text-destructive hover:border-destructive/50 flex items-center justify-center transition-colors text-sm shrink-0">
+            ×
+          </button>
+        )}
+      </div>
       <div className="flex items-center gap-2">
-        <span className={`text-xs font-mono font-semibold ${labelColor} w-16 shrink-0`}>{label}</span>
-        {showPositionKey && <span className="text-xs font-mono text-muted-foreground/60 w-8">REL</span>}
+        {showPositionKey && <span className="text-xs font-mono text-muted-foreground/60 w-8 shrink-0">REL</span>}
         <select
           value={keyCode}
           onChange={e => onKeyChange(e.target.value)}
@@ -197,9 +229,9 @@ function StreamRow({ label, labelColor, borderColor, keyCode, positionKeyCode, s
             </option>
           ))}
         </select>
-        {showPositionKey && (
+        {showPositionKey && !isCCT && (
           <>
-            <span className="text-xs font-mono text-muted-foreground/60 w-8 text-right">POS</span>
+            <span className="text-xs font-mono text-muted-foreground/60 w-8 text-right shrink-0">POS</span>
             <select
               value={positionKeyCode}
               onChange={e => onPositionKeyChange(e.target.value)}
@@ -211,12 +243,6 @@ function StreamRow({ label, labelColor, borderColor, keyCode, positionKeyCode, s
               ))}
             </select>
           </>
-        )}
-        {onRemove && (
-          <button onClick={onRemove}
-            className="w-6 h-6 rounded bg-secondary border border-border text-muted-foreground hover:text-destructive hover:border-destructive/50 flex items-center justify-center transition-colors text-sm shrink-0">
-            ×
-          </button>
         )}
       </div>
     </div>
@@ -238,8 +264,15 @@ export default function StartScreen({ onStart, suggestedN, lastSettings }) {
   const [streamAPositionKey, setStreamAPositionKey] = React.useState(
     lastSettings?.streamA?.positionKey || 'KeyP'
   );
+  const [streamAType, setStreamAType] = React.useState(
+    lastSettings?.streamA?.streamType
+      || (lastSettings?.modes?.includes('cct') ? 'cct' : 'relation')
+  );
   const [extraStreams, setExtraStreams] = React.useState(
-    lastSettings?.extraStreams || []
+    (lastSettings?.extraStreams || []).map(s => ({
+      ...s,
+      streamType: s.streamType || (lastSettings?.modes?.includes('cct') ? 'cct' : 'relation'),
+    }))
   );
 
   const [alienSettings, setAlienSettings] = React.useState(lastSettings?.alienSettings || {
@@ -283,6 +316,9 @@ export default function StartScreen({ onStart, suggestedN, lastSettings }) {
     const opt = KEY_OPTIONS.find(k => k.code === code);
     if (!opt) return;
     setExtraStreams(prev => prev.map((s, i) => i === idx ? { ...s, positionKey: opt.code, positionKeyDisplay: opt.display } : s));
+  };
+  const setStreamType = (idx, t) => {
+    setExtraStreams(prev => prev.map((s, i) => i === idx ? { ...s, streamType: t } : s));
   };
   const updateAlienSetting = (key, value) => setAlienSettings(prev => ({ ...prev, [key]: value }));
   const [showRelTypes, setShowRelTypes] = React.useState(false);
@@ -350,18 +386,30 @@ export default function StartScreen({ onStart, suggestedN, lastSettings }) {
       });
       setModes(prev => {
         const newModes = [...prev.filter(m => !toRemove.has(m)), id];
-        
+
         // Auto-filter only for modes that can generate RINT trials
         const isRINTMode = newModes.includes('rint') || newModes.includes('mixed_rint') || newModes.includes('impossible');
         if (isRINTMode) {
           const filtered = filterTransitiveRelationships([...enabledRels], true, false);
           setEnabledRels(new Set(filtered));
         }
-        
+
         return newModes;
       });
+      // CCT now lives per-stream. The Enhancement Mode card acts as a
+      // "set all streams to CCT" shortcut so the legacy single-toggle UX
+      // still works for users who only want pure arithmetic training.
+      if (id === 'cct') {
+        setStreamAType('cct');
+        setExtraStreams(prev => prev.map(s => ({ ...s, streamType: 'cct' })));
+      }
     } else {
       setModes(prev => prev.filter(m => m !== id));
+      // Toggling the global CCT card off resets all streams back to relation.
+      if (id === 'cct') {
+        setStreamAType('relation');
+        setExtraStreams(prev => prev.map(s => ({ ...s, streamType: 'relation' })));
+      }
     }
   };
 
@@ -677,6 +725,7 @@ export default function StartScreen({ onStart, suggestedN, lastSettings }) {
               keyCode={streamAKey} positionKeyCode={streamAPositionKey} showPositionKey={alienModeActive}
               onKeyChange={setStreamAKey} onPositionKeyChange={setStreamAPositionKey}
               allStreamKeys={allStreamKeys} thisKey={streamAKey} thisPositionKey={streamAPositionKey}
+              streamType={streamAType} onStreamTypeChange={setStreamAType}
             />
             {/* Extra streams */}
             {extraStreams.map((stream, idx) => {
@@ -690,6 +739,7 @@ export default function StartScreen({ onStart, suggestedN, lastSettings }) {
                   onKeyChange={code => setStreamKey(idx, code)} onPositionKeyChange={code => setStreamPositionKey(idx, code)}
                   allStreamKeys={allStreamKeys} thisKey={stream.key} thisPositionKey={stream.positionKey}
                   onRemove={() => removeStream(idx)}
+                  streamType={stream.streamType || 'relation'} onStreamTypeChange={(t) => setStreamType(idx, t)}
                 />
               );
             })}
@@ -921,7 +971,12 @@ export default function StartScreen({ onStart, suggestedN, lastSettings }) {
               if (soundOnlySelection) return;
               setTokenWeights(tokenWeights);
               const streamAObj = { key: streamAKey, keyDisplay: KEY_OPTIONS.find(k => k.code === streamAKey)?.display || 'SPACE' };
-              const streamAWithPosition = { ...streamAObj, positionKey: streamAPositionKey, positionKeyDisplay: KEY_OPTIONS.find(k => k.code === streamAPositionKey)?.display || 'P' };
+              const streamAWithPosition = {
+                ...streamAObj,
+                positionKey: streamAPositionKey,
+                positionKeyDisplay: KEY_OPTIONS.find(k => k.code === streamAPositionKey)?.display || 'P',
+                streamType: streamAType,
+              };
               onStart(nLevel, modes, finalPool, rounds, speedMs, { catWeights, useCustomMix, rels: selectedRels, tokenWeights, streamA: streamAWithPosition, extraStreams, streams: [streamAWithPosition, ...extraStreams], alienSettings, carouselSettings }, noobMode);
             }}
             className="h-12 px-10 font-mono font-semibold text-sm tracking-wide bg-primary text-primary-foreground hover:bg-primary/90 disabled:opacity-50 disabled:cursor-not-allowed">
