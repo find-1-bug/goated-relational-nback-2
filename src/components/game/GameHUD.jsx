@@ -3,6 +3,7 @@ import React from 'react';
 export default function GameHUD({ round, totalRounds, nLevel, effectiveN, hitsA, missesA, falseAlarmsA, modes = [], numStreams }) {
   const isImpossible = modes.includes('impossible');
   const isNRINT = modes.includes('nonverbal_rint');
+  const isCCT = modes.includes('cct');
   const explicitFeedback = modes.includes('feedback_per_trial');
   const progressPct = totalRounds > 0 ? Math.min(100, (round / totalRounds) * 100) : 0;
 
@@ -32,6 +33,11 @@ export default function GameHUD({ round, totalRounds, nLevel, effectiveN, hitsA,
           {isNRINT && (
             <div className="px-1.5 sm:px-2 py-0.5 rounded bg-fuchsia-500/10 border border-fuchsia-500/30 whitespace-nowrap">
               <span className="font-mono text-[10px] sm:text-xs font-semibold text-fuchsia-400">NRINT</span>
+            </div>
+          )}
+          {isCCT && (
+            <div className="px-1.5 sm:px-2 py-0.5 rounded bg-amber-500/10 border border-amber-500/40 whitespace-nowrap">
+              <span className="font-mono text-[10px] sm:text-xs font-semibold text-amber-400">CCT</span>
             </div>
           )}
           {explicitFeedback && (

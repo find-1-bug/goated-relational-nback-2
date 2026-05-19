@@ -27,6 +27,7 @@ const MODE_OPTIONS = [
   { id: 'type_nback',    icon: Brain,      label: 'Type N-Back',       desc: 'Each relation type has its own N-back queue. Match fires when this relation appeared N times ago in its own history — regardless of trial distance. Very hard.' },
   { id: 'rint',          icon: GitBranch,  label: 'Relational Integration', desc: 'Entities (alpha, beta…) persist across trials. A target fires when the current stimulus is a VALID logical conclusion from chaining the N previous facts (e.g. A>B, B>C → A>C). Requires N≥2.', minN: 2 },
   { id: 'nonverbal_rint',icon: GitBranch,  label: 'Nonverbal RINT',    desc: 'Each stimulus carries up to 3 independent visual attributes (touching · hollow · size-mismatch). A target fires when the union of the last N stimuli\'s attributes exactly equals the current stimulus. Cross-category, fully nonverbal. Requires N≥2.', minN: 2 },
+  { id: 'cct',           icon: Brain,      label: 'Cognitive Control Training', desc: 'Each trial shows one digit (1–9). From trial N onwards a candidate result also appears. Press REL when the result equals the current digit + the digit from N trials ago. Pure arithmetic working-memory — no relations or shapes.' },
   { id: 'mixed_nback',   icon: Shuffle,    label: 'Mixed N-Back',      desc: 'Randomly switches between Normal and Type N-back each trial. You never know which rule applies.' },
   { id: 'mixed_rint',    icon: Shuffle,    label: 'Mixed RINT',        desc: 'Three-way random per trial: Normal / Type / RINT. Maximum flexibility demand. Requires N≥2.', minN: 2 },
   { id: 'impossible',    icon: Zap,        label: 'Impossible',        desc: 'Each stream independently randomizes between Normal, Type, and RINT every trial — different rules per stream simultaneously. Requires ≥2 streams and N≥2.', minN: 2, minStreams: 2 },
@@ -42,11 +43,14 @@ const MODE_OPTIONS = [
 
 // Modes that are mutually exclusive with each other (only one from each group active)
 const EXCLUSIVE_GROUPS = [
-  ['type_nback', 'mixed_nback', 'mixed_rint', 'impossible', 'nonverbal_rint'],
-  ['rint', 'mixed_rint', 'impossible', 'nonverbal_rint'],
+  ['type_nback', 'mixed_nback', 'mixed_rint', 'impossible', 'nonverbal_rint', 'cct'],
+  ['rint', 'mixed_rint', 'impossible', 'nonverbal_rint', 'cct'],
   // binary_logic overrides the primary nback type selection per trial so conflicts with fixed-mode selectors
-  ['binary_logic', 'mixed_nback', 'mixed_rint', 'impossible', 'nonverbal_rint'],
+  ['binary_logic', 'mixed_nback', 'mixed_rint', 'impossible', 'nonverbal_rint', 'cct'],
   ['alien_cube', 'alien_tesseract', 'alien_square'],
+  // CCT replaces the entire relationship pool with a single arithmetic stim;
+  // distractors / hierarchical / variable_n still work but mode-mixers don't.
+  ['cct', 'nonverbal_rint'],
 ];
 
 const CATEGORY_META = {
@@ -87,6 +91,8 @@ const REL_DISPLAY = {
   TWO_OF_THREE_HOLLOW:       '2-of-3 Hollow',
   ODD_COLOR_OUT:             'Odd Color Out',
   ODD_SHAPE_OUT:             'Odd Shape Out',
+  // Cognitive Control Training (arithmetic n-back)
+  CCT_NUMERIC:               'CCT Numeric',
   // Verbal — semantic
   SAME_AS: 'Same As', OPPOSITE_OF: 'Opposite Of', PART_OF: 'Part Of',
   CAUSES: 'Causes', CONTAINS: 'Contains', BELONGS_TO: 'Belongs To',

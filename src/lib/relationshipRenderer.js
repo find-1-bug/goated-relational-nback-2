@@ -507,6 +507,8 @@ export function renderRelationship(ctx, canvasW, canvasH, relationship, prevVisu
     case 'FOUR_PAIRS_GRID':           renderFourPairsGrid(ctx, cx, cy, canvasW, canvasH, visuals, scale); break;
     // Nonverbal RINT composite stimulus (rendered from attribute set)
     case 'NRINT_COMPOSITE':           renderNRINTComposite(ctx, cx, cy, stimulus, scale); break;
+    // Cognitive Control Training arithmetic stim
+    case 'CCT_NUMERIC':               renderCCTNumeric(ctx, cx, cy, canvasW, canvasH, stimulus); break;
     default:
       // Fallback for any relation without a renderer: show the name so we never
       // ship a blank panel again.
@@ -945,6 +947,73 @@ function renderNRINTComposite(ctx, cx, cy, stimulus, scale = 1) {
 
 // Used when a relationship has no renderer registered — show the name so the
 // canvas is never blank in production.
+// ─── CCT (arithmetic n-back) renderer ──────────────────────────────────────
+// Layout:
+//   - large center digit (the current number)
+//   - small "N-back ago" memo bar above it explaining the rule
+//   - candidate-result pill below it (only once history >= N is available)
+// When the result pill isn't shown the player just observes; otherwise they
+// must judge whether `result === current_number + number_from_N_back`.
+function renderCCTNumeric(ctx, cx, cy, canvasW, canvasH, stim) {
+  const number = stim?.cctNumber ?? 0;
+  const result = stim?.cctResult;
+  const showResult = result != null;
+  ctx.save();
+
+  // Frame
+  const frameW = canvasW * 0.84;
+  const frameH = canvasH * 0.78;
+  ctx.fillStyle = 'rgba(8, 13, 22, 0.78)';
+  ctx.beginPath();
+  ctx.roundRect(cx - frameW / 2, cy - frameH / 2, frameW, frameH, 20);
+  ctx.fill();
+  ctx.strokeStyle = 'hsla(168,80%,55%,0.32)';
+  ctx.lineWidth = 2;
+  ctx.stroke();
+
+  // Memo bar (top)
+  ctx.font = `${Math.min(canvasW * 0.04, 16)}px 'JetBrains Mono', monospace`;
+  ctx.textAlign = 'center';
+  ctx.textBaseline = 'middle';
+  ctx.fillStyle = 'hsla(168,80%,70%,0.85)';
+  ctx.fillText('CCT · current + N-back =', cx, cy - frameH * 0.36);
+
+  // Big digit
+  const digitSize = Math.min(canvasW * 0.28, canvasH * 0.40, 150);
+  ctx.font = `bold ${digitSize}px 'JetBrains Mono', monospace`;
+  ctx.fillStyle = '#22d3ee';
+  ctx.shadowColor = 'rgba(34, 211, 238, 0.45)';
+  ctx.shadowBlur = 18;
+  ctx.fillText(String(number), cx, cy - canvasH * 0.04);
+  ctx.shadowBlur = 0;
+
+  if (showResult) {
+    // Result candidate pill (the value to compare against)
+    const pillW = Math.min(canvasW * 0.5, 260);
+    const pillH = Math.min(canvasH * 0.22, 70);
+    const pillY = cy + canvasH * 0.22;
+    ctx.fillStyle = 'rgba(251, 191, 36, 0.18)';
+    ctx.strokeStyle = 'rgba(251, 191, 36, 0.75)';
+    ctx.lineWidth = 2;
+    ctx.beginPath();
+    ctx.roundRect(cx - pillW / 2, pillY - pillH / 2, pillW, pillH, 14);
+    ctx.fill();
+    ctx.stroke();
+    ctx.font = `${Math.min(canvasW * 0.04, 16)}px 'JetBrains Mono', monospace`;
+    ctx.fillStyle = 'rgba(251, 191, 36, 0.65)';
+    ctx.fillText('≟', cx - pillW * 0.32, pillY);
+    ctx.font = `bold ${Math.min(canvasW * 0.10, 44)}px 'JetBrains Mono', monospace`;
+    ctx.fillStyle = '#fbbf24';
+    ctx.fillText(String(result), cx + pillW * 0.05, pillY);
+  } else {
+    ctx.font = `${Math.min(canvasW * 0.034, 13)}px 'JetBrains Mono', monospace`;
+    ctx.fillStyle = 'hsla(210,15%,55%,0.7)';
+    ctx.fillText('observe — result appears once N trials are stored', cx, cy + canvasH * 0.27);
+  }
+
+  ctx.restore();
+}
+
 function renderRelationFallback(ctx, cx, cy, canvasW, canvasH, relationship, scale = 1) {
   ctx.save();
   ctx.fillStyle = 'hsla(168,80%,60%,0.08)';

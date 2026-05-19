@@ -91,6 +91,7 @@ function relationshipMatches(rel, targetRel) {
 function evaluateStimulusForMode({ stim, mode, history, typeHistory, rintState, effectiveN, hierHistory }) {
   if (!stim) return false;
   if (mode === 'rint') return isRINTConclusion(rintState, stim, effectiveN);
+  if (mode === 'cct') return isCCTTarget(history, stim, effectiveN);
   if (mode === 'nrint') {
     if (history.length < effectiveN) return false;
     const tail = history.slice(-effectiveN).filter(s => s?.rel === 'NRINT_COMPOSITE');
@@ -211,7 +212,7 @@ export function evalBinaryOp(a, b, op) {
 }
 
 // Roll a random trial mode for a single stream given the global modes config
-// Returns 'normal' | 'type' | 'rint' | 'nrint'
+// Returns 'normal' | 'type' | 'rint' | 'nrint' | 'cct'
 function rollTrialMode(modes, effectiveN) {
   const isImpossible = modes.includes('impossible');
   const isMixedRINT = modes.includes('mixed_rint');
@@ -219,6 +220,7 @@ function rollTrialMode(modes, effectiveN) {
   const isTypeNback = modes.includes('type_nback');
   const isRINT = modes.includes('rint');
   const isNRINT = modes.includes('nonverbal_rint');
+  const isCCT = modes.includes('cct');
 
   if (isImpossible) {
     // Three-way random, RINT only if N>=2
@@ -236,6 +238,7 @@ function rollTrialMode(modes, effectiveN) {
   if (isMixed) {
     return Math.random() < 0.5 ? 'type' : 'normal';
   }
+  if (isCCT) return 'cct';
   // NRINT always uses the nrint branch (it gracefully emits non-target stims
   // until enough history accumulates). Without this, N<2 falls into 'normal'
   // and tries to copy a non-existent stim, producing blank panels.
@@ -243,6 +246,54 @@ function rollTrialMode(modes, effectiveN) {
   if (isRINT && effectiveN >= RINT_MIN_N) return 'rint';
   if (isTypeNback) return 'type';
   return 'normal';
+}
+
+// ─── Cognitive Control Training (arithmetic n-back) ──────────────────────────
+// Each trial shows a digit (1–9). From trial N onwards a candidate result is
+// also shown. Target fires iff result === current_digit + digit_from_N_back.
+// Pure arithmetic working-memory — no relations, no shapes, no positions.
+function makeCCTStim(number, result) {
+  return {
+    rel: 'CCT_NUMERIC',
+    cctNumber: number,
+    cctResult: result, // null until N-back history exists
+    renderMode: 0,
+    shapeA: 'circle',
+    shapeB: 'square',
+    colorA: '#22d3ee',
+    colorB: '#fbbf24',
+    isCCTStim: true,
+  };
+}
+
+function generateCCTStimulus(history, effectiveN, matchChance) {
+  const num = 1 + Math.floor(Math.random() * 9);
+  const canShowResult = history.length >= effectiveN;
+  if (!canShowResult) {
+    return { stim: makeCCTStim(num, null), isTarget: false };
+  }
+  const past = history[history.length - effectiveN];
+  const pastNum = past?.cctNumber ?? 0;
+  const correctSum = num + pastNum;
+  if (Math.random() < matchChance) {
+    return { stim: makeCCTStim(num, correctSum), isTarget: true };
+  }
+  // Non-target: pick a near-but-not-equal sum so the player can't just
+  // pattern-match on "ridiculously off" numbers.
+  let candidate;
+  do {
+    const delta = (Math.random() < 0.5 ? -1 : 1) * (1 + Math.floor(Math.random() * 3));
+    candidate = Math.max(0, correctSum + delta);
+  } while (candidate === correctSum);
+  return { stim: makeCCTStim(num, candidate), isTarget: false };
+}
+
+function isCCTTarget(history, stim, effectiveN) {
+  if (!stim?.isCCTStim || stim.cctResult == null) return false;
+  if (history.length < effectiveN) return false;
+  const past = history[history.length - effectiveN];
+  if (!past?.isCCTStim) return false;
+  return stim.cctResult === stim.cctNumber + past.cctNumber;
 }
 
 // ─── Nonverbal cross-attribute RINT helpers ─────────────────────────────────
@@ -328,6 +379,11 @@ function generateOneStreamStimulus({ history, typeHistory, rintState, pool, effe
     stim = rintResult.stim;
     isPrimaryTarget = rintResult.isTarget;
     nextRINTState = rintResult.rintState;
+  } else if (trialMode === 'cct') {
+    // Cognitive Control Training: arithmetic n-back on single digits.
+    const cctResult = generateCCTStimulus(history, effectiveN, matchChance);
+    stim = cctResult.stim;
+    isPrimaryTarget = cctResult.isTarget;
   } else if (trialMode === 'nrint') {
     // Nonverbal cross-attribute RINT: union of last-N attribute sets == current
     const tail = history.slice(-effectiveN).filter(s => s?.rel === 'NRINT_COMPOSITE');
@@ -524,11 +580,14 @@ export function generateNextStimulus(state) {
   } = state;
 
   const isNRINT = modes.includes('nonverbal_rint');
-  // When nonverbal-RINT is the active core mode, the only "relationship" is
-  // the composite attribute stimulus; ignore the user's pool selection.
-  const pool = isNRINT
-    ? ['NRINT_COMPOSITE']
-    : ((relationshipPool && relationshipPool.length > 0) ? relationshipPool : ALL_RELATIONSHIPS);
+  const isCCT = modes.includes('cct');
+  // When CCT or nonverbal-RINT is active, the only "relationship" is the
+  // mode-specific stimulus; ignore the user's pool selection.
+  const pool = isCCT
+    ? ['CCT_NUMERIC']
+    : isNRINT
+      ? ['NRINT_COMPOSITE']
+      : ((relationshipPool && relationshipPool.length > 0) ? relationshipPool : ALL_RELATIONSHIPS);
   const hasDistractors = modes.includes('distractors');
   const isImpossible = modes.includes('impossible');
 
