@@ -484,7 +484,13 @@ export default function GameScreen({ nLevel, modes, relationshipPool, totalRound
           const rintChain = gameState.rintStates?.[idx]?.chainLog;
           const showRintChain = phase === 'stimulus' && allTrialModes[idx] === 'rint' && rintChain?.length > 0;
           return (
-            <div key={idx} className={`relative rounded-xl border flex flex-col overflow-hidden ${audioEarForIndex(idx) ? 'bg-emerald-500/10 border-emerald-400 shadow-[0_0_28px_rgba(52,211,153,0.28)]' : `bg-secondary/30 ${STREAM_BORDER_COLORS[idx % STREAM_BORDER_COLORS.length]}`}`}>
+            <div key={idx} className={`relative rounded-xl border-2 flex flex-col overflow-hidden transition-[box-shadow,border-color] duration-150 ${
+              audioEarForIndex(idx)
+                ? 'bg-emerald-500/10 border-emerald-400 shadow-[0_0_28px_rgba(52,211,153,0.28)]'
+                : (s.responded || s.positionResponded) && phase === 'stimulus'
+                  ? 'bg-secondary/30 border-primary/80 shadow-[0_0_32px_rgba(43,227,198,0.40)]'
+                  : `bg-secondary/30 ${STREAM_BORDER_COLORS[idx % STREAM_BORDER_COLORS.length]}`
+            }`}>
               <div className="flex-1 min-h-0 relative">
                 <GameCanvas
                 relationship={!clearCanvas ? s.rel : null}
@@ -517,9 +523,19 @@ export default function GameScreen({ nLevel, modes, relationshipPool, totalRound
                   </div>
                 )}
                 {(s.responded || s.positionResponded) && phase === 'stimulus' && (
-                  <div className="absolute bottom-3 left-1/2 -translate-x-1/2 flex gap-1">
-                    {s.responded && <div className={`w-2 h-2 rounded-full ${STREAM_DOT_COLORS[idx % STREAM_DOT_COLORS.length]}`} title="Relation response" />}
-                    {s.positionResponded && <div className="w-2 h-2 rounded-full bg-amber-400/80" title="Position response" />}
+                  <div className="absolute bottom-2 left-1/2 -translate-x-1/2 flex gap-2 z-20 pointer-events-none">
+                    {s.responded && (
+                      <div className="px-2.5 py-1 rounded-md text-xs font-mono font-semibold tracking-wider bg-primary/25 border border-primary text-primary-foreground shadow-[0_0_22px_rgba(43,227,198,0.55)] flex items-center gap-1">
+                        <span className="text-primary">✓</span>
+                        <span className="text-primary">{STREAM_LABELS[idx]} REL</span>
+                      </div>
+                    )}
+                    {s.positionResponded && (
+                      <div className="px-2.5 py-1 rounded-md text-xs font-mono font-semibold tracking-wider bg-amber-500/25 border border-amber-400 shadow-[0_0_22px_rgba(251,191,36,0.55)] flex items-center gap-1">
+                        <span className="text-amber-300">✓</span>
+                        <span className="text-amber-300">{STREAM_LABELS[idx]} POS</span>
+                      </div>
+                    )}
                   </div>
                 )}
                 {phase === 'wipe' && (

@@ -63,6 +63,266 @@ function applySpatial3DPositioning(relationship, mesh1, mesh2) {
   }
 }
 
+// Add decoration geometry that makes each SPATIAL_3D relation visually
+// distinguishable from every other one. Returns optional per-frame
+// updaters which the caller can drive from its animation loop.
+//
+// Without these, every SPATIAL_3D rel was just "two shapes at slightly
+// different coords" — and most players couldn't tell DEPTH_LAYERED from
+// IN_FRONT_OF from BEHIND, or ROTATING_PAIR from COLLIDING from REPELLING.
+// The decorations give each relation a semantic signature: orbit ring for
+// ORBITING, ground plane + shadow for FLOATING_ABOVE / CASTING_SHADOW,
+// tether for BOUND_BY_GRAVITY, depth grid for IN_FRONT_OF / BEHIND, etc.
+function decorateSpatial3DScene(scene, relationship, mesh1, mesh2, colorHexes) {
+  const updaters = [];
+  const toC = (c) => typeof c === 'string' && c.startsWith('#') ? parseInt(c.slice(1), 16) : c;
+  const accent = toC(colorHexes?.[0] ?? '#22d3ee');
+
+  switch (relationship) {
+    case 'ORBITING': {
+      // Dashed elliptical orbit at y=0 plane
+      const ring = new THREE.Mesh(
+        new THREE.RingGeometry(2.85, 3.05, 64),
+        new THREE.MeshBasicMaterial({ color: 0x9aa8ff, transparent: true, opacity: 0.4, side: THREE.DoubleSide })
+      );
+      ring.rotation.x = Math.PI / 2;
+      scene.add(ring);
+      // Small directional marker showing the orbit direction
+      const tip = new THREE.Mesh(
+        new THREE.ConeGeometry(0.18, 0.36, 12),
+        new THREE.MeshBasicMaterial({ color: 0x9aa8ff })
+      );
+      tip.rotation.x = Math.PI / 2;
+      scene.add(tip);
+      updaters.push((t) => {
+        const a = t * 0.6 + Math.PI / 2;
+        tip.position.set(Math.cos(a) * 3, 0, Math.sin(a) * 3);
+        tip.rotation.z = -a + Math.PI / 2;
+      });
+      break;
+    }
+    case 'ROTATING_PAIR': {
+      // Bar connecting the two meshes — readable as a "barbell" rotating
+      // around its center.
+      const bar = new THREE.Mesh(
+        new THREE.CylinderGeometry(0.12, 0.12, 5, 12),
+        new THREE.MeshStandardMaterial({ color: 0x94a3b8, metalness: 0.5, roughness: 0.4 })
+      );
+      bar.rotation.z = Math.PI / 2;
+      scene.add(bar);
+      updaters.push(() => {
+        // Bar tracks the mesh1↔mesh2 axis so it visibly rotates with them.
+        const cx = (mesh1.position.x + mesh2.position.x) / 2;
+        const cy = (mesh1.position.y + mesh2.position.y) / 2;
+        const cz = (mesh1.position.z + mesh2.position.z) / 2;
+        bar.position.set(cx, cy, cz);
+        const dx = mesh2.position.x - mesh1.position.x;
+        const dy = mesh2.position.y - mesh1.position.y;
+        const angle = Math.atan2(dy, dx);
+        bar.rotation.set(0, 0, angle - Math.PI / 2);
+        const len = Math.max(0.1, Math.hypot(dx, dy));
+        bar.scale.y = len / 5;
+      });
+      // Pivot dot at center
+      const pivot = new THREE.Mesh(
+        new THREE.SphereGeometry(0.18, 12, 8),
+        new THREE.MeshBasicMaterial({ color: 0xfbbf24 })
+      );
+      scene.add(pivot);
+      break;
+    }
+    case 'REPELLING': {
+      // Two outward-pointing arrows
+      [-1, 1].forEach(dir => {
+        const arrow = new THREE.ArrowHelper(
+          new THREE.Vector3(dir, 0, 0),
+          new THREE.Vector3(dir * 0.6, 0, 0),
+          1.4,
+          0xf87171,
+          0.4,
+          0.28
+        );
+        scene.add(arrow);
+      });
+      break;
+    }
+    case 'COLLIDING': {
+      // Starburst at midpoint that pulses
+      const burst = new THREE.Group();
+      for (let i = 0; i < 12; i++) {
+        const a = (i / 12) * Math.PI * 2;
+        const geo = new THREE.BufferGeometry().setFromPoints([
+          new THREE.Vector3(Math.cos(a) * 0.45, Math.sin(a) * 0.45, 0),
+          new THREE.Vector3(Math.cos(a) * 1.0, Math.sin(a) * 1.0, 0),
+        ]);
+        const mat = new THREE.LineBasicMaterial({ color: 0xfbbf24 });
+        burst.add(new THREE.Line(geo, mat));
+      }
+      scene.add(burst);
+      updaters.push((t) => {
+        const s = 0.85 + Math.sin(t * 6) * 0.2;
+        burst.scale.setScalar(s);
+        burst.rotation.z = t * 0.4;
+      });
+      break;
+    }
+    case 'BOUND_BY_GRAVITY': {
+      // Make the bottom anchor visually heavier and tether the top mesh
+      // to it with a dashed line.
+      mesh2.scale.setScalar(1.5);
+      const tetherGeo = new THREE.BufferGeometry().setFromPoints([
+        new THREE.Vector3(0, 0, 0),
+        new THREE.Vector3(0, -3, 0),
+      ]);
+      const tetherMat = new THREE.LineDashedMaterial({ color: 0xa78bfa, dashSize: 0.25, gapSize: 0.18, transparent: true, opacity: 0.7 });
+      const tether = new THREE.Line(tetherGeo, tetherMat);
+      tether.computeLineDistances();
+      scene.add(tether);
+      break;
+    }
+    case 'INTERSECTING_PLANES': {
+      // Make the meshes thin slabs that visibly intersect at the origin.
+      mesh1.scale.set(0.15, 1.6, 1.6);
+      mesh2.scale.set(1.6, 1.6, 0.15);
+      mesh2.rotation.z = 0;
+      mesh1.position.set(0, 0, 0);
+      mesh2.position.set(0, 0, 0);
+      break;
+    }
+    case 'LEANING_AGAINST': {
+      // Floor line so the lean has a clear reference
+      const floor = new THREE.Line(
+        new THREE.BufferGeometry().setFromPoints([new THREE.Vector3(-4, -2, 0), new THREE.Vector3(4, -2, 0)]),
+        new THREE.LineBasicMaterial({ color: 0x64748b, transparent: true, opacity: 0.7 })
+      );
+      scene.add(floor);
+      mesh1.position.y = -0.5;
+      mesh2.position.y = -0.5;
+      break;
+    }
+    case 'FLOATING_ABOVE': {
+      // Ground plane + shadow ellipse below the floating mesh
+      const ground = new THREE.Mesh(
+        new THREE.PlaneGeometry(8, 8),
+        new THREE.MeshBasicMaterial({ color: 0x1e293b, transparent: true, opacity: 0.4, side: THREE.DoubleSide })
+      );
+      ground.rotation.x = -Math.PI / 2;
+      ground.position.y = -2.5;
+      scene.add(ground);
+      const shadow = new THREE.Mesh(
+        new THREE.CircleGeometry(0.9, 32),
+        new THREE.MeshBasicMaterial({ color: 0x000000, transparent: true, opacity: 0.5 })
+      );
+      shadow.rotation.x = -Math.PI / 2;
+      shadow.position.set(0, -2.45, 0);
+      scene.add(shadow);
+      break;
+    }
+    case 'CASTING_SHADOW': {
+      // Ground + a stretched offset shadow cast from the lit mesh
+      const ground = new THREE.Mesh(
+        new THREE.PlaneGeometry(10, 10),
+        new THREE.MeshBasicMaterial({ color: 0x1e293b, transparent: true, opacity: 0.35, side: THREE.DoubleSide })
+      );
+      ground.rotation.x = -Math.PI / 2;
+      ground.position.y = -2.5;
+      scene.add(ground);
+      const shadow = new THREE.Mesh(
+        new THREE.CircleGeometry(1.0, 32),
+        new THREE.MeshBasicMaterial({ color: 0x000000, transparent: true, opacity: 0.55 })
+      );
+      shadow.rotation.x = -Math.PI / 2;
+      shadow.scale.set(1.8, 1, 1);
+      shadow.position.set(1.6, -2.45, 0);
+      scene.add(shadow);
+      break;
+    }
+    case 'STACKED_3D': {
+      // Move meshes flush and add a base platform under them
+      mesh1.position.set(0, 1.0, 0);
+      mesh2.position.set(0, -1.0, 0);
+      const platform = new THREE.Mesh(
+        new THREE.CylinderGeometry(1.7, 1.7, 0.25, 32),
+        new THREE.MeshStandardMaterial({ color: 0x475569, metalness: 0.3, roughness: 0.7 })
+      );
+      platform.position.y = -2.4;
+      scene.add(platform);
+      break;
+    }
+    case 'NESTED_VOLUME': {
+      // Outer cage (transparent wireframe) holding the inner mesh.
+      mesh1.scale.setScalar(1.7);
+      if (mesh1.material) {
+        mesh1.material.transparent = true;
+        mesh1.material.opacity = 0.18;
+        mesh1.material.wireframe = true;
+      }
+      mesh2.scale.setScalar(0.55);
+      break;
+    }
+    case 'ASCENDING_SPIRAL': {
+      // Helix line + small markers ascending along the spiral
+      const pts = [];
+      for (let i = 0; i <= 64; i++) {
+        const t = i / 64;
+        pts.push(new THREE.Vector3(Math.cos(t * Math.PI * 3) * 1.5, t * 4 - 2, Math.sin(t * Math.PI * 3) * 1.5));
+      }
+      const helix = new THREE.Line(
+        new THREE.BufferGeometry().setFromPoints(pts),
+        new THREE.LineBasicMaterial({ color: 0x22d3ee, transparent: true, opacity: 0.6 })
+      );
+      scene.add(helix);
+      // Two small markers travelling up the helix to give a sense of "ascending"
+      const marker = new THREE.Mesh(
+        new THREE.SphereGeometry(0.16, 12, 8),
+        new THREE.MeshBasicMaterial({ color: 0x22d3ee })
+      );
+      scene.add(marker);
+      updaters.push((t) => {
+        const phase = (t * 0.4) % 1;
+        marker.position.set(Math.cos(phase * Math.PI * 3) * 1.5, phase * 4 - 2, Math.sin(phase * Math.PI * 3) * 1.5);
+      });
+      break;
+    }
+    case 'IN_FRONT_OF':
+    case 'BEHIND': {
+      // Depth-grid floor so "front" vs "back" is unambiguous
+      const grid = new THREE.GridHelper(8, 8, 0x475569, 0x334155);
+      grid.position.y = -2.2;
+      grid.material.transparent = true;
+      grid.material.opacity = 0.55;
+      scene.add(grid);
+      // Soft drop-shadow under each mesh so depth reads visually
+      const makeShadow = (mesh, radius) => {
+        const s = new THREE.Mesh(
+          new THREE.CircleGeometry(radius, 32),
+          new THREE.MeshBasicMaterial({ color: 0x000000, transparent: true, opacity: 0.4 })
+        );
+        s.rotation.x = -Math.PI / 2;
+        s.position.set(mesh.position.x, -2.15, mesh.position.z);
+        scene.add(s);
+      };
+      makeShadow(mesh1, 0.8);
+      makeShadow(mesh2, 0.8);
+      break;
+    }
+    case 'DEPTH_LAYERED': {
+      // Add atmospheric fog so depth is felt + two ghost back-meshes for scale
+      scene.fog = new THREE.Fog(0x080d16, 4, 14);
+      const ghostMat = new THREE.MeshStandardMaterial({ color: accent, transparent: true, opacity: 0.35 });
+      const g1 = new THREE.Mesh(new THREE.SphereGeometry(0.7, 16, 12), ghostMat);
+      g1.position.set(-1.6, 0, -4);
+      scene.add(g1);
+      const g2 = new THREE.Mesh(new THREE.SphereGeometry(0.5, 16, 12), ghostMat);
+      g2.position.set(1.3, 0, -6);
+      scene.add(g2);
+      break;
+    }
+  }
+
+  return updaters;
+}
+
 // Singleton offscreen renderer for one-shot 3D snapshots used as 2D
 // textures inside the alien panels. Reusing a single GL context avoids
 // hitting the browser's per-page WebGL context cap (typically ~16) when
@@ -119,6 +379,9 @@ export function createSpatial3DSnapshot(width, height, relationship, stimulus, c
   applySpatial3DPositioning(relationship, mesh1, mesh2);
   scene.add(mesh1);
   scene.add(mesh2);
+  // Decoration geometry — per-rel cues that make the rels look different
+  // from each other (orbit ring, tether, ground, etc.).
+  const decoUpdaters = decorateSpatial3DScene(scene, relationship, mesh1, mesh2, [stimulus?.colorA, stimulus?.colorB]);
 
   const canvas = document.createElement('canvas');
   canvas.width = width;
@@ -145,18 +408,25 @@ export function createSpatial3DSnapshot(width, height, relationship, stimulus, c
     // alien panels).
     if (relationship === 'ORBITING') {
       const a = elapsed * 0.6;
-      mesh2.position.x = Math.cos(a) * 4;
+      mesh2.position.x = Math.cos(a) * 3;
       mesh2.position.z = Math.sin(a) * 3;
     } else if (relationship === 'ROTATING_PAIR') {
       const a = elapsed * 0.6;
       mesh1.position.x = Math.cos(a) * 2.5;
       mesh2.position.x = -Math.cos(a) * 2.5;
-    } else if (relationship === 'ASCENDING_SPIRAL') {
-      mesh1.position.y = -2 + Math.sin(elapsed * 1.0) * 0.4;
-      mesh2.position.y = 2 + Math.sin(elapsed * 1.0 + Math.PI) * 0.4;
+    } else if (relationship === 'COLLIDING') {
+      // Meshes bounce together → apart so the "colliding" idea reads visually
+      const a = (Math.sin(elapsed * 2.5) + 1) / 2; // 0..1
+      mesh1.position.x = -0.4 - a * 1.1;
+      mesh2.position.x = 0.4 + a * 1.1;
+    } else if (relationship === 'REPELLING') {
+      const a = (Math.sin(elapsed * 1.8) + 1) / 2;
+      mesh1.position.x = -2.5 - a * 0.6;
+      mesh2.position.x = 2.5 + a * 0.6;
     } else if (relationship === 'FLOATING_ABOVE') {
       mesh1.position.y = 2 + Math.sin(elapsed * 1.6) * 0.25;
     }
+    decoUpdaters.forEach(fn => fn(elapsed));
 
     const renderer = getStillRenderer(width, height);
     renderer.render(scene, camera);
@@ -526,10 +796,12 @@ export function render3DRelationship(canvas, relationship, colors, rintChain = n
   }
 
   // Position based on relationship (only for normal 3D relationships)
+  let standaloneDecoUpdaters = [];
   if (!stimulus?.cubePosition && !stimulus?.tesseractPosition && (!rintChain || rintChain.length === 0)) {
     const mesh1 = meshes[0];
     const mesh2 = meshes[1];
     applySpatial3DPositioning(relationship, mesh1, mesh2);
+    standaloneDecoUpdaters = decorateSpatial3DScene(scene, relationship, mesh1, mesh2, [stimulus?.colorA, stimulus?.colorB]);
     scene.add(mesh1);
     scene.add(mesh2);
   }
@@ -556,16 +828,28 @@ export function render3DRelationship(canvas, relationship, colors, rintChain = n
     if (!stimulus?.cubePosition && !stimulus?.tesseractPosition && (!rintChain || rintChain.length === 0)) {
       const mesh1 = meshes[0];
       const mesh2 = meshes[1];
+      const tSec = performance.now() / 1000;
 
       if (relationship === 'ORBITING') {
-        const angle = performance.now() * 0.0005;
-        mesh2.position.x = Math.cos(angle) * 4;
+        const angle = tSec * 0.6;
+        mesh2.position.x = Math.cos(angle) * 3;
         mesh2.position.z = Math.sin(angle) * 3;
       } else if (relationship === 'ROTATING_PAIR') {
-        const angle = performance.now() * 0.0005;
+        const angle = tSec * 0.6;
         mesh1.position.x = Math.cos(angle) * 2.5;
         mesh2.position.x = -Math.cos(angle) * 2.5;
+      } else if (relationship === 'COLLIDING') {
+        const a = (Math.sin(tSec * 2.5) + 1) / 2;
+        mesh1.position.x = -0.4 - a * 1.1;
+        mesh2.position.x = 0.4 + a * 1.1;
+      } else if (relationship === 'REPELLING') {
+        const a = (Math.sin(tSec * 1.8) + 1) / 2;
+        mesh1.position.x = -2.5 - a * 0.6;
+        mesh2.position.x = 2.5 + a * 0.6;
+      } else if (relationship === 'FLOATING_ABOVE') {
+        mesh1.position.y = 2 + Math.sin(tSec * 1.6) * 0.25;
       }
+      standaloneDecoUpdaters.forEach(fn => fn(tSec));
     }
 
     // Tick any animated SPATIAL_3D snapshots embedded in alien panels.
