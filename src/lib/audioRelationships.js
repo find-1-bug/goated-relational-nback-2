@@ -45,13 +45,19 @@ function playTokenCue(ctx, token, pan, startTime) {
   });
 }
 
-// Brief cross-modal cue for the NRINT 4th attribute. Reuses the shared
-// AudioContext + playTone so it inherits autoplay-policy / suspension
-// handling without duplicating that plumbing.
+// Brief cross-modal cues for the NRINT audio-modality flags. Reuses the
+// shared AudioContext + playTone so they inherit autoplay-policy handling.
+// The two cues use distinctly different pitches so they're easy to tell
+// apart even when both fire on the same trial.
 export function playNRINTAudioCue(pan = 0) {
   const ctx = getAudioContext();
   if (!ctx) return;
   playTone(ctx, 480, 0.18, pan, ctx.currentTime + 0.03, 'sine');
+}
+export function playNRINTPitchHighCue(pan = 0) {
+  const ctx = getAudioContext();
+  if (!ctx) return;
+  playTone(ctx, 980, 0.18, pan, ctx.currentTime + 0.03, 'sine');
 }
 
 export function playSoundStimulus(stimulus, pan = 0, delaySeconds = 0) {

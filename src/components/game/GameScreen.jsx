@@ -12,7 +12,7 @@ import {
   FEEDBACK_DURATION,
   isSound,
 } from '@/lib/gameConstants';
-import { playSoundStimulus, playNRINTAudioCue } from '@/lib/audioRelationships';
+import { playSoundStimulus, playNRINTAudioCue, playNRINTPitchHighCue } from '@/lib/audioRelationships';
 
 function StreamModeBadge({ mode, alwaysShow }) {
   if (!mode) return null;
@@ -113,7 +113,7 @@ function mergeHistoricalWithProgress(historicalState, progressState, streamCount
   };
 }
 
-export default function GameScreen({ nLevel, modes, relationshipPool, totalRounds, stimulusDuration, extraStreams, streamA, alienSettings, carouselSettings, noobMode, onFinish, onExit }) {
+export default function GameScreen({ nLevel, modes, relationshipPool, totalRounds, stimulusDuration, extraStreams, streamA, alienSettings, carouselSettings, nrintEnabledFlags, nrintHideLegend, noobMode, onFinish, onExit }) {
   // extraStreams: [{ key, label, keyDisplay, positionKey, positionKeyDisplay }]
   const getStimulusDuration = useCallback(() => {
     const duration = stimulusDuration === 'random' ? 1000 + Math.random() * 3000 : stimulusDuration || 2800;
@@ -141,7 +141,7 @@ export default function GameScreen({ nLevel, modes, relationshipPool, totalRound
   const numExtra = (extraStreams || []).length;
 
   const [gameState, setGameState] = useState(() =>
-    createGameState({ nLevel, modes, relationshipPool, totalRounds, extraStreams: extraStreams || [], alienSettings, streamA })
+    createGameState({ nLevel, modes, relationshipPool, totalRounds, extraStreams: extraStreams || [], alienSettings, streamA, nrintEnabledFlags, nrintHideLegend })
   );
   const [phase, setPhase] = useState('stimulus');
   const [clearCanvas, setClearCanvas] = useState(false);
@@ -463,13 +463,15 @@ export default function GameScreen({ nLevel, modes, relationshipPool, totalRound
       playSoundStimulus(item.stimulus, pan, delaySeconds);
     });
 
-    // NRINT 4th-attribute cue — separate from the sound-rel dispatch above
-    // because NRINT stims have rel === 'NRINT_COMPOSITE' (isSound is false)
-    // and the audio cue is a per-trial flag inside stim.attrs.
-    const nrintCues = allAudible.filter(item => item.stimulus?.rel === 'NRINT_COMPOSITE' && item.stimulus?.attrs?.audio);
-    nrintCues.forEach((item, i) => {
-      const pan = nrintCues.length === 1 ? 0 : (i % 2 === 0 ? -0.6 : 0.6);
-      playNRINTAudioCue(pan);
+    // NRINT audio-modality cues — separate from the sound-rel dispatch
+    // above because NRINT stims have rel === 'NRINT_COMPOSITE' (isSound is
+    // false) and the audio cues are per-trial flags inside stim.attrs.
+    // Each flag plays its own distinct cue; both can fire on the same trial.
+    const nrintCueItems = allAudible.filter(item => item.stimulus?.rel === 'NRINT_COMPOSITE');
+    nrintCueItems.forEach((item, i) => {
+      const pan = nrintCueItems.length === 1 ? 0 : (i % 2 === 0 ? -0.6 : 0.6);
+      if (item.stimulus?.attrs?.audio) playNRINTAudioCue(pan);
+      if (item.stimulus?.attrs?.pitch_high) playNRINTPitchHighCue(pan);
     });
   }, [phase, clearCanvas, gameState.round, gameState.audioStreamIndexes, gameState.currentRelationship, gameState.currentStimulusA, gameState.extraCurrentRels, gameState.extraCurrentStimuli]);
 

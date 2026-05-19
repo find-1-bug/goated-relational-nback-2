@@ -129,7 +129,7 @@ export default function Tutorial() {
               <span className="text-accent font-semibold">RINT (Relational Integration):</span> Use <span className="text-foreground font-semibold">logical reasoning</span> to chain facts. E.g., "A &gt; B" + "B &gt; C" logically proves "A &gt; C"—that's a match. Only uses <span className="text-foreground">transitive relationships</span> (comparisons, directions, temporal) to ensure valid logical chains. Tests <span className="text-foreground">transitive reasoning & working memory</span>. Requires N≥2.
             </div>
             <div>
-              <span className="text-accent font-semibold">Nonverbal RINT:</span> Each stim carries up to <span className="text-foreground font-semibold">4 independent attribute flags</span> — <span className="text-foreground">touching</span>, <span className="text-foreground">hollow</span>, <span className="text-foreground">size-mismatch</span>, and <span className="text-foreground">audio</span> (a brief tone). A target fires when the <span className="text-foreground">union (OR)</span> of the last N stims' attribute sets exactly equals the current stim. Genuinely cross-modal (visual + auditory). Replaces the entire relationship pool. Requires N≥2.
+              <span className="text-accent font-semibold">Nonverbal RINT:</span> Each stim carries a configurable set of <span className="text-foreground font-semibold">independent attribute flags</span> across two modalities: visual (<span className="text-foreground">touching</span>, <span className="text-foreground">hollow</span>, <span className="text-foreground">size-mismatch</span>, <span className="text-foreground">rotated</span>) and audio (<span className="text-foreground">tone</span>, <span className="text-foreground">high pitch</span>). A target fires when the current stim's attribute set equals the <span className="text-foreground">union of some non-empty subset</span> of the last N stims (i.e., current can be "added together" from a few of the recent trials, not necessarily all). A dedicated <span className="text-foreground">Nonverbal RINT Settings</span> panel appears on the dashboard when this mode is on — pick which 2/3/4/all attributes to use, and toggle <span className="text-foreground">Hide legend labels</span> for a truly nonverbal display. Replaces the entire relationship pool. Requires N≥2.
             </div>
             <div>
               <span className="text-accent font-semibold">CCT (Cognitive Control Training):</span> Pure arithmetic n-back. Each trial shows a digit (1–9); from trial N onwards a candidate result also appears. Press REL when <span className="text-foreground font-semibold">result == current_digit + digit_from_N-back</span>. Replaces the entire relationship pool for that stream. No relations, no shapes — just numbers + working memory. Available as a global mode (all streams CCT) or as a per-stream type via the row's REL/CCT toggle.
@@ -184,15 +184,16 @@ export default function Tutorial() {
 
           <div className="space-y-5 text-sm font-mono text-foreground/90">
             <div>
-              <div className="text-fuchsia-300 font-semibold mb-2">Nonverbal RINT</div>
-              <p className="text-muted-foreground mb-2">Target = the <span className="text-foreground">union</span> of the last 2 attribute sets equals the current one.</p>
+              <div className="text-fuchsia-300 font-semibold mb-2">Nonverbal RINT (subset-union rule)</div>
+              <p className="text-muted-foreground mb-2">Target = current attrs equal the union of <span className="text-foreground">some non-empty subset</span> of the last N stims. So you don't have to combine <em>all</em> the recent trials — just any few of them that "add up" to the current.</p>
               <div className="rounded bg-background/60 border border-border p-3 text-xs space-y-1">
                 <div>Trial 1: <span className="text-cyan-300">touching ✓</span> · <span className="text-emerald-300">audio ✓</span></div>
                 <div>Trial 2: <span className="text-violet-300">hollow ✓</span> · <span className="text-amber-300">size!= ✓</span></div>
-                <div className="text-muted-foreground/70">union = touching ✓ · hollow ✓ · size!= ✓ · audio ✓</div>
-                <div>Trial 3 shows all 4 flags ON → <span className="text-emerald-400 font-bold">TARGET, press REL</span></div>
-                <div>Trial 3 missing audio → <span className="text-red-400 font-bold">not a target</span></div>
+                <div>Trial 3a shows <span className="text-cyan-300">touching ✓</span> · <span className="text-emerald-300">audio ✓</span> → subset = {`{trial 1}`} → <span className="text-emerald-400 font-bold">TARGET</span></div>
+                <div>Trial 3b shows <span className="text-cyan-300">touching ✓</span> · <span className="text-violet-300">hollow ✓</span> · <span className="text-emerald-300">audio ✓</span> → subset = {`{trial 1, trial 2 (only hollow)}`}… but trial 2 also has size!=, which trial 3b lacks → trial 2 isn't compatible → <span className="text-red-400 font-bold">not a target</span></div>
+                <div>Trial 3c shows all 4 flags ON → subset = {`{trial 1, trial 2}`} → <span className="text-emerald-400 font-bold">TARGET</span></div>
               </div>
+              <p className="text-muted-foreground/70 text-[11px] mt-2">A stim is "compatible" with the current if none of its flags is ON where the current is OFF. The current is a target iff the union of all compatible stims in the last N equals the current's attribute set.</p>
             </div>
 
             <div>

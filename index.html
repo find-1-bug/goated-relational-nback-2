@@ -12,6 +12,23 @@
     <meta name="apple-mobile-web-app-title" content="GOATED n-Back" />
     <link rel="manifest" href="manifest.json" />
     <title>GOATED Relational n-Back</title>
+    <script>
+      // Theme bootstrap — runs before React mounts so the user never sees
+      // a flash of the wrong theme. Saved preference wins; otherwise dark
+      // (matches the long-standing default look).
+      (function () {
+        try {
+          var t = localStorage.getItem('nback_theme');
+          if (t === 'light') {
+            document.documentElement.classList.remove('dark');
+          } else {
+            document.documentElement.classList.add('dark');
+          }
+        } catch (_) {
+          document.documentElement.classList.add('dark');
+        }
+      })();
+    </script>
   </head>
   <body>
     <div id="root"></div>

@@ -96,7 +96,8 @@ function evaluateStimulusForMode({ stim, mode, history, typeHistory, rintState, 
     if (history.length < effectiveN) return false;
     const tail = history.slice(-effectiveN).filter(s => s?.rel === 'NRINT_COMPOSITE');
     if (tail.length < effectiveN) return false;
-    return attrsEqual(attrsUnion(tail), stim.attrs || emptyAttrs());
+    const enabledFlags = stim?._nrintEnabledFlags || NRINT_DEFAULT_FLAGS;
+    return attrsReachableFromSubset(tail, stim.attrs || emptyAttrs(), enabledFlags);
   }
   if (mode === 'type') return isTypeNbackMatch(typeHistory, stim.rel, effectiveN);
   if (mode === 'hierarchical') {
@@ -326,49 +327,105 @@ function generateCCTLayer(history, effectiveN, matchChance) {
 }
 
 // ─── Nonverbal cross-attribute RINT helpers ─────────────────────────────────
-// Stimulus carries an `attrs` object with three independent boolean visual
-// flags. A current stimulus is a target when the union of the last `n`
-// histories' attribute sets equals the current stimulus's attribute set.
-// 4th flag 'audio' is cross-modal: when true the trial plays a brief tone
-// alongside the visual stim. Still participates in attrsUnion / attrsEqual
-// the same way as the visual flags, so the union-equals-current target rule
-// extends to a literal cross-category composite (Grapist's "higher
-// abstraction quad" suggestion).
-const NRINT_FLAGS = ['touching', 'hollow', 'size_mismatch', 'audio'];
+// Stimulus carries an `attrs` object with independent boolean flags spanning
+// visual and auditory modalities. Updated match rule (per Grapist's revised
+// feedback): a current stim is a target when its attribute set can be
+// expressed as the union of some non-empty subset of the last N stims —
+// equivalently, when the union of all "compatible" stims (those whose
+// attrs are a subset of current.attrs) in the last N equals current.attrs.
+// All-zero current is never a target (would be trivially reachable by the
+// empty subset).
+//
+// Each flag may be enabled or disabled by the player (per-session), letting
+// them use 2/3/etc. of the available modalities instead of all of them.
+export const NRINT_FLAGS = ['touching', 'hollow', 'size_mismatch', 'rotated', 'audio', 'pitch_high'];
+export const NRINT_FLAG_META = {
+  touching:       { group: 'visual', label: 'Touching',     desc: 'shapes adjacent vs. apart' },
+  hollow:         { group: 'visual', label: 'Hollow',       desc: 'left shape outline vs. filled' },
+  size_mismatch:  { group: 'visual', label: 'Size != ',     desc: 'right shape smaller vs. equal' },
+  rotated:        { group: 'visual', label: 'Rotated',      desc: 'one shape rotated ~30°' },
+  audio:          { group: 'audio',  label: 'Tone',         desc: 'brief sine tone' },
+  pitch_high:     { group: 'audio',  label: 'High pitch',   desc: 'higher-pitched chime' },
+};
+const NRINT_DEFAULT_FLAGS = ['touching', 'hollow', 'size_mismatch', 'audio'];
 
 function emptyAttrs() {
-  return { touching: false, hollow: false, size_mismatch: false };
+  const o = {};
+  NRINT_FLAGS.forEach(f => { o[f] = false; });
+  return o;
 }
 
-function randomAttrs() {
+function randomAttrs(enabledFlags = NRINT_FLAGS) {
   const out = emptyAttrs();
-  NRINT_FLAGS.forEach(f => { out[f] = Math.random() < 0.5; });
+  enabledFlags.forEach(f => { out[f] = Math.random() < 0.5; });
   return out;
 }
 
-function attrsUnion(stimsTail) {
+function attrsUnion(stimsTail, enabledFlags = NRINT_FLAGS) {
   const out = emptyAttrs();
   stimsTail.forEach(s => {
     const a = s?.attrs || emptyAttrs();
-    NRINT_FLAGS.forEach(f => { out[f] = out[f] || !!a[f]; });
+    enabledFlags.forEach(f => { out[f] = out[f] || !!a[f]; });
   });
   return out;
 }
 
-function attrsEqual(a, b) {
-  return NRINT_FLAGS.every(f => !!a[f] === !!b[f]);
+function attrsEqual(a, b, enabledFlags = NRINT_FLAGS) {
+  return enabledFlags.every(f => !!a[f] === !!b[f]);
 }
 
-function pickNonMatchingAttrs(targetAttrs) {
-  for (let i = 0; i < 8; i++) {
-    const cand = randomAttrs();
-    if (!attrsEqual(cand, targetAttrs)) return cand;
+// Subset-union match: current is reachable iff every flag ON in current
+// appears in at least one "compatible" stim (one whose enabled-flag set is
+// a subset of current's), AND current isn't trivially empty.
+function attrsReachableFromSubset(tail, currentAttrs, enabledFlags = NRINT_FLAGS) {
+  if (enabledFlags.every(f => !currentAttrs[f])) return false; // trivial-empty
+  const compatible = tail.filter(s => {
+    const a = s?.attrs || emptyAttrs();
+    return enabledFlags.every(f => !a[f] || currentAttrs[f]);
+  });
+  if (compatible.length === 0) return false;
+  const union = attrsUnion(compatible, enabledFlags);
+  return attrsEqual(union, currentAttrs, enabledFlags);
+}
+
+// Pick attrs that ARE reachable as a subset-union of the tail. Strategy:
+// take a random non-empty subset of tail and use its union as current.attrs.
+function pickReachableAttrs(tail, enabledFlags = NRINT_FLAGS) {
+  const usable = (tail || []).filter(s => s?.attrs);
+  if (usable.length === 0) return null;
+  for (let attempt = 0; attempt < 6; attempt++) {
+    let subset = usable.filter(() => Math.random() < 0.55);
+    if (subset.length === 0) subset = [usable[Math.floor(Math.random() * usable.length)]];
+    const candidate = attrsUnion(subset, enabledFlags);
+    if (enabledFlags.some(f => candidate[f])) return candidate;
   }
-  // Flip a random flag deterministically as a last resort
-  const cand = { ...targetAttrs };
-  const f = NRINT_FLAGS[Math.floor(Math.random() * NRINT_FLAGS.length)];
-  cand[f] = !cand[f];
-  return cand;
+  // Last resort: copy the freshest stim that has any enabled flag set.
+  for (let i = usable.length - 1; i >= 0; i--) {
+    const a = usable[i].attrs;
+    if (enabledFlags.some(f => a[f])) {
+      const out = emptyAttrs();
+      enabledFlags.forEach(f => { out[f] = !!a[f]; });
+      return out;
+    }
+  }
+  return null;
+}
+
+// Pick attrs that are NOT reachable as a subset-union of the tail. The
+// engine uses this for non-target trials; we keep candidates within the
+// enabled-flag set so disabling a flag really means it's silenced.
+function pickNonMatchingAttrs(tail, enabledFlags = NRINT_FLAGS) {
+  for (let i = 0; i < 16; i++) {
+    const cand = randomAttrs(enabledFlags);
+    if (!attrsReachableFromSubset(tail, cand, enabledFlags)) return cand;
+  }
+  // Force a non-empty unreachable attrs by adding a flag that no tail stim has.
+  const out = randomAttrs(enabledFlags);
+  for (const f of enabledFlags) {
+    const haveAny = (tail || []).some(s => s?.attrs?.[f]);
+    if (!haveAny) { out[f] = true; return out; }
+  }
+  return out;
 }
 
 function makeNRINTStim(attrs) {
@@ -388,7 +445,7 @@ function makeNRINTStim(attrs) {
 
 // Generate stimulus for a single stream, given its own history/typeHistory/rintState
 // streamConfig: { trialMode, binaryMode, binaryOp, hierHistory } for Hierarchical and Binary Logic
-function generateOneStreamStimulus({ history, typeHistory, rintState, pool, effectiveN, trialMode, matchChance, hasDistractors, trialIndex, hierHistory, binaryMode, binaryOp, signalOnly = false, baseStim = null, alienCube = false, alienSquare = false, alienTesseract = false, alienSettings = {} }) {
+function generateOneStreamStimulus({ history, typeHistory, rintState, pool, effectiveN, trialMode, matchChance, hasDistractors, trialIndex, hierHistory, binaryMode, binaryOp, signalOnly = false, baseStim = null, alienCube = false, alienSquare = false, alienTesseract = false, alienSettings = {}, nrintEnabledFlags = NRINT_DEFAULT_FLAGS, nrintHideLegend = false }) {
    let stim, isPrimaryTarget = false, isPositionTarget = false, nextRINTState = rintState;
    const canTarget = history.length >= effectiveN;
 
@@ -419,21 +476,30 @@ function generateOneStreamStimulus({ history, typeHistory, rintState, pool, effe
     stim = cctResult.stim;
     isPrimaryTarget = cctResult.isTarget;
   } else if (trialMode === 'nrint') {
-    // Nonverbal cross-attribute RINT: union of last-N attribute sets == current
+    // Nonverbal cross-attribute RINT: current attrs must be expressible as
+    // the union of some non-empty subset of the last N stims (Grapist's
+    // revised rule). Per-session enabledFlags controls which attribute
+    // dimensions are active.
+    const flags = (nrintEnabledFlags && nrintEnabledFlags.length) ? nrintEnabledFlags : NRINT_DEFAULT_FLAGS;
     const tail = history.slice(-effectiveN).filter(s => s?.rel === 'NRINT_COMPOSITE');
     const haveChain = tail.length >= effectiveN;
     let attrs;
     if (haveChain && Math.random() < matchChance) {
-      attrs = attrsUnion(tail);
-      isPrimaryTarget = true;
+      attrs = pickReachableAttrs(tail, flags) || randomAttrs(flags);
+      isPrimaryTarget = attrsReachableFromSubset(tail, attrs, flags);
     } else if (haveChain) {
-      attrs = pickNonMatchingAttrs(attrsUnion(tail));
+      attrs = pickNonMatchingAttrs(tail, flags);
       isPrimaryTarget = false;
     } else {
-      attrs = randomAttrs();
+      attrs = randomAttrs(flags);
       isPrimaryTarget = false;
     }
     stim = makeNRINTStim(attrs);
+    // Carry the per-session config on the stim so evaluators / renderer
+    // can honour enabled-flag and hide-legend settings without needing
+    // a separate channel.
+    stim._nrintEnabledFlags = flags;
+    if (nrintHideLegend) stim._nrintHideLegend = true;
   } else if (trialMode === 'type') {
     const forcedRel = Math.random() < matchChance ? pickTypeNbackTargetRel(typeHistory, finalPool, effectiveN) : null;
     if (forcedRel) {
@@ -537,7 +603,7 @@ function randomBinaryConfig(effectiveN) {
 
 // ─── State Creation ──────────────────────────────────────────────────────────
 
-export function createGameState({ nLevel, modes, relationshipPool, totalRounds, extraStreams = [], alienSettings = {}, streamA = null }) {
+export function createGameState({ nLevel, modes, relationshipPool, totalRounds, extraStreams = [], alienSettings = {}, streamA = null, nrintEnabledFlags = null, nrintHideLegend = false }) {
   const numExtra = extraStreams.length;
   const totalStreams = 1 + numExtra;
   // Per-stream type: 'relation' (default) or 'cct'. Falls back to global 'cct'
@@ -558,6 +624,8 @@ export function createGameState({ nLevel, modes, relationshipPool, totalRounds, 
     totalRounds: totalRounds || TOTAL_ROUNDS,
     numExtraStreams: numExtra,
     streamTypes,
+    nrintEnabledFlags: (nrintEnabledFlags && nrintEnabledFlags.length) ? nrintEnabledFlags : NRINT_DEFAULT_FLAGS,
+    nrintHideLegend: !!nrintHideLegend,
     // Per-trial randomized binary configs (only used when binary_logic mode is active)
     trialBinaryConfigs: Array(totalStreams).fill(null).map(() => ({ primaryMode: 'normal', binaryMode: null, binaryOp: 'AND' })),
     audioStreamIndexes: [],
@@ -699,6 +767,8 @@ export function generateNextStimulus(state) {
   const rintStateA = (rintStates && rintStates[0]) ? rintStates[0] : createRINTState();
   const cfgA = trialBinaryConfigs[0];
 
+  const nrintEnabledFlags = state.nrintEnabledFlags || NRINT_DEFAULT_FLAGS;
+  const nrintHideLegend = !!state.nrintHideLegend;
   const resultA = generateOneStreamStimulus({
     history: historyA,
     typeHistory: typeHistoryA,
@@ -714,6 +784,8 @@ export function generateNextStimulus(state) {
     alienSquare,
     alienTesseract,
     alienSettings,
+    nrintEnabledFlags,
+    nrintHideLegend,
   });
 
   const stimA = resultA.stim;
@@ -748,6 +820,8 @@ export function generateNextStimulus(state) {
       alienSquare,
       alienTesseract,
       alienSettings,
+      nrintEnabledFlags,
+      nrintHideLegend,
     });
   });
 

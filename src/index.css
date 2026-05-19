@@ -5,45 +5,50 @@
 @tailwind utilities;
 
 @layer base {
+  /* Light theme (default if no `.dark` class on <html>). The app shipped as
+     dark-only for a long time, so the inline script in index.html sets the
+     'dark' class by default — light mode is opt-in via the dashboard toggle. */
   :root {
-    --background: 220 20% 6%;
-    --foreground: 210 20% 92%;
-    --card: 220 18% 10%;
-    --card-foreground: 210 20% 92%;
-    --popover: 220 18% 10%;
-    --popover-foreground: 210 20% 92%;
-    --primary: 168 80% 50%;
-    --primary-foreground: 220 20% 6%;
-    --secondary: 220 16% 16%;
-    --secondary-foreground: 210 20% 80%;
-    --muted: 220 16% 14%;
-    --muted-foreground: 210 10% 50%;
-    --accent: 260 60% 60%;
-    --accent-foreground: 210 20% 92%;
-    --destructive: 0 72% 55%;
-    --destructive-foreground: 0 0% 98%;
-    --border: 220 16% 18%;
-    --input: 220 16% 18%;
-    --ring: 168 80% 50%;
-    --chart-1: 168 80% 50%;
-    --chart-2: 260 60% 60%;
-    --chart-3: 30 90% 60%;
-    --chart-4: 340 75% 55%;
-    --chart-5: 200 80% 55%;
+    --background: 220 24% 97%;
+    --foreground: 220 24% 10%;
+    --card: 0 0% 100%;
+    --card-foreground: 220 24% 10%;
+    --popover: 0 0% 100%;
+    --popover-foreground: 220 24% 10%;
+    --primary: 168 75% 32%;
+    --primary-foreground: 0 0% 100%;
+    --secondary: 220 18% 92%;
+    --secondary-foreground: 220 24% 16%;
+    --muted: 220 18% 95%;
+    --muted-foreground: 220 14% 38%;
+    --accent: 260 55% 48%;
+    --accent-foreground: 0 0% 100%;
+    --destructive: 0 72% 48%;
+    --destructive-foreground: 0 0% 100%;
+    --border: 220 18% 84%;
+    --input: 220 18% 84%;
+    --ring: 168 75% 32%;
+    --chart-1: 168 75% 32%;
+    --chart-2: 260 55% 48%;
+    --chart-3: 30 85% 48%;
+    --chart-4: 340 70% 48%;
+    --chart-5: 200 75% 42%;
     --radius: 0.5rem;
-    --sidebar-background: 220 18% 8%;
-    --sidebar-foreground: 210 20% 92%;
-    --sidebar-primary: 168 80% 50%;
-    --sidebar-primary-foreground: 220 20% 6%;
-    --sidebar-accent: 220 16% 14%;
-    --sidebar-accent-foreground: 210 20% 92%;
-    --sidebar-border: 220 16% 18%;
-    --sidebar-ring: 168 80% 50%;
+    --sidebar-background: 220 18% 92%;
+    --sidebar-foreground: 220 24% 10%;
+    --sidebar-primary: 168 75% 32%;
+    --sidebar-primary-foreground: 0 0% 100%;
+    --sidebar-accent: 220 18% 95%;
+    --sidebar-accent-foreground: 220 24% 10%;
+    --sidebar-border: 220 18% 84%;
+    --sidebar-ring: 168 75% 32%;
 
     --font-mono: 'JetBrains Mono', monospace;
     --font-sans: 'Inter', sans-serif;
   }
 
+  /* Dark theme (the long-standing default — kept in sync with the deep
+     navy / teal palette the app was designed around). */
   .dark {
     --background: 220 20% 6%;
     --foreground: 210 20% 92%;

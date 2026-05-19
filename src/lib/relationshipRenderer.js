@@ -921,9 +921,25 @@ function renderNRINTComposite(ctx, cx, cy, stimulus, scale = 1) {
   const sizeA = 70 * scale;
   const sizeB = attrs.size_mismatch ? 30 * scale : 65 * scale;
   const gap = attrs.touching ? (sizeA + sizeB) / 2 - 8 * scale : (sizeA + sizeB) / 2 + 32 * scale;
-  drawShape(ctx, v.shapeA, cx - gap / 2, cy, sizeA, v.colorA, !attrs.hollow);
+
+  // Shape A: rotated ~30° when the rotated flag is on, otherwise upright.
+  // Rotate around shape A's centre so it stays in place.
+  const ax = cx - gap / 2;
+  if (attrs.rotated) {
+    ctx.save();
+    ctx.translate(ax, cy);
+    ctx.rotate(Math.PI / 6); // 30°
+    drawShape(ctx, v.shapeA, 0, 0, sizeA, v.colorA, !attrs.hollow);
+    ctx.restore();
+  } else {
+    drawShape(ctx, v.shapeA, ax, cy, sizeA, v.colorA, !attrs.hollow);
+  }
   drawShape(ctx, v.shapeB, cx + gap / 2, cy, sizeB, v.colorB, true);
-  // attribute legend along bottom
+
+  // Attribute legend along bottom — hidden when the session asks for a
+  // truly nonverbal display (Grapist's "disable the words" request).
+  if (stimulus?._nrintHideLegend) return;
+
   ctx.save();
   ctx.font = `${Math.max(9, 11 * scale)}px 'JetBrains Mono', monospace`;
   ctx.textAlign = 'center';
@@ -932,12 +948,15 @@ function renderNRINTComposite(ctx, cx, cy, stimulus, scale = 1) {
     attrs.touching     ? { t: 'TOUCH',   c: '#22d3ee' } : null,
     attrs.hollow       ? { t: 'HOLLOW',  c: '#a78bfa' } : null,
     attrs.size_mismatch? { t: 'SIZE!=',  c: '#fbbf24' } : null,
+    attrs.rotated      ? { t: 'ROT',     c: '#f472b6' } : null,
     attrs.audio        ? { t: 'AUDIO ♪', c: '#34d399' } : null,
+    attrs.pitch_high   ? { t: 'HIGH ♪',  c: '#fb7185' } : null,
   ].filter(Boolean);
   if (flags.length > 0) {
+    const spacing = Math.max(54, Math.min(70, 360 / flags.length)) * scale;
     flags.forEach((f, i) => {
       ctx.fillStyle = f.c;
-      ctx.fillText(f.t, cx + (i - (flags.length - 1) / 2) * 70 * scale, cy + sizeA * 0.7);
+      ctx.fillText(f.t, cx + (i - (flags.length - 1) / 2) * spacing, cy + sizeA * 0.7);
     });
   } else {
     ctx.fillStyle = 'hsla(210,20%,55%,0.6)';

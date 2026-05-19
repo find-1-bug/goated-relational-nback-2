@@ -3,6 +3,7 @@ import { Button } from '@/components/ui/button';
 import { Brain, Zap, TrendingUp, Layers, GitBranch, Shuffle, ChevronDown, ChevronUp, Plus, Minus } from 'lucide-react';
 import { motion, AnimatePresence } from 'framer-motion';
 import { RELATIONSHIP_CATEGORIES, setTokenWeights, getTokenWeights, filterTransitiveRelationships } from '@/lib/gameConstants';
+import { NRINT_FLAGS, NRINT_FLAG_META } from '@/lib/gameEngine';
 
 // Build a weighted pool from category weights + enabled rels
 // Each category's rels are repeated proportionally to its weight
@@ -313,6 +314,25 @@ export default function StartScreen({ onStart, suggestedN, lastSettings }) {
   });
   const alienModeActive = modes.includes('alien_cube') || modes.includes('alien_tesseract') || modes.includes('alien_square');
   const cctOverlayActive = modes.includes('cct_overlay');
+
+  // NRINT per-session config: which attribute flags are active + whether
+  // the textual legend is hidden (Grapist's "disable the words" request).
+  const NRINT_DEFAULT_FLAGS_LOCAL = ['touching', 'hollow', 'size_mismatch', 'audio'];
+  const [nrintEnabledFlags, setNrintEnabledFlags] = React.useState(
+    Array.isArray(lastSettings?.nrintEnabledFlags) && lastSettings.nrintEnabledFlags.length
+      ? lastSettings.nrintEnabledFlags.filter(f => NRINT_FLAGS.includes(f))
+      : NRINT_DEFAULT_FLAGS_LOCAL
+  );
+  const [nrintHideLegend, setNrintHideLegend] = React.useState(!!lastSettings?.nrintHideLegend);
+  const toggleNrintFlag = (flag) => {
+    setNrintEnabledFlags(prev => {
+      if (prev.includes(flag)) {
+        // Don't let the user disable every flag — at least one must stay on.
+        return prev.length === 1 ? prev : prev.filter(f => f !== flag);
+      }
+      return [...prev, flag];
+    });
+  };
   // When Nonverbal RINT is active the engine replaces the relationship pool
   // with a single composite stim, so user-side pool / mix / token controls
   // are ignored. We grey them out (rather than hide) and add a small note
@@ -815,6 +835,58 @@ export default function StartScreen({ onStart, suggestedN, lastSettings }) {
           </div>
         </div>
 
+        {/* Nonverbal RINT Settings */}
+        {nrintActive && (
+          <div className="space-y-3 rounded-lg bg-fuchsia-500/5 border border-fuchsia-500/30 p-3">
+            <div className="flex items-center justify-between flex-wrap gap-2">
+              <label className="text-xs font-mono text-fuchsia-300 uppercase tracking-widest">Nonverbal RINT Settings</label>
+              <span className="text-[10px] font-mono text-fuchsia-400/70">{nrintEnabledFlags.length}/{NRINT_FLAGS.length} attrs active</span>
+            </div>
+            <p className="text-xs font-mono text-muted-foreground/70 leading-relaxed">
+              Match rule: current attrs == union of some subset of last N stims. Pick which attributes to use — disabled ones never fire.
+            </p>
+            {['visual', 'audio'].map(group => {
+              const groupFlags = NRINT_FLAGS.filter(f => NRINT_FLAG_META[f].group === group);
+              return (
+                <div key={group} className="space-y-1.5">
+                  <div className="text-[10px] font-mono text-muted-foreground/80 uppercase tracking-widest">{group}</div>
+                  <div className="flex flex-wrap gap-1.5">
+                    {groupFlags.map(f => {
+                      const on = nrintEnabledFlags.includes(f);
+                      const meta = NRINT_FLAG_META[f];
+                      return (
+                        <button key={f}
+                          onClick={() => toggleNrintFlag(f)}
+                          title={meta.desc}
+                          className={`px-2 py-1 rounded text-xs font-mono border transition-colors ${on
+                            ? 'bg-fuchsia-500/20 border-fuchsia-400 text-fuchsia-200 font-semibold'
+                            : 'bg-secondary/40 border-border text-muted-foreground hover:border-muted-foreground/50'}`}>
+                          {meta.label}
+                        </button>
+                      );
+                    })}
+                  </div>
+                </div>
+              );
+            })}
+            <div className="flex items-center justify-between pt-1 border-t border-fuchsia-500/20">
+              <div>
+                <span className="text-xs font-mono text-foreground">Hide legend labels</span>
+                <p className="text-[10px] font-mono text-muted-foreground/70">Truly nonverbal display — no TOUCH / HOLLOW / etc. words underneath the shapes.</p>
+              </div>
+              <button
+                onClick={() => setNrintHideLegend(v => !v)}
+                className={`relative w-12 h-6 rounded-full transition-colors shrink-0 ${nrintHideLegend ? 'bg-fuchsia-500' : 'bg-secondary border border-border'}`}
+              >
+                <div
+                  className={`absolute w-5 h-5 rounded-full bg-foreground transition-transform ${nrintHideLegend ? 'translate-x-6' : 'translate-x-0.5'}`}
+                  style={{ top: '2.5px' }}
+                />
+              </button>
+            </div>
+          </div>
+        )}
+
         {/* Alien Settings */}
         {alienModeActive && (
           <div className="space-y-3 rounded-lg bg-secondary/30 border border-border p-3">
@@ -1041,7 +1113,7 @@ export default function StartScreen({ onStart, suggestedN, lastSettings }) {
                 cctKeyDisplay: KEY_OPTIONS.find(k => k.code === streamACCTKey)?.display || 'M',
                 streamType: streamAType,
               };
-              onStart(nLevel, modes, finalPool, rounds, speedMs, { catWeights, useCustomMix, rels: selectedRels, tokenWeights, streamA: streamAWithPosition, extraStreams, streams: [streamAWithPosition, ...extraStreams], alienSettings, carouselSettings }, noobMode);
+              onStart(nLevel, modes, finalPool, rounds, speedMs, { catWeights, useCustomMix, rels: selectedRels, tokenWeights, streamA: streamAWithPosition, extraStreams, streams: [streamAWithPosition, ...extraStreams], alienSettings, carouselSettings, nrintEnabledFlags, nrintHideLegend }, noobMode);
             }}
             className="h-12 px-10 font-mono font-semibold text-sm tracking-wide bg-primary text-primary-foreground hover:bg-primary/90 disabled:opacity-50 disabled:cursor-not-allowed">
             Start Training

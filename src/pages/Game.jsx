@@ -4,6 +4,7 @@ import StartScreen from '@/components/game/StartScreen';
 import GameScreen from '@/components/game/GameScreen';
 import ResultsScreen from '@/components/game/ResultsScreen';
 import InstallAppButton from '@/components/InstallAppButton';
+import ThemeToggle from '@/components/ThemeToggle';
 import { calculateResults, computeNextNLevel } from '@/lib/gameEngine';
 import { addSession, saveSettings, getSettings } from '@/lib/localStorageManager';
 
@@ -20,6 +21,8 @@ export default function Game() {
   const [streamA, setStreamA] = useState({ key: 'Space', keyDisplay: 'SPACE', positionKey: 'KeyP', positionKeyDisplay: 'P' });
   const [alienSettings, setAlienSettings] = useState({ cubeDirection: 'cw', cubeSpeed: 1, cubeSpeedMode: 'fixed', squareDirection: 'cw', squareSpeed: 1, squareSpeedMode: 'fixed' });
   const [carouselSettings, setCarouselSettings] = useState({ enabled: true, streamsPerSlide: 'auto', slideMs: 2800 });
+  const [nrintEnabledFlags, setNrintEnabledFlags] = useState(null);
+  const [nrintHideLegend, setNrintHideLegend] = useState(false);
   const [noobMode, setNoobMode] = useState(false);
   const [startTime, setStartTime] = useState(null);
   const [gameRunId, setGameRunId] = useState(0);
@@ -44,6 +47,8 @@ export default function Game() {
     setStreamA(extraSettings?.streamA || { key: 'Space', keyDisplay: 'SPACE', positionKey: 'KeyP', positionKeyDisplay: 'P' });
     setAlienSettings(extraSettings?.alienSettings || { cubeDirection: 'cw', cubeSpeed: 1, cubeSpeedMode: 'fixed', squareDirection: 'cw', squareSpeed: 1, squareSpeedMode: 'fixed' });
     setCarouselSettings({ enabled: true, streamsPerSlide: 'auto', slideMs: 2800, ...(extraSettings?.carouselSettings || {}) });
+    setNrintEnabledFlags(extraSettings?.nrintEnabledFlags || null);
+    setNrintHideLegend(!!extraSettings?.nrintHideLegend);
     setNoobMode(noob || false);
     setStartTime(Date.now());
     setGameRunId(id => id + 1);
@@ -61,6 +66,8 @@ export default function Game() {
         streamA: extraSettings?.streamA || { key: 'Space', keyDisplay: 'SPACE', positionKey: 'KeyP', positionKeyDisplay: 'P' },
         alienSettings: extraSettings?.alienSettings,
         carouselSettings: { enabled: true, streamsPerSlide: 'auto', slideMs: 2800, ...(extraSettings?.carouselSettings || {}) },
+        nrintEnabledFlags: extraSettings?.nrintEnabledFlags || null,
+        nrintHideLegend: !!extraSettings?.nrintHideLegend,
         noobMode: noob || false,
       }
     };
@@ -134,6 +141,8 @@ export default function Game() {
           streamA={streamA}
           alienSettings={alienSettings}
           carouselSettings={carouselSettings}
+          nrintEnabledFlags={nrintEnabledFlags}
+          nrintHideLegend={nrintHideLegend}
           noobMode={noobMode}
           onFinish={handleFinish}
           onExit={handleBack}
@@ -151,6 +160,7 @@ export default function Game() {
       <div className="fixed top-3 right-3 z-10 flex gap-2 flex-wrap justify-end max-w-[calc(100vw-1.5rem)]" style={{ top: 'max(0.75rem, env(safe-area-inset-top))' }}>
         {screen === 'start' && (
           <>
+            <ThemeToggle />
             <InstallAppButton />
             <Link to="/tutorial" className="px-2.5 sm:px-3 py-1.5 rounded-lg bg-accent/15 border border-accent/50 text-accent hover:bg-accent/25 hover:border-accent text-xs font-mono font-semibold transition-colors">
               Tutorial
