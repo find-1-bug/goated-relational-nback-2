@@ -313,6 +313,15 @@ export default function StartScreen({ onStart, suggestedN, lastSettings }) {
   });
   const alienModeActive = modes.includes('alien_cube') || modes.includes('alien_tesseract') || modes.includes('alien_square');
   const cctOverlayActive = modes.includes('cct_overlay');
+  // When Nonverbal RINT is active the engine replaces the relationship pool
+  // with a single composite stim, so user-side pool / mix / token controls
+  // are ignored. We grey them out (rather than hide) and add a small note
+  // so the player can still see what they'd configured.
+  const nrintActive = modes.includes('nonverbal_rint');
+  const poolIgnoredCls = nrintActive ? 'opacity-50' : '';
+  const poolIgnoredNote = nrintActive ? (
+    <span className="text-[10px] font-mono text-fuchsia-400 bg-fuchsia-500/10 border border-fuchsia-500/30 rounded px-1.5 py-0.5 whitespace-nowrap">ignored in Nonverbal RINT</span>
+  ) : null;
 
   // extra stream: { key, keyDisplay, positionKey, positionKeyDisplay, cctKey, cctKeyDisplay, streamType, label }
   const allStreamKeys = [
@@ -568,7 +577,7 @@ export default function StartScreen({ onStart, suggestedN, lastSettings }) {
         </div>
 
         {/* Relationship Type Selector */}
-        <div className="space-y-2">
+        <div className={`space-y-2 ${poolIgnoredCls}`}>
           <button
             onClick={() => setShowRelTypes(v => !v)}
             className="w-full flex items-center justify-between px-3 py-2 rounded-lg bg-secondary/50 border border-border hover:border-muted-foreground/40 transition-colors">
@@ -576,6 +585,7 @@ export default function StartScreen({ onStart, suggestedN, lastSettings }) {
               Relationship Types
             </span>
             <div className="flex items-center gap-2">
+              {poolIgnoredNote}
               <span className="text-xs font-mono text-primary">{selectedRels.length}/{totalRels}</span>
               {showRelTypes ? <ChevronUp className="w-3.5 h-3.5 text-muted-foreground" /> : <ChevronDown className="w-3.5 h-3.5 text-muted-foreground" />}
             </div>
@@ -641,12 +651,13 @@ export default function StartScreen({ onStart, suggestedN, lastSettings }) {
         </div>
 
         {/* Stimuli Mix */}
-        <div className="space-y-2">
+        <div className={`space-y-2 ${poolIgnoredCls}`}>
           <div
             onClick={() => setShowStimuliMix(v => !v)}
             className="w-full flex items-center justify-between px-3 py-2 rounded-lg bg-secondary/50 border border-border hover:border-muted-foreground/40 transition-colors cursor-pointer">
             <span className="text-xs font-mono text-muted-foreground uppercase tracking-widest">Stimuli Mix</span>
             <div className="flex items-center gap-2">
+              {poolIgnoredNote}
               <button
                 onClick={e => { e.stopPropagation(); setUseCustomMix(v => !v); }}
                 className={`px-2 py-0.5 rounded text-xs font-mono border transition-all ${useCustomMix ? 'border-primary bg-primary/15 text-primary' : 'border-border text-muted-foreground'}`}>
@@ -710,12 +721,13 @@ export default function StartScreen({ onStart, suggestedN, lastSettings }) {
         </div>
 
         {/* Token Mix (for verbal stimuli) */}
-        <div className="space-y-2">
+        <div className={`space-y-2 ${poolIgnoredCls}`}>
           <button
             onClick={() => setShowTokenMix(v => !v)}
             className="w-full flex items-center justify-between px-3 py-2 rounded-lg bg-secondary/50 border border-border hover:border-muted-foreground/40 transition-colors">
             <span className="text-xs font-mono text-muted-foreground uppercase tracking-widest">Token Style Mix</span>
             <div className="flex items-center gap-2">
+              {poolIgnoredNote}
               <span className="text-xs font-mono text-primary/70 truncate max-w-[160px]">
                 {TOKEN_META.filter(t => tokenWeights[t.id] > 0).map(t => `${t.label} ${tokenPct(t.id)}%`).join(' · ')}
               </span>
