@@ -12,7 +12,7 @@ import {
   FEEDBACK_DURATION,
   isSound,
 } from '@/lib/gameConstants';
-import { playSoundStimulus } from '@/lib/audioRelationships';
+import { playSoundStimulus, playNRINTAudioCue } from '@/lib/audioRelationships';
 
 function StreamModeBadge({ mode, alwaysShow }) {
   if (!mode) return null;
@@ -462,7 +462,16 @@ export default function GameScreen({ nLevel, modes, relationshipPool, totalRound
       const delaySeconds = selected.length === 2 && i === 1 ? 0.32 : 0;
       playSoundStimulus(item.stimulus, pan, delaySeconds);
     });
-  }, [phase, clearCanvas, gameState.round, gameState.audioStreamIndexes, gameState.currentRelationship, gameState.extraCurrentRels]);
+
+    // NRINT 4th-attribute cue — separate from the sound-rel dispatch above
+    // because NRINT stims have rel === 'NRINT_COMPOSITE' (isSound is false)
+    // and the audio cue is a per-trial flag inside stim.attrs.
+    const nrintCues = allAudible.filter(item => item.stimulus?.rel === 'NRINT_COMPOSITE' && item.stimulus?.attrs?.audio);
+    nrintCues.forEach((item, i) => {
+      const pan = nrintCues.length === 1 ? 0 : (i % 2 === 0 ? -0.6 : 0.6);
+      playNRINTAudioCue(pan);
+    });
+  }, [phase, clearCanvas, gameState.round, gameState.audioStreamIndexes, gameState.currentRelationship, gameState.currentStimulusA, gameState.extraCurrentRels, gameState.extraCurrentStimuli]);
 
   const numStreams = streamStimuli.length;
   const streamsPerSlide = getCarouselCapacity();

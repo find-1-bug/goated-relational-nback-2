@@ -932,6 +932,7 @@ function renderNRINTComposite(ctx, cx, cy, stimulus, scale = 1) {
     attrs.touching     ? { t: 'TOUCH',   c: '#22d3ee' } : null,
     attrs.hollow       ? { t: 'HOLLOW',  c: '#a78bfa' } : null,
     attrs.size_mismatch? { t: 'SIZE!=',  c: '#fbbf24' } : null,
+    attrs.audio        ? { t: 'AUDIO ♪', c: '#34d399' } : null,
   ].filter(Boolean);
   if (flags.length > 0) {
     flags.forEach((f, i) => {

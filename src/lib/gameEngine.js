@@ -329,7 +329,12 @@ function generateCCTLayer(history, effectiveN, matchChance) {
 // Stimulus carries an `attrs` object with three independent boolean visual
 // flags. A current stimulus is a target when the union of the last `n`
 // histories' attribute sets equals the current stimulus's attribute set.
-const NRINT_FLAGS = ['touching', 'hollow', 'size_mismatch'];
+// 4th flag 'audio' is cross-modal: when true the trial plays a brief tone
+// alongside the visual stim. Still participates in attrsUnion / attrsEqual
+// the same way as the visual flags, so the union-equals-current target rule
+// extends to a literal cross-category composite (Grapist's "higher
+// abstraction quad" suggestion).
+const NRINT_FLAGS = ['touching', 'hollow', 'size_mismatch', 'audio'];
 
 function emptyAttrs() {
   return { touching: false, hollow: false, size_mismatch: false };
