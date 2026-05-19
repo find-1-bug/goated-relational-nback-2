@@ -89,10 +89,12 @@ export default function ResultsScreen({ gameState, onRestart, onBack }) {
         <div className="space-y-4">
           <StreamResults title="Stream A · Relation" stats={results.A} color="text-primary" />
           {results.positionA && <StreamResults title="Stream A · Position" stats={results.positionA} color="text-amber-400" />}
+          {results.cctA && <StreamResults title="Stream A · CCT" stats={results.cctA} color="text-rose-400" />}
           {(results.extra || []).map((s, i) => (
             <React.Fragment key={i}>
               <StreamResults title={`Stream ${String.fromCharCode(66 + i)} · Relation`} stats={s} color={['text-accent','text-chart-3','text-chart-4','text-chart-5'][i] || 'text-accent'} />
               {(results.extraPosition || [])[i] && <StreamResults title={`Stream ${String.fromCharCode(66 + i)} · Position`} stats={(results.extraPosition || [])[i]} color="text-amber-400" />}
+              {(results.extraCCT || [])[i] && <StreamResults title={`Stream ${String.fromCharCode(66 + i)} · CCT`} stats={(results.extraCCT || [])[i]} color="text-rose-400" />}
             </React.Fragment>
           ))}
           {results.C && <StreamResults title="Category (Hierarchical)" stats={results.C} color="text-chart-3" />}

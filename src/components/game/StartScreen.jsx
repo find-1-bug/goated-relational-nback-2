@@ -28,6 +28,7 @@ const MODE_OPTIONS = [
   { id: 'rint',          icon: GitBranch,  label: 'Relational Integration', desc: 'Entities (alpha, beta…) persist across trials. A target fires when the current stimulus is a VALID logical conclusion from chaining the N previous facts (e.g. A>B, B>C → A>C). Requires N≥2.', minN: 2 },
   { id: 'nonverbal_rint',icon: GitBranch,  label: 'Nonverbal RINT',    desc: 'Each stimulus carries up to 3 independent visual attributes (touching · hollow · size-mismatch). A target fires when the union of the last N stimuli\'s attributes exactly equals the current stimulus. Cross-category, fully nonverbal. Requires N≥2.', minN: 2 },
   { id: 'cct',           icon: Brain,      label: 'Cognitive Control Training', desc: 'Each trial shows one digit (1–9). From trial N onwards a candidate result also appears. Press REL when the result equals the current digit + the digit from N trials ago. Pure arithmetic working-memory — no relations or shapes.' },
+  { id: 'cct_overlay',   icon: Brain,      label: 'CCT Side-Task',     desc: 'Layers CCT arithmetic onto every relation stream as a separate response axis (like alien-square adds a position axis). Each stream then has REL (relation match), CCT (digit + N-back == result), and POS keys if alien mode is also on.' },
   { id: 'mixed_nback',   icon: Shuffle,    label: 'Mixed N-Back',      desc: 'Randomly switches between Normal and Type N-back each trial. You never know which rule applies.' },
   { id: 'mixed_rint',    icon: Shuffle,    label: 'Mixed RINT',        desc: 'Three-way random per trial: Normal / Type / RINT. Maximum flexibility demand. Requires N≥2.', minN: 2 },
   { id: 'impossible',    icon: Zap,        label: 'Impossible',        desc: 'Each stream independently randomizes between Normal, Type, and RINT every trial — different rules per stream simultaneously. Requires ≥2 streams and N≥2.', minN: 2, minStreams: 2 },
@@ -181,7 +182,7 @@ const CAROUSEL_SPEED_OPTIONS = [
   { label: 'Turbo', ms: 1400 },
 ];
 
-function StreamRow({ label, labelColor, borderColor, keyCode, positionKeyCode, showPositionKey, onKeyChange, onPositionKeyChange, allStreamKeys, thisKey, thisPositionKey, onRemove, streamType, onStreamTypeChange }) {
+function StreamRow({ label, labelColor, borderColor, keyCode, positionKeyCode, cctKeyCode, showPositionKey, showCCTKey, onKeyChange, onPositionKeyChange, onCCTKeyChange, allStreamKeys, thisKey, thisPositionKey, thisCCTKey, onRemove, streamType, onStreamTypeChange }) {
   const isCCT = streamType === 'cct';
   return (
     <div className={`rounded-lg bg-secondary/50 border ${borderColor} p-2 space-y-1.5`}>
@@ -245,6 +246,21 @@ function StreamRow({ label, labelColor, borderColor, keyCode, positionKeyCode, s
           </>
         )}
       </div>
+      {showCCTKey && !isCCT && (
+        <div className="flex items-center gap-2">
+          <span className="text-xs font-mono text-amber-400/80 w-8 shrink-0">CCT</span>
+          <select
+            value={cctKeyCode}
+            onChange={e => onCCTKeyChange(e.target.value)}
+            className="flex-1 bg-secondary border border-amber-500/30 rounded px-2 py-1 text-xs font-mono text-amber-300">
+            {KEY_OPTIONS.map(k => (
+              <option key={k.code} value={k.code} disabled={allStreamKeys.includes(k.code) && k.code !== thisCCTKey}>
+                {k.display}
+              </option>
+            ))}
+          </select>
+        </div>
+      )}
     </div>
   );
 }
@@ -267,6 +283,9 @@ export default function StartScreen({ onStart, suggestedN, lastSettings }) {
   const [streamAType, setStreamAType] = React.useState(
     lastSettings?.streamA?.streamType
       || (lastSettings?.modes?.includes('cct') ? 'cct' : 'relation')
+  );
+  const [streamACCTKey, setStreamACCTKey] = React.useState(
+    lastSettings?.streamA?.cctKey || 'KeyM'
   );
   const [extraStreams, setExtraStreams] = React.useState(
     (lastSettings?.extraStreams || []).map(s => ({
@@ -293,16 +312,40 @@ export default function StartScreen({ onStart, suggestedN, lastSettings }) {
     ...(lastSettings?.carouselSettings || {}),
   });
   const alienModeActive = modes.includes('alien_cube') || modes.includes('alien_tesseract') || modes.includes('alien_square');
+  const cctOverlayActive = modes.includes('cct_overlay');
 
-  // extra stream: { key, keyDisplay, positionKey, positionKeyDisplay, label }
-  const allStreamKeys = [streamAKey, ...(alienModeActive ? [streamAPositionKey] : []), ...extraStreams.flatMap(s => [s.key, ...(alienModeActive ? [s.positionKey] : [])]).filter(Boolean)];
+  // extra stream: { key, keyDisplay, positionKey, positionKeyDisplay, cctKey, cctKeyDisplay, streamType, label }
+  const allStreamKeys = [
+    streamAKey,
+    ...(alienModeActive ? [streamAPositionKey] : []),
+    ...(cctOverlayActive && streamAType !== 'cct' ? [streamACCTKey] : []),
+    ...extraStreams.flatMap(s => [
+      s.key,
+      ...(alienModeActive ? [s.positionKey] : []),
+      ...(cctOverlayActive && (s.streamType || 'relation') !== 'cct' ? [s.cctKey] : []),
+    ]).filter(Boolean),
+  ];
   const addStream = () => {
     if (1 + extraStreams.length >= MAX_STREAMS) return;
     const nextLabel = STREAM_LABELS[1 + extraStreams.length];
-    const available = KEY_OPTIONS.find(k => !allStreamKeys.includes(k.code));
-    const positionAvailable = KEY_OPTIONS.find(k => k.code !== available?.code && !allStreamKeys.includes(k.code));
+    const taken = new Set(allStreamKeys);
+    const pick = () => {
+      const opt = KEY_OPTIONS.find(k => !taken.has(k.code));
+      if (opt) taken.add(opt.code);
+      return opt;
+    };
+    const available = pick();
     if (!available) return;
-    setExtraStreams(prev => [...prev, { key: available.code, keyDisplay: available.display, positionKey: positionAvailable?.code || available.code, positionKeyDisplay: positionAvailable?.display || available.display, label: nextLabel }]);
+    const positionAvailable = pick();
+    const cctAvailable = pick();
+    setExtraStreams(prev => [...prev, {
+      key: available.code, keyDisplay: available.display,
+      positionKey: positionAvailable?.code || available.code,
+      positionKeyDisplay: positionAvailable?.display || available.display,
+      cctKey: cctAvailable?.code || available.code,
+      cctKeyDisplay: cctAvailable?.display || available.display,
+      label: nextLabel,
+    }]);
   };
   const removeStream = (idx) => {
     setExtraStreams(prev => prev.filter((_, i) => i !== idx));
@@ -316,6 +359,11 @@ export default function StartScreen({ onStart, suggestedN, lastSettings }) {
     const opt = KEY_OPTIONS.find(k => k.code === code);
     if (!opt) return;
     setExtraStreams(prev => prev.map((s, i) => i === idx ? { ...s, positionKey: opt.code, positionKeyDisplay: opt.display } : s));
+  };
+  const setStreamCCTKey = (idx, code) => {
+    const opt = KEY_OPTIONS.find(k => k.code === code);
+    if (!opt) return;
+    setExtraStreams(prev => prev.map((s, i) => i === idx ? { ...s, cctKey: opt.code, cctKeyDisplay: opt.display } : s));
   };
   const setStreamType = (idx, t) => {
     setExtraStreams(prev => prev.map((s, i) => i === idx ? { ...s, streamType: t } : s));
@@ -722,9 +770,10 @@ export default function StartScreen({ onStart, suggestedN, lastSettings }) {
             {/* Stream A */}
             <StreamRow
               label="Stream A" labelColor="text-primary" borderColor="border-primary/20"
-              keyCode={streamAKey} positionKeyCode={streamAPositionKey} showPositionKey={alienModeActive}
-              onKeyChange={setStreamAKey} onPositionKeyChange={setStreamAPositionKey}
-              allStreamKeys={allStreamKeys} thisKey={streamAKey} thisPositionKey={streamAPositionKey}
+              keyCode={streamAKey} positionKeyCode={streamAPositionKey} cctKeyCode={streamACCTKey}
+              showPositionKey={alienModeActive} showCCTKey={cctOverlayActive}
+              onKeyChange={setStreamAKey} onPositionKeyChange={setStreamAPositionKey} onCCTKeyChange={setStreamACCTKey}
+              allStreamKeys={allStreamKeys} thisKey={streamAKey} thisPositionKey={streamAPositionKey} thisCCTKey={streamACCTKey}
               streamType={streamAType} onStreamTypeChange={setStreamAType}
             />
             {/* Extra streams */}
@@ -735,9 +784,10 @@ export default function StartScreen({ onStart, suggestedN, lastSettings }) {
               return (
                 <StreamRow key={idx}
                   label={`Stream ${label}`} labelColor={color} borderColor={border}
-                  keyCode={stream.key} positionKeyCode={stream.positionKey || stream.key} showPositionKey={alienModeActive}
-                  onKeyChange={code => setStreamKey(idx, code)} onPositionKeyChange={code => setStreamPositionKey(idx, code)}
-                  allStreamKeys={allStreamKeys} thisKey={stream.key} thisPositionKey={stream.positionKey}
+                  keyCode={stream.key} positionKeyCode={stream.positionKey || stream.key} cctKeyCode={stream.cctKey || 'KeyM'}
+                  showPositionKey={alienModeActive} showCCTKey={cctOverlayActive}
+                  onKeyChange={code => setStreamKey(idx, code)} onPositionKeyChange={code => setStreamPositionKey(idx, code)} onCCTKeyChange={code => setStreamCCTKey(idx, code)}
+                  allStreamKeys={allStreamKeys} thisKey={stream.key} thisPositionKey={stream.positionKey} thisCCTKey={stream.cctKey}
                   onRemove={() => removeStream(idx)}
                   streamType={stream.streamType || 'relation'} onStreamTypeChange={(t) => setStreamType(idx, t)}
                 />
@@ -975,6 +1025,8 @@ export default function StartScreen({ onStart, suggestedN, lastSettings }) {
                 ...streamAObj,
                 positionKey: streamAPositionKey,
                 positionKeyDisplay: KEY_OPTIONS.find(k => k.code === streamAPositionKey)?.display || 'P',
+                cctKey: streamACCTKey,
+                cctKeyDisplay: KEY_OPTIONS.find(k => k.code === streamACCTKey)?.display || 'M',
                 streamType: streamAType,
               };
               onStart(nLevel, modes, finalPool, rounds, speedMs, { catWeights, useCustomMix, rels: selectedRels, tokenWeights, streamA: streamAWithPosition, extraStreams, streams: [streamAWithPosition, ...extraStreams], alienSettings, carouselSettings }, noobMode);

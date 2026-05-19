@@ -120,12 +120,22 @@ export default function GameScreen({ nLevel, modes, relationshipPool, totalRound
     return modes.includes('alien_cube') || modes.includes('alien_tesseract') ? Math.max(1400, duration) : duration;
   }, [stimulusDuration, modes]);
   const hasAlienPosition = modes.includes('alien_cube') || modes.includes('alien_tesseract') || modes.includes('alien_square');
+  const hasCCTOverlay = modes.includes('cct_overlay');
   const allStreams = [
-    { key: streamA?.key || 'Space', keyDisplay: streamA?.keyDisplay || 'SPACE', positionKey: streamA?.positionKey || 'KeyP', positionKeyDisplay: streamA?.positionKeyDisplay || 'P', label: 'A' },
+    {
+      key: streamA?.key || 'Space', keyDisplay: streamA?.keyDisplay || 'SPACE',
+      positionKey: streamA?.positionKey || 'KeyP', positionKeyDisplay: streamA?.positionKeyDisplay || 'P',
+      cctKey: streamA?.cctKey || 'KeyM', cctKeyDisplay: streamA?.cctKeyDisplay || 'M',
+      streamType: streamA?.streamType || 'relation',
+      label: 'A',
+    },
     ...(extraStreams || []).map((stream) => ({
       ...stream,
       positionKey: stream.positionKey || stream.key,
       positionKeyDisplay: stream.positionKeyDisplay || stream.keyDisplay,
+      cctKey: stream.cctKey || 'KeyM',
+      cctKeyDisplay: stream.cctKeyDisplay || 'M',
+      streamType: stream.streamType || 'relation',
     })),
   ];
   const numExtra = (extraStreams || []).length;
@@ -142,6 +152,7 @@ export default function GameScreen({ nLevel, modes, relationshipPool, totalRound
   // One response ref per stream (index 0 = stream A, 1..N = extra streams)
   const respondedRefs = useRef(allStreams.map(() => false));
   const positionRespondedRefs = useRef(allStreams.map(() => false));
+  const cctRespondedRefs = useRef(allStreams.map(() => false));
   const phaseTimerRef = useRef([]);
   const gameStateRef = useRef(gameState);
   const phaseRef = useRef(phase);
@@ -195,6 +206,7 @@ export default function GameScreen({ nLevel, modes, relationshipPool, totalRound
     setGameState(nextState);
     respondedRefs.current = allStreams.map(() => false);
     positionRespondedRefs.current = allStreams.map(() => false);
+    cctRespondedRefs.current = allStreams.map(() => false);
     setClearCanvas(false);
     setActiveSlide(0);
     setResponsesUnlocked(false);
@@ -251,8 +263,10 @@ export default function GameScreen({ nLevel, modes, relationshipPool, totalRound
       const pressedExtra = respondedRefs.current.slice(1);
       const pressedPositionA = positionRespondedRefs.current[0];
       const pressedPositionExtra = positionRespondedRefs.current.slice(1);
+      const pressedCCTA = cctRespondedRefs.current[0];
+      const pressedCCTExtra = cctRespondedRefs.current.slice(1);
 
-      const updatedState = processResponses(state, { pressedA, pressedExtra, pressedPositionA, pressedPositionExtra });
+      const updatedState = processResponses(state, { pressedA, pressedExtra, pressedPositionA, pressedPositionExtra, pressedCCTA, pressedCCTExtra });
       progressStateRef.current = updatedState;
       setGameState(updatedState);
       setPhase('feedback');
@@ -282,12 +296,14 @@ export default function GameScreen({ nLevel, modes, relationshipPool, totalRound
     const pressedExtra = respondedRefs.current.slice(1);
     const pressedPositionA = positionRespondedRefs.current[0];
     const pressedPositionExtra = positionRespondedRefs.current.slice(1);
+    const pressedCCTA = cctRespondedRefs.current[0];
+    const pressedCCTExtra = cctRespondedRefs.current.slice(1);
 
     if (noobMode) {
       const alreadyScored = (progressStateRef.current?.scoredTrialKeys || []).includes(state.round);
       const progressState = alreadyScored
         ? progressStateRef.current
-        : processResponses(state, { pressedA, pressedExtra, pressedPositionA, pressedPositionExtra });
+        : processResponses(state, { pressedA, pressedExtra, pressedPositionA, pressedPositionExtra, pressedCCTA, pressedCCTExtra });
 
       progressStateRef.current = progressState;
 
@@ -303,6 +319,7 @@ export default function GameScreen({ nLevel, modes, relationshipPool, totalRound
         setGameState(restoredState);
         respondedRefs.current = [restoredState.respondedA, ...(restoredState.extraResponded || [])];
         positionRespondedRefs.current = [restoredState.positionRespondedA, ...(restoredState.extraPositionResponded || [])];
+        cctRespondedRefs.current = [restoredState.cctRespondedA, ...(restoredState.extraCCTResponded || [])];
         setClearCanvas(false);
         setPhase('stimulus');
       } else {
@@ -312,7 +329,7 @@ export default function GameScreen({ nLevel, modes, relationshipPool, totalRound
       return;
     }
 
-    const updatedState = processResponses(state, { pressedA, pressedExtra, pressedPositionA, pressedPositionExtra });
+    const updatedState = processResponses(state, { pressedA, pressedExtra, pressedPositionA, pressedPositionExtra, pressedCCTA, pressedCCTExtra });
     progressStateRef.current = updatedState;
 
     if (updatedState.round >= updatedState.totalRounds) {
@@ -349,14 +366,22 @@ export default function GameScreen({ nLevel, modes, relationshipPool, totalRound
     if (!(phaseRef.current === 'stimulus')) return;
     if (!responsesUnlocked) return;
     if (noobMode && (progressStateRef.current?.scoredTrialKeys || []).includes(gameStateRef.current?.round)) return;
-    const refs = type === 'position' ? positionRespondedRefs : respondedRefs;
+    const refs = type === 'position' ? positionRespondedRefs
+               : type === 'cct' ? cctRespondedRefs
+               : respondedRefs;
     if (refs.current[idx]) return;
     refs.current[idx] = true;
     if (idx === 0) {
-      setGameState(prev => type === 'position' ? { ...prev, positionRespondedA: true } : { ...prev, respondedA: true });
+      setGameState(prev => (
+        type === 'position' ? { ...prev, positionRespondedA: true }
+        : type === 'cct' ? { ...prev, cctRespondedA: true }
+        : { ...prev, respondedA: true }
+      ));
     } else {
       setGameState(prev => {
-        const key = type === 'position' ? 'extraPositionResponded' : 'extraResponded';
+        const key = type === 'position' ? 'extraPositionResponded'
+                  : type === 'cct' ? 'extraCCTResponded'
+                  : 'extraResponded';
         const next = [...(prev[key] || [])];
         next[idx - 1] = true;
         return { ...prev, [key]: next };
@@ -378,23 +403,34 @@ export default function GameScreen({ nLevel, modes, relationshipPool, totalRound
           e.preventDefault();
           markResponse(idx, 'position');
         }
+        if (hasCCTOverlay && stream.streamType !== 'cct' && e.code === stream.cctKey) {
+          e.preventDefault();
+          markResponse(idx, 'cct');
+        }
       });
     };
     window.addEventListener('keydown', handleKey);
     return () => window.removeEventListener('keydown', handleKey);
-  }, [phase, markResponse, hasAlienPosition]);
+  }, [phase, markResponse, hasAlienPosition, hasCCTOverlay]);
 
   // Get current stimulus & rel for each stream (A + extras)
   const allTrialModes = [gameState.trialMode, ...(gameState.extraTrialModes || [])];
   const allTrialBinaryConfigs = gameState.trialBinaryConfigs || [];
   const isBinaryLogic = modes.includes('binary_logic');
   const streamStimuli = [
-    { rel: gameState.currentRelationship, stimulus: gameState.currentStimulusA, responded: gameState.respondedA, positionResponded: gameState.positionRespondedA },
+    {
+      rel: gameState.currentRelationship,
+      stimulus: gameState.currentStimulusA,
+      responded: gameState.respondedA,
+      positionResponded: gameState.positionRespondedA,
+      cctResponded: gameState.cctRespondedA,
+    },
     ...(gameState.extraCurrentRels || []).map((rel, i) => ({
       rel,
       stimulus: (gameState.extraCurrentStimuli || [])[i],
       responded: (gameState.extraResponded || [])[i],
       positionResponded: (gameState.extraPositionResponded || [])[i],
+      cctResponded: (gameState.extraCCTResponded || [])[i],
     })),
   ];
   const audioStreamIndexes = gameState.audioStreamIndexes || [];
@@ -487,7 +523,7 @@ export default function GameScreen({ nLevel, modes, relationshipPool, totalRound
             <div key={idx} className={`relative rounded-xl border-2 flex flex-col overflow-hidden transition-[box-shadow,border-color] duration-150 ${
               audioEarForIndex(idx)
                 ? 'bg-emerald-500/10 border-emerald-400 shadow-[0_0_28px_rgba(52,211,153,0.28)]'
-                : (s.responded || s.positionResponded) && phase === 'stimulus'
+                : (s.responded || s.positionResponded || s.cctResponded) && phase === 'stimulus'
                   ? 'bg-secondary/30 border-primary/80 shadow-[0_0_32px_rgba(43,227,198,0.40)]'
                   : `bg-secondary/30 ${STREAM_BORDER_COLORS[idx % STREAM_BORDER_COLORS.length]}`
             }`}>
@@ -522,10 +558,28 @@ export default function GameScreen({ nLevel, modes, relationshipPool, totalRound
                     {audioEarForIndex(idx)}
                   </div>
                 )}
-                {(s.responded || s.positionResponded) && phase === 'stimulus' && (
-                  <div className="absolute bottom-2 left-1/2 -translate-x-1/2 flex gap-2 z-20 pointer-events-none">
+                {/* CCT side-task pill — visible whenever the engine attached
+                    a CCT layer to this stream's stim. The relation visual
+                    underneath stays untouched; the player must press the
+                    stream's CCT key when result === current + N-back. */}
+                {hasCCTOverlay && allStreams[idx]?.streamType !== 'cct' && phase === 'stimulus' && !clearCanvas && s.stimulus?.cctNumber != null && (
+                  <div className="absolute top-2 right-3 pointer-events-none flex items-center gap-1 px-2 py-1 rounded-md bg-secondary/85 border border-rose-400/60 shadow-[0_0_18px_rgba(251,113,133,0.25)] font-mono text-sm z-10">
+                    <span className="text-[10px] text-rose-300/80 mr-1 uppercase tracking-widest">CCT</span>
+                    <span className="font-bold text-cyan-300 text-lg leading-none">{s.stimulus.cctNumber}</span>
+                    {s.stimulus.cctResult != null ? (
+                      <>
+                        <span className="text-muted-foreground/70 text-xs mx-1">≟</span>
+                        <span className="font-bold text-amber-300 text-lg leading-none">{s.stimulus.cctResult}</span>
+                      </>
+                    ) : (
+                      <span className="text-muted-foreground/50 text-xs ml-1">observe</span>
+                    )}
+                  </div>
+                )}
+                {(s.responded || s.positionResponded || s.cctResponded) && phase === 'stimulus' && (
+                  <div className="absolute bottom-2 left-1/2 -translate-x-1/2 flex gap-2 z-20 pointer-events-none flex-wrap justify-center max-w-[95%]">
                     {s.responded && (
-                      <div className="px-2.5 py-1 rounded-md text-xs font-mono font-semibold tracking-wider bg-primary/25 border border-primary text-primary-foreground shadow-[0_0_22px_rgba(43,227,198,0.55)] flex items-center gap-1">
+                      <div className="px-2.5 py-1 rounded-md text-xs font-mono font-semibold tracking-wider bg-primary/25 border border-primary shadow-[0_0_22px_rgba(43,227,198,0.55)] flex items-center gap-1">
                         <span className="text-primary">✓</span>
                         <span className="text-primary">{STREAM_LABELS[idx]} REL</span>
                       </div>
@@ -534,6 +588,12 @@ export default function GameScreen({ nLevel, modes, relationshipPool, totalRound
                       <div className="px-2.5 py-1 rounded-md text-xs font-mono font-semibold tracking-wider bg-amber-500/25 border border-amber-400 shadow-[0_0_22px_rgba(251,191,36,0.55)] flex items-center gap-1">
                         <span className="text-amber-300">✓</span>
                         <span className="text-amber-300">{STREAM_LABELS[idx]} POS</span>
+                      </div>
+                    )}
+                    {s.cctResponded && (
+                      <div className="px-2.5 py-1 rounded-md text-xs font-mono font-semibold tracking-wider bg-rose-500/25 border border-rose-400 shadow-[0_0_22px_rgba(251,113,133,0.55)] flex items-center gap-1">
+                        <span className="text-rose-300">✓</span>
+                        <span className="text-rose-300">{STREAM_LABELS[idx]} CCT</span>
                       </div>
                     )}
                   </div>
@@ -549,6 +609,7 @@ export default function GameScreen({ nLevel, modes, relationshipPool, totalRound
                     .filter(t => t.trialNumber === gameState.round && t.streamLabel === STREAM_LABELS[idx]);
                   const rel = records.find(t => (t.responseType || 'relation') === 'relation');
                   const pos = records.find(t => t.responseType === 'position');
+                  const cct = records.find(t => t.responseType === 'cct');
                   const verdict = (rec) => {
                     if (!rec) return null;
                     if (rec.isTarget && rec.userResponded) return { tag: 'HIT', cls: 'text-emerald-300 bg-emerald-500/20 border-emerald-400/60' };
@@ -558,6 +619,7 @@ export default function GameScreen({ nLevel, modes, relationshipPool, totalRound
                   };
                   const relV = verdict(rel);
                   const posV = verdict(pos);
+                  const cctV = verdict(cct);
                   return (
                     <div className="absolute inset-0 bg-background/70 backdrop-blur-sm rounded-xl flex flex-col items-center justify-center gap-2 px-3">
                       {relV && (
@@ -568,6 +630,11 @@ export default function GameScreen({ nLevel, modes, relationshipPool, totalRound
                       {posV && (
                         <div className={`px-3 py-1.5 rounded-lg border font-mono text-xs font-semibold tracking-wide ${posV.cls}`}>
                           POS · {posV.tag}
+                        </div>
+                      )}
+                      {cctV && (
+                        <div className={`px-3 py-1.5 rounded-lg border font-mono text-xs font-semibold tracking-wide ${cctV.cls}`}>
+                          CCT · {cctV.tag}
                         </div>
                       )}
                       {rel?.relationship && (
@@ -648,6 +715,12 @@ export default function GameScreen({ nLevel, modes, relationshipPool, totalRound
                   style={{ WebkitTapHighlightColor: 'transparent', touchAction: 'manipulation' }}
                   onPointerDown={(e) => { e.preventDefault(); markResponse(idx, 'position'); }}>
                   {STREAM_LABELS[idx]} · POS
+                </button>,
+                hasCCTOverlay && stream.streamType !== 'cct' && <button key={`${idx}-cct`}
+                  className={`h-11 rounded-lg bg-secondary border font-mono text-xs text-rose-400 active:bg-secondary/70 transition-colors ${STREAM_BORDER_COLORS[idx % STREAM_BORDER_COLORS.length]}`}
+                  style={{ WebkitTapHighlightColor: 'transparent', touchAction: 'manipulation' }}
+                  onPointerDown={(e) => { e.preventDefault(); markResponse(idx, 'cct'); }}>
+                  {STREAM_LABELS[idx]} · CCT
                 </button>
               ].filter(Boolean))}
               <button
@@ -661,15 +734,21 @@ export default function GameScreen({ nLevel, modes, relationshipPool, totalRound
             allStreams.flatMap((stream, idx) => [
               <button key={`${idx}-rel`}
                 className={`h-12 rounded-lg bg-secondary border font-mono text-xs text-muted-foreground transition-colors ${STREAM_BORDER_COLORS[idx % STREAM_BORDER_COLORS.length]}`}
-                style={{ WebkitTapHighlightColor: 'transparent' }}
-                onTouchStart={(e) => { e.preventDefault(); markResponse(idx, 'relation'); }}>
-                {stream.keyDisplay} REL
+                style={{ WebkitTapHighlightColor: 'transparent', touchAction: 'manipulation' }}
+                onPointerDown={(e) => { e.preventDefault(); markResponse(idx, 'relation'); }}>
+                {STREAM_LABELS[idx]} · REL
               </button>,
               hasAlienPosition && <button key={`${idx}-pos`}
                 className={`h-12 rounded-lg bg-secondary border font-mono text-xs text-amber-400 transition-colors ${STREAM_BORDER_COLORS[idx % STREAM_BORDER_COLORS.length]}`}
-                style={{ WebkitTapHighlightColor: 'transparent' }}
-                onTouchStart={(e) => { e.preventDefault(); markResponse(idx, 'position'); }}>
-                {stream.positionKeyDisplay} POS
+                style={{ WebkitTapHighlightColor: 'transparent', touchAction: 'manipulation' }}
+                onPointerDown={(e) => { e.preventDefault(); markResponse(idx, 'position'); }}>
+                {STREAM_LABELS[idx]} · POS
+              </button>,
+              hasCCTOverlay && stream.streamType !== 'cct' && <button key={`${idx}-cct`}
+                className={`h-12 rounded-lg bg-secondary border font-mono text-xs text-rose-400 transition-colors ${STREAM_BORDER_COLORS[idx % STREAM_BORDER_COLORS.length]}`}
+                style={{ WebkitTapHighlightColor: 'transparent', touchAction: 'manipulation' }}
+                onPointerDown={(e) => { e.preventDefault(); markResponse(idx, 'cct'); }}>
+                {STREAM_LABELS[idx]} · CCT
               </button>
             ].filter(Boolean))
           )}
@@ -696,6 +775,11 @@ export default function GameScreen({ nLevel, modes, relationshipPool, totalRound
               onMouseDown={(e) => { e.preventDefault(); markResponse(idx, 'position'); }}
               className={`px-6 h-10 rounded-lg bg-secondary border font-mono text-sm text-amber-400 transition-colors ${STREAM_BORDER_COLORS[idx % STREAM_BORDER_COLORS.length]}`}>
               {stream.positionKeyDisplay} POS
+            </button>,
+            hasCCTOverlay && stream.streamType !== 'cct' && <button key={`${idx}-cct`}
+              onMouseDown={(e) => { e.preventDefault(); markResponse(idx, 'cct'); }}
+              className={`px-6 h-10 rounded-lg bg-secondary border font-mono text-sm text-rose-400 transition-colors ${STREAM_BORDER_COLORS[idx % STREAM_BORDER_COLORS.length]}`}>
+              {stream.cctKeyDisplay} CCT
             </button>
           ].filter(Boolean))}
           <button

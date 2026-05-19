@@ -21,6 +21,9 @@ export function calculateResults(state) {
   const positionA = (state.modes?.includes('alien_cube') || state.modes?.includes('alien_square'))
     ? streamStats(state.positionHitsA || 0, state.positionMissesA || 0, state.positionFalseAlarmsA || 0, state.positionCorrectRejectionsA || 0)
     : null;
+  const cctA = state.modes?.includes('cct_overlay')
+    ? streamStats(state.cctHitsA || 0, state.cctMissesA || 0, state.cctFalseAlarmsA || 0, state.cctCorrectRejectionsA || 0)
+    : null;
 
   const extra = (state.extraHits || []).map((h, i) =>
     streamStats(
@@ -40,14 +43,25 @@ export function calculateResults(state) {
     )
   ) : [];
 
-  const allStreamsStats = [A, ...extra, ...(positionA ? [positionA, ...extraPosition] : [])];
+  const extraCCT = cctA ? (state.extraCCTHits || []).map((h, i) =>
+    streamStats(
+      h || 0,
+      (state.extraCCTMisses || [])[i] || 0,
+      (state.extraCCTFalseAlarms || [])[i] || 0,
+      (state.extraCCTCorrectRejections || [])[i] || 0
+    )
+  ) : [];
+
+  const allStreamsStats = [A, ...extra,
+    ...(positionA ? [positionA, ...extraPosition] : []),
+    ...(cctA ? [cctA, ...extraCCT] : [])];
   const allHits = allStreamsStats.reduce((s, x) => s + x.hits, 0);
   const allMisses = allStreamsStats.reduce((s, x) => s + x.misses, 0);
   const allFA = allStreamsStats.reduce((s, x) => s + x.falseAlarms, 0);
   const allCR = allStreamsStats.reduce((s, x) => s + x.correctRejections, 0);
   const overall = streamStats(allHits, allMisses, allFA, allCR);
 
-  return { A, positionA, extra, extraPosition, overall };
+  return { A, positionA, cctA, extra, extraPosition, extraCCT, overall };
 }
 
 export function computeNextNLevel(currentN, results) {

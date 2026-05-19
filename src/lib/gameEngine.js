@@ -301,6 +301,30 @@ function isCCTTarget(history, stim, effectiveN) {
   return stim.cctResult === stim.cctNumber + past.cctNumber;
 }
 
+// CCT *side-task* layer: attaches a digit + candidate-result to any
+// relation stim. Used when modes.includes('cct_overlay') so the player can
+// dual-task — relation n-back on one axis, arithmetic n-back on the other.
+function generateCCTLayer(history, effectiveN, matchChance) {
+  const num = 1 + Math.floor(Math.random() * 9);
+  // Only count past stims that carry a CCT layer; the result must be
+  // current + the digit from N CCT-bearing trials ago.
+  const cctHistory = (history || []).filter(s => s?.cctNumber != null);
+  if (cctHistory.length < effectiveN) {
+    return { number: num, result: null, isTarget: false };
+  }
+  const past = cctHistory[cctHistory.length - effectiveN];
+  const correctSum = num + past.cctNumber;
+  if (Math.random() < matchChance) {
+    return { number: num, result: correctSum, isTarget: true };
+  }
+  let candidate;
+  do {
+    const delta = (Math.random() < 0.5 ? -1 : 1) * (1 + Math.floor(Math.random() * 3));
+    candidate = Math.max(0, correctSum + delta);
+  } while (candidate === correctSum);
+  return { number: num, result: candidate, isTarget: false };
+}
+
 // ─── Nonverbal cross-attribute RINT helpers ─────────────────────────────────
 // Stimulus carries an `attrs` object with three independent boolean visual
 // flags. A current stimulus is a target when the union of the last `n`
@@ -576,6 +600,19 @@ export function createGameState({ nLevel, modes, relationshipPool, totalRounds, 
     extraPositionMisses: Array(numExtra).fill(0),
     extraPositionFalseAlarms: Array(numExtra).fill(0),
     extraPositionCorrectRejections: Array(numExtra).fill(0),
+    // CCT side-task axis (separate scoring axis when cct_overlay is on)
+    isCCTTargetA: false,
+    extraCCTTargets: Array(numExtra).fill(false),
+    cctRespondedA: false,
+    extraCCTResponded: Array(numExtra).fill(false),
+    cctHitsA: 0,
+    cctMissesA: 0,
+    cctFalseAlarmsA: 0,
+    cctCorrectRejectionsA: 0,
+    extraCCTHits: Array(numExtra).fill(0),
+    extraCCTMisses: Array(numExtra).fill(0),
+    extraCCTFalseAlarms: Array(numExtra).fill(0),
+    extraCCTCorrectRejections: Array(numExtra).fill(0),
 
     trialMode: 'normal',
     extraTrialModes: Array(numExtra).fill('normal'),
@@ -709,6 +746,41 @@ export function generateNextStimulus(state) {
     });
   });
 
+  // ── CCT side-task layer ──
+  // When the global 'cct_overlay' mode is on, every relation-typed stream
+  // gets a (digit + candidate-result) layer painted onto its stim. Pure
+  // CCT-typed streams already produce that data natively. The player gets a
+  // second response axis per stream (cctKey) — parallel to the position
+  // axis used by alien modes.
+  const cctOverlay = modes.includes('cct_overlay');
+  let isCCTTargetA = false;
+  const extraCCTTargets = [];
+  if (cctOverlay) {
+    if (resultA.stim.rel === 'CCT_NUMERIC') {
+      // Pure CCT stream: the relation match IS the CCT match. Mirror.
+      isCCTTargetA = resultA.isTarget;
+    } else {
+      const layer = generateCCTLayer(historyA, effectiveN, MATCH_CHANCE);
+      resultA.stim = { ...resultA.stim, cctNumber: layer.number, cctResult: layer.result };
+      isCCTTargetA = layer.isTarget;
+    }
+    extraResults.forEach((r, i) => {
+      if (r.stim.rel === 'CCT_NUMERIC') {
+        extraCCTTargets.push(r.isTarget);
+      } else {
+        const layer = generateCCTLayer(extraHistories[i], effectiveN, DUAL_MATCH_CHANCE);
+        r.stim = { ...r.stim, cctNumber: layer.number, cctResult: layer.result };
+        extraCCTTargets.push(layer.isTarget);
+      }
+    });
+  } else {
+    // Pure CCT streams still have isCCTTarget = isTarget for trial records.
+    isCCTTargetA = resultA.stim?.rel === 'CCT_NUMERIC' ? resultA.isTarget : false;
+    extraResults.forEach((r) => {
+      extraCCTTargets.push(r.stim?.rel === 'CCT_NUMERIC' ? r.isTarget : false);
+    });
+  }
+
   // Compute next RINT states array
   const nextRINTStates = (rintStates || []).map((rs, i) => {
     if (i === 0) return resultA.nextRINTState;
@@ -717,10 +789,12 @@ export function generateNextStimulus(state) {
   });
 
   return {
-    stimA,
-    relA: stimA.rel,
+    stimA: resultA.stim,
+    relA: resultA.stim.rel,
     isTargetA: resultA.isTarget,
     isPositionTargetA: resultA.isPositionTarget,
+    isCCTTargetA,
+    extraCCTTargets,
     categoryA,
     isDistractor: false,
     effectiveN,
@@ -742,7 +816,7 @@ export function generateNextStimulus(state) {
 export function advanceRound(state, stimulus) {
   const {
     stimA, relA, extraStimuli, extraIsTargets, extraPositionTargets,
-    isTargetA, isPositionTargetA, categoryA, isDistractor,
+    isTargetA, isPositionTargetA, isCCTTargetA, extraCCTTargets, categoryA, isDistractor,
     effectiveN, trialMode, extraTrialModes, nextRINTStates, allCategories, trialBinaryConfigs, audioStreamIndexes,
   } = stimulus;
   const trialIndex = state.round;
@@ -775,14 +849,17 @@ export function advanceRound(state, stimulus) {
     extraCurrentStimuli: extraStimuli || [],
     extraIsTargets: extraIsTargets || [],
     extraPositionTargets: extraPositionTargets || [],
+    extraCCTTargets: extraCCTTargets || [],
     extraResponded: Array(state.numExtraStreams).fill(false),
     extraPositionResponded: Array(state.numExtraStreams).fill(false),
+    extraCCTResponded: Array(state.numExtraStreams).fill(false),
     extraTrialModes: extraTrialModes || Array(state.numExtraStreams).fill('normal'),
     currentRelationship: relA,
     currentStimulusA: stimA,
     currentCategory: categoryA,
     isTargetA,
     isPositionTargetA,
+    isCCTTargetA: !!isCCTTargetA,
     isDistractor,
     trialMode: trialMode ?? 'normal',
     rintStates: nextRINTStates ?? state.rintStates,
@@ -790,17 +867,19 @@ export function advanceRound(state, stimulus) {
     audioStreamIndexes: audioStreamIndexes ?? [],
     respondedA: false,
     positionRespondedA: false,
+    cctRespondedA: false,
     finished: state.round + 1 >= state.totalRounds,
   };
 }
 
 // ─── Process Responses ────────────────────────────────────────────────────────
 
-export function processResponses(state, { pressedA, pressedExtra = [], pressedPositionA = false, pressedPositionExtra = [] }) {
+export function processResponses(state, { pressedA, pressedExtra = [], pressedPositionA = false, pressedPositionExtra = [], pressedCCTA = false, pressedCCTExtra = [] }) {
   const trialKey = state.round;
   if ((state.scoredTrialKeys || []).includes(trialKey)) return state;
 
   const hasAlienPosition = state.modes?.includes('alien_cube') || state.modes?.includes('alien_tesseract') || state.modes?.includes('alien_square');
+  const hasCCTOverlay = state.modes?.includes('cct_overlay');
   let next = { ...state, scoredTrialKeys: [...(state.scoredTrialKeys || []), trialKey] };
   const trialRecords = [];
 
@@ -815,6 +894,18 @@ export function processResponses(state, { pressedA, pressedExtra = [], pressedPo
     else if (state.isPositionTargetA && !pressedPositionA) next.positionMissesA++;
     else if (!state.isPositionTargetA && pressedPositionA) next.positionFalseAlarmsA++;
     else next.positionCorrectRejectionsA++;
+  }
+
+  if (hasCCTOverlay) {
+    // Only score when the CCT layer was actually shown for this trial
+    // (cctResult != null means we had enough history to display one).
+    const hasLayer = state.currentStimulusA?.cctResult != null;
+    if (hasLayer) {
+      if (state.isCCTTargetA && pressedCCTA) next.cctHitsA = (next.cctHitsA || 0) + 1;
+      else if (state.isCCTTargetA && !pressedCCTA) next.cctMissesA = (next.cctMissesA || 0) + 1;
+      else if (!state.isCCTTargetA && pressedCCTA) next.cctFalseAlarmsA = (next.cctFalseAlarmsA || 0) + 1;
+      else next.cctCorrectRejectionsA = (next.cctCorrectRejectionsA || 0) + 1;
+    }
   }
 
   trialRecords.push({
@@ -851,6 +942,21 @@ export function processResponses(state, { pressedA, pressedExtra = [], pressedPo
     });
   }
 
+  if (hasCCTOverlay && state.currentStimulusA?.cctResult != null) {
+    trialRecords.push({
+      trialNumber: state.round,
+      streamLabel: 'A',
+      relationship: state.currentRelationship,
+      stimulus: state.currentStimulusA,
+      trialMode: state.trialMode,
+      isTarget: state.isCCTTargetA,
+      userResponded: !!pressedCCTA,
+      correct: state.isCCTTargetA === !!pressedCCTA,
+      responseType: 'cct',
+      nBackValue: state.currentEffectiveN ?? state.nLevel,
+    });
+  }
+
   // Extra streams
   const nextExtraHits = [...(state.extraHits || [])];
   const nextExtraMisses = [...(state.extraMisses || [])];
@@ -860,6 +966,10 @@ export function processResponses(state, { pressedA, pressedExtra = [], pressedPo
   const nextExtraPositionMisses = [...(state.extraPositionMisses || [])];
   const nextExtraPositionFA = [...(state.extraPositionFalseAlarms || [])];
   const nextExtraPositionCR = [...(state.extraPositionCorrectRejections || [])];
+  const nextExtraCCTHits = [...(state.extraCCTHits || [])];
+  const nextExtraCCTMisses = [...(state.extraCCTMisses || [])];
+  const nextExtraCCTFA = [...(state.extraCCTFalseAlarms || [])];
+  const nextExtraCCTCR = [...(state.extraCCTCorrectRejections || [])];
   (state.extraIsTargets || []).forEach((isTarget, i) => {
     const pressed = pressedExtra[i] || false;
     if (isTarget && pressed) nextExtraHits[i] = (nextExtraHits[i] || 0) + 1;
@@ -907,6 +1017,28 @@ export function processResponses(state, { pressedA, pressedExtra = [], pressedPo
         binaryLogicOp: state.trialBinaryConfigs?.[i + 1]?.binaryOp,
       });
     }
+
+    if (hasCCTOverlay && state.extraCurrentStimuli?.[i]?.cctResult != null) {
+      const cctTarget = (state.extraCCTTargets || [])[i] || false;
+      const cctPressed = pressedCCTExtra[i] || false;
+      if (cctTarget && cctPressed) nextExtraCCTHits[i] = (nextExtraCCTHits[i] || 0) + 1;
+      else if (cctTarget && !cctPressed) nextExtraCCTMisses[i] = (nextExtraCCTMisses[i] || 0) + 1;
+      else if (!cctTarget && cctPressed) nextExtraCCTFA[i] = (nextExtraCCTFA[i] || 0) + 1;
+      else nextExtraCCTCR[i] = (nextExtraCCTCR[i] || 0) + 1;
+
+      trialRecords.push({
+        trialNumber: state.round,
+        streamLabel: String.fromCharCode(66 + i),
+        relationship: state.extraCurrentRels?.[i],
+        stimulus: state.extraCurrentStimuli?.[i],
+        trialMode: state.extraTrialModes?.[i] || 'normal',
+        isTarget: cctTarget,
+        userResponded: cctPressed,
+        correct: cctTarget === cctPressed,
+        responseType: 'cct',
+        nBackValue: state.currentEffectiveN ?? state.nLevel,
+      });
+    }
   });
   next.extraHits = nextExtraHits;
   next.extraMisses = nextExtraMisses;
@@ -916,6 +1048,10 @@ export function processResponses(state, { pressedA, pressedExtra = [], pressedPo
   next.extraPositionMisses = nextExtraPositionMisses;
   next.extraPositionFalseAlarms = nextExtraPositionFA;
   next.extraPositionCorrectRejections = nextExtraPositionCR;
+  next.extraCCTHits = nextExtraCCTHits;
+  next.extraCCTMisses = nextExtraCCTMisses;
+  next.extraCCTFalseAlarms = nextExtraCCTFA;
+  next.extraCCTCorrectRejections = nextExtraCCTCR;
   next.allTrials = [...(state.allTrials || []), ...trialRecords];
 
   return next;
