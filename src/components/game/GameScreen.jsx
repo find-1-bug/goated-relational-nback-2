@@ -609,6 +609,37 @@ export default function GameScreen({ nLevel, modes, relationshipPool, totalRound
                     )}
                   </div>
                 )}
+                {/* RST top banner — mirrors the CCT banner. Stream A only.
+                    One premise per trial; from trial N onwards a candidate
+                    conclusion is also shown. Player presses R if valid. */}
+                {hasRSTOverlay && idx === 0 && phase === 'stimulus' && !clearCanvas && s.stimulus?._rst && (
+                  <div className={`absolute ${hasCCTOverlay && s.stimulus?.cctNumber != null ? 'top-14' : 'top-1.5'} left-1/2 -translate-x-1/2 pointer-events-none flex items-center gap-1.5 sm:gap-2 px-2.5 sm:px-3.5 py-1 sm:py-1.5 rounded-xl bg-background/85 backdrop-blur-sm border-2 border-violet-400/70 shadow-[0_0_28px_rgba(167,139,250,0.45)] font-mono z-10 whitespace-nowrap`}>
+                    <span className="text-[10px] sm:text-xs text-violet-300 uppercase tracking-widest font-bold">RST</span>
+                    {s.stimulus._rst.premise?.b ? (
+                      <span className="font-bold text-cyan-300 text-base sm:text-lg leading-none drop-shadow-[0_0_6px_rgba(34,211,238,0.6)]">
+                        {s.stimulus._rst.premise.a}
+                        <span className="text-violet-200 mx-1 text-sm sm:text-base">{s.stimulus._rst.premise.rel}</span>
+                        {s.stimulus._rst.premise.b}
+                      </span>
+                    ) : (
+                      <span className="font-bold text-cyan-300 text-base sm:text-lg leading-none drop-shadow-[0_0_6px_rgba(34,211,238,0.6)]">
+                        {s.stimulus._rst.premise?.a}
+                      </span>
+                    )}
+                    {s.stimulus._rst.hasConclusion ? (
+                      <>
+                        <span className="text-violet-300 text-sm sm:text-base font-bold leading-none">∴≟</span>
+                        <span className="font-bold text-amber-300 text-base sm:text-lg leading-none drop-shadow-[0_0_6px_rgba(251,191,36,0.6)]">
+                          {s.stimulus._rst.conclusion.a}
+                          <span className="text-violet-200 mx-1 text-sm sm:text-base">{s.stimulus._rst.conclusion.rel}</span>
+                          {s.stimulus._rst.conclusion.b}
+                        </span>
+                      </>
+                    ) : (
+                      <span className="text-muted-foreground/70 text-xs sm:text-sm italic ml-0.5">observe</span>
+                    )}
+                  </div>
+                )}
                 {(s.responded || s.positionResponded || s.cctResponded || s.rstResponded) && phase === 'stimulus' && (
                   <div className="absolute bottom-2 left-1/2 -translate-x-1/2 flex gap-2 z-20 pointer-events-none flex-wrap justify-center max-w-[95%]">
                     {s.responded && (
@@ -702,25 +733,6 @@ export default function GameScreen({ nLevel, modes, relationshipPool, totalRound
                       {i < arr.length - 1 && <span className="text-muted-foreground/40 mx-1">·</span>}
                     </span>
                   ))}
-                </div>
-              )}
-              {/* RST side-task strip — stream A only, only when the engine
-                  attached an item. Sits below the canvas (mirrors the RINT
-                  chain layout) so it never collides with feedback pills. */}
-              {hasRSTOverlay && idx === 0 && phase === 'stimulus' && !clearCanvas && s.stimulus?._rst && (
-                <div className="shrink-0 px-2 py-1.5 border-t-2 border-violet-400/60 bg-violet-500/10 font-mono">
-                  <div className="flex items-center justify-between text-[10px] uppercase tracking-widest text-violet-300 mb-0.5">
-                    <span className="font-bold">RST · valid?</span>
-                    <span className="text-muted-foreground/60">{s.stimulus._rst.family}</span>
-                  </div>
-                  <div className="space-y-0.5">
-                    {s.stimulus._rst.premises.map((p, i) => (
-                      <div key={i} className="text-[11px] sm:text-xs text-foreground/85 leading-tight">{p}</div>
-                    ))}
-                    <div className="text-[11px] sm:text-xs text-violet-200 font-semibold leading-tight pt-0.5 border-t border-violet-400/30">
-                      ∴ {s.stimulus._rst.conclusion}
-                    </div>
-                  </div>
                 </div>
               )}
             </div>

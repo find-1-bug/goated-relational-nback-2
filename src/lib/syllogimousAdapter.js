@@ -1,115 +1,95 @@
 // Syllogimous v3 — Easy generator adapter
 // ----------------------------------------------------------------------------
-// Ported from Syllogimous v3 by 4skinskywalker
+// Inspired by Syllogimous v3 by 4skinskywalker
 //   Original:  https://github.com/4skinskywalker/Syllogimous-v3
 //   License:   CC BY-NC 3.0 — non-commercial only
 //   This app:  GOATED Relational n-Back — free, non-commercial. Compatible.
-// Only the "Easy" subset is ported: 2-premise Distinction (same/opposite),
-// 2-premise Comparison (more/less), 2-premise Temporal (before/after). Each
-// item is reading-time ~2s, so it fits inside the n-back side-task window
-// without changing SOA — analogous to how CCT is layered.
 // ----------------------------------------------------------------------------
+// CCT-style RST: one premise per trial, candidate conclusion from trial N
+// onwards. Uses the Distinction family (same / opposite buckets) — the only
+// Syllogimous family whose conclusion is fully derivable from the chain of
+// premises alone (no missing-information ambiguity), which is what we need
+// for n-back style "press if valid".
+//
+// Truth model: each entity has a bucket (0 or 1). A premise "X is same as Y"
+// holds iff bucket(X) === bucket(Y). The conclusion at trial t about E_t
+// vs E_{t-N} is derivable from the chain of N premises in between — players
+// who track the parity of "opposite" predicates over the window can decide.
 
-// Token bank — small, neutral, semantically unloaded so the player isn't
-// using world knowledge ("is whale > mouse?"). Single capital letter-ish
-// glyphs to keep premises short.
-const ENTITY_BANK = [
-  'α', 'β', 'γ', 'δ', 'ε', 'ζ', 'η', 'θ', 'λ', 'μ', 'π', 'ρ', 'σ', 'τ', 'φ', 'ψ', 'ω',
-];
+const GREEK = ['α', 'β', 'γ', 'δ', 'ε', 'ζ', 'η', 'θ', 'λ', 'μ', 'π', 'ρ', 'σ', 'τ', 'φ', 'ψ', 'ω'];
 
-function shuffle(arr) {
-  const out = arr.slice();
-  for (let i = out.length - 1; i > 0; i--) {
-    const j = Math.floor(Math.random() * (i + 1));
-    [out[i], out[j]] = [out[j], out[i]];
+function greekLabel(i) {
+  const base = GREEK[i % GREEK.length];
+  const cycle = Math.floor(i / GREEK.length);
+  return cycle === 0 ? base : `${base}${cycle + 1}`;
+}
+
+export function createRSTChain() {
+  return { entities: [], buckets: [] };
+}
+
+// Advance the RST chain by one trial. Returns the data the engine attaches
+// to stream A's stim plus the new chain to persist into next-round state.
+//
+//   chain         — { entities, buckets } from the previous trial (or empty)
+//   n             — current effective N
+//   matchChance   — P(conclusion is valid) when a conclusion is shown
+//
+// hasConclusion is false on trials 0..N-1 (not enough chain depth), true
+// from trial N onwards. When hasConclusion is true, isValid is the ground
+// truth the engine scores against.
+export function nextRSTTurn(chain, n, matchChance = 0.4) {
+  const idx = chain.entities.length;
+  const entity = greekLabel(idx);
+  const bucket = Math.random() < 0.5 ? 0 : 1;
+
+  const nextChain = {
+    entities: [...chain.entities, entity],
+    buckets: [...chain.buckets, bucket],
+  };
+
+  // Premise for this trial: this entity vs. the immediately previous one.
+  // Trial 1 has no previous entity, so the "premise" just introduces the
+  // first token. CCT does the same — trial 1 shows the digit, no result.
+  let premise = null;
+  if (idx > 0) {
+    const prevEnt = chain.entities[idx - 1];
+    const prevBucket = chain.buckets[idx - 1];
+    premise = {
+      a: entity,
+      rel: bucket === prevBucket ? 'same as' : 'opposite of',
+      b: prevEnt,
+    };
+  } else {
+    premise = { a: entity, rel: 'introduced', b: null };
   }
-  return out;
-}
 
-function pickEntities(n) {
-  return shuffle(ENTITY_BANK).slice(0, n);
-}
+  // Conclusion shown from trial N onwards: this entity vs. the entity N
+  // trials back. Truth = derived from buckets. With matchChance probability
+  // we show the true relation; otherwise we flip it (negative trial).
+  let conclusion = null;
+  let isValid = null;
+  let hasConclusion = false;
+  if (idx >= n) {
+    hasConclusion = true;
+    const startIdx = idx - n;
+    const startEnt = nextChain.entities[startIdx];
+    const startBucket = nextChain.buckets[startIdx];
+    const trueRel = bucket === startBucket ? 'same as' : 'opposite of';
+    const valid = Math.random() < matchChance;
+    const showRel = valid
+      ? trueRel
+      : (trueRel === 'same as' ? 'opposite of' : 'same as');
+    conclusion = { a: entity, rel: showRel, b: startEnt };
+    isValid = valid;
+  }
 
-// Distinction: transitive same/opposite chain.
-// Premises: A same B, B opposite C → conclusion: A opposite C
-// Two buckets. Each "same" merges buckets, each "opposite" splits.
-function generateDistinction() {
-  const [a, b, c] = pickEntities(3);
-  const bucketA = 0;
-  const bucketB = Math.random() < 0.5 ? 0 : 1;
-  const bucketC = Math.random() < 0.5 ? 0 : 1;
-  const rel = (x, y) => x === y ? 'same as' : 'opposite of';
-  const premises = [`${a} is ${rel(bucketA, bucketB)} ${b}`, `${b} is ${rel(bucketB, bucketC)} ${c}`];
-  const trueConclusionRel = rel(bucketA, bucketC);
-  // 50/50: show the true conclusion (isValid=true) or flip it (isValid=false)
-  const askValid = Math.random() < 0.5;
-  const showRel = askValid ? trueConclusionRel : (trueConclusionRel === 'same as' ? 'opposite of' : 'same as');
   return {
+    chain: nextChain,
+    premise,
+    conclusion,
+    isValid,
+    hasConclusion,
     family: 'distinction',
-    premises,
-    conclusion: `${a} is ${showRel} ${c}`,
-    isValid: askValid,
   };
-}
-
-// Comparison: more-than / less-than transitive chain.
-// Premises: A > B, B > C  →  A > C. Player decides if conclusion follows.
-function generateComparison() {
-  const [a, b, c] = pickEntities(3);
-  // Place on a line 0,1,2 (random permutation), then derive premises by
-  // adjacent comparisons so the chain is consistent.
-  const order = shuffle([a, b, c]); // smallest→largest by index
-  const idx = (x) => order.indexOf(x);
-  const cmp = (x, y) => idx(x) > idx(y) ? 'more than' : 'less than';
-  const premises = [`${a} is ${cmp(a, b)} ${b}`, `${b} is ${cmp(b, c)} ${c}`];
-  // True relation A vs C
-  const trueRel = cmp(a, c);
-  const askValid = Math.random() < 0.5;
-  const showRel = askValid ? trueRel : (trueRel === 'more than' ? 'less than' : 'more than');
-  return {
-    family: 'comparison',
-    premises,
-    conclusion: `${a} is ${showRel} ${c}`,
-    isValid: askValid,
-  };
-}
-
-// Temporal: before/after transitive chain. Same shape as comparison.
-function generateTemporal() {
-  const [a, b, c] = pickEntities(3);
-  const order = shuffle([a, b, c]); // earliest→latest
-  const idx = (x) => order.indexOf(x);
-  const rel = (x, y) => idx(x) < idx(y) ? 'before' : 'after';
-  const premises = [`${a} is ${rel(a, b)} ${b}`, `${b} is ${rel(b, c)} ${c}`];
-  const trueRel = rel(a, c);
-  const askValid = Math.random() < 0.5;
-  const showRel = askValid ? trueRel : (trueRel === 'before' ? 'after' : 'before');
-  return {
-    family: 'temporal',
-    premises,
-    conclusion: `${a} is ${showRel} ${c}`,
-    isValid: askValid,
-  };
-}
-
-const GENERATORS = {
-  easy: [generateDistinction, generateComparison, generateTemporal],
-};
-
-// Public API — pick a generator by difficulty and return one RST item.
-//   difficulty: 'easy' (only Easy supported in this round)
-//   negation:   if true, occasionally flip the conclusion's relation token
-//               to "not X" form. Off by default — adds another logical
-//               operation to read which is heavier than the side-task window.
-export function generateRSTItem(difficulty = 'easy', { negation = false } = {}) {
-  const bucket = GENERATORS[difficulty] || GENERATORS.easy;
-  const gen = bucket[Math.floor(Math.random() * bucket.length)];
-  const item = gen();
-  if (negation && Math.random() < 0.4) {
-    // Flip the meaning of the conclusion via explicit "is not". Keeps the
-    // truth value consistent: flipping the predicate flips isValid.
-    item.conclusion = item.conclusion.replace(' is ', ' is NOT ');
-    item.isValid = !item.isValid;
-  }
-  return item;
 }

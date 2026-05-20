@@ -180,7 +180,7 @@ export default function Tutorial() {
               <span className="text-accent font-semibold">Negation:</span> About 30 % of trials are flipped to <span className="text-red-400 font-bold">¬</span> (red badge top-right of the stim). The visual stays the same but its <span className="text-foreground font-semibold">logical fact is inverted</span>. An n-back match requires both the relation AND the negation flag to agree, so two visually-identical relations with different ¬ states are <em>not</em> a match. Trains explicit logical inversion alongside relational encoding.
             </div>
             <div>
-              <span className="text-accent font-semibold">RST Side-Task (Reasoning):</span> Layered on stream A like CCT, but instead of arithmetic it tests <span className="text-foreground font-semibold">deductive inference</span>. About 1 in 4 trials shows a small box with 2 premises and a conclusion (e.g. "α more than β, β more than γ. ∴ α more than γ?"). Press the <span className="text-violet-400 font-bold">R</span> key (or A · RST button) if the conclusion is <span className="text-foreground">logically valid</span>; ignore it if it isn't. Generators ported from <a href="https://github.com/4skinskywalker/Syllogimous-v3" target="_blank" rel="noreferrer" className="underline text-violet-300">Syllogimous v3</a> (CC BY-NC 3.0). Easy difficulty only for now (Distinction / Comparison / Temporal, 2 premises each).
+              <span className="text-accent font-semibold">RST Side-Task (Reasoning):</span> Layered on stream A exactly the way <span className="text-foreground">CCT</span> is, but with deductive inference instead of arithmetic. <span className="text-foreground font-semibold">One premise per trial</span> at the top of the panel (e.g. "β same as α"). From trial N onwards a <span className="text-foreground">candidate conclusion</span> also appears (e.g. "∴≟ δ opposite of β"). Press <span className="text-violet-400 font-bold">R</span> if the conclusion is logically valid given the last N premises; otherwise hold. Built on the Distinction family (same/opposite parity), inspired by <a href="https://github.com/4skinskywalker/Syllogimous-v3" target="_blank" rel="noreferrer" className="underline text-violet-300">Syllogimous v3</a> (CC BY-NC 3.0).
             </div>
           </div>
         </div>
@@ -247,15 +247,15 @@ export default function Tutorial() {
             </div>
 
             <div>
-              <div className="text-fuchsia-300 font-semibold mb-2">RST Side-Task (Reasoning)</div>
-              <p className="text-muted-foreground mb-2">A premise/conclusion side-task on stream A. Independent from the n-back response.</p>
+              <div className="text-fuchsia-300 font-semibold mb-2">RST Side-Task (Reasoning) — N = 2</div>
+              <p className="text-muted-foreground mb-2">CCT-style: one premise per trial, a candidate conclusion from trial N onwards. Independent from the n-back response.</p>
               <div className="rounded bg-background/60 border border-border p-3 text-xs space-y-1">
-                <div>Trial 7 shows the relation visual, plus a violet box at the bottom:</div>
-                <div className="text-foreground/85 pl-3">α more than β</div>
-                <div className="text-foreground/85 pl-3">β more than γ</div>
-                <div className="text-violet-200 font-semibold pl-3">∴ α more than γ ?</div>
-                <div>Press <span className="text-primary font-bold">REL</span> if the relation matches trial 5 (the n-back, unchanged).</div>
-                <div>Press <span className="text-violet-400 font-bold">R</span> if the conclusion is logically valid (here: yes).</div>
+                <div>Trial 1: <span className="text-cyan-300">α</span> (introduced — observe)</div>
+                <div>Trial 2: <span className="text-cyan-300">β same as α</span> (one premise — observe)</div>
+                <div>Trial 3: <span className="text-cyan-300">γ opposite of β</span> + conclusion <span className="text-amber-300">∴≟ γ opposite of α</span></div>
+                <div>The chain: α≡β, β≠γ → so γ≠α → conclusion VALID → press <span className="text-violet-400 font-bold">R</span></div>
+                <div>Trial 4: <span className="text-cyan-300">δ same as γ</span> + conclusion <span className="text-amber-300">∴≟ δ same as β</span></div>
+                <div>The chain (last 2): β≠γ, γ≡δ → so δ≠β → "δ same as β" is INVALID → don't press</div>
                 <div className="text-muted-foreground/70">RST scores its own hit/miss/FA/CR pile, separate from REL.</div>
               </div>
             </div>

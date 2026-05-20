@@ -24,7 +24,7 @@ import {
   INVERSE_RELATIONSHIP,
   filterTransitiveRelationships,
 } from './gameConstants';
-import { generateRSTItem } from './syllogimousAdapter.js';
+import { createRSTChain, nextRSTTurn } from './syllogimousAdapter.js';
 
 import { createRINTState, createRINTStates, generateRINTStimulus, isRINTConclusion, RINT_MIN_N } from './relationalIntegration.js';
 export { calculateResults, computeNextNLevel } from './gameStats.js';
@@ -760,16 +760,18 @@ export function createGameState({ nLevel, modes, relationshipPool, totalRounds, 
     cctMissesA: 0,
     cctFalseAlarmsA: 0,
     cctCorrectRejectionsA: 0,
-    // RST (Reasoning Side-Task) axis — single stream A, fires ~25% of trials
-    // when modes.includes('rst_overlay'). Each item is a 2-premise transitive
-    // chain from the ported Syllogimous Easy generators; target = conclusion
-    // is logically valid.
+    // RST (Reasoning Side-Task) axis — single stream A. Each trial shows one
+    // premise (current entity vs prev). From trial N onwards a candidate
+    // conclusion (current vs N-back) is also shown; target fires when the
+    // conclusion is logically valid given the chain. Mirrors CCT's "digit +
+    // candidate result" structure but with Syllogimous-style deductive items.
     isRSTTargetA: false,
     rstRespondedA: false,
     rstHitsA: 0,
     rstMissesA: 0,
     rstFalseAlarmsA: 0,
     rstCorrectRejectionsA: 0,
+    rstChainA: createRSTChain(),
     extraCCTHits: Array(numExtra).fill(0),
     extraCCTMisses: Array(numExtra).fill(0),
     extraCCTFalseAlarms: Array(numExtra).fill(0),
@@ -951,17 +953,25 @@ export function generateNextStimulus(state) {
   }
 
   // ── RST side-task layer (Reasoning Side-Task) ──
-  // When 'rst_overlay' is on, ~RST_OVERLAY_RATE of stream-A trials get an
-  // attached Syllogimous-style premise/conclusion item. Player presses the
-  // RST key (default "R") if the conclusion is logically valid.
-  // RST scoring lives on stream A only — adding it per-stream would crowd
-  // small screens and dilute the deduction load.
+  // CCT-shaped n-back over Distinction premises. Every trial advances the
+  // RST chain by one entity and emits a premise. From trial N onwards a
+  // candidate conclusion is shown for the player to evaluate. Scoring only
+  // fires on trials where hasConclusion is true.
   let isRSTTargetA = false;
-  if (modes.includes('rst_overlay') && Math.random() < RST_OVERLAY_RATE) {
-    const negationActive = modes.includes('negation');
-    const item = generateRSTItem('easy', { negation: negationActive });
-    resultA.stim = { ...resultA.stim, _rst: item };
-    isRSTTargetA = !!item.isValid;
+  let nextRSTChainA = state.rstChainA;
+  if (modes.includes('rst_overlay')) {
+    const turn = nextRSTTurn(state.rstChainA || createRSTChain(), effectiveN, MATCH_CHANCE);
+    nextRSTChainA = turn.chain;
+    resultA.stim = {
+      ...resultA.stim,
+      _rst: {
+        premise: turn.premise,
+        conclusion: turn.conclusion,
+        hasConclusion: turn.hasConclusion,
+        family: turn.family,
+      },
+    };
+    isRSTTargetA = !!turn.isValid;
   }
 
   // Compute next RINT states array
@@ -988,6 +998,7 @@ export function generateNextStimulus(state) {
     extraIsTargets: extraResults.map(r => r.isTarget),
     extraPositionTargets: extraResults.map(r => r.isPositionTarget),
     nextRINTStates,
+    nextRSTChainA,
     trialBinaryConfigs,
     audioStreamIndexes,
     // Per-stream categories for hierarchical history update
@@ -1002,6 +1013,7 @@ export function advanceRound(state, stimulus) {
     stimA, relA, extraStimuli, extraIsTargets, extraPositionTargets,
     isTargetA, isPositionTargetA, isCCTTargetA, isRSTTargetA, extraCCTTargets, categoryA, isDistractor,
     effectiveN, trialMode, extraTrialModes, nextRINTStates, allCategories, trialBinaryConfigs, audioStreamIndexes,
+    nextRSTChainA,
   } = stimulus;
   const trialIndex = state.round;
 
@@ -1050,6 +1062,7 @@ export function advanceRound(state, stimulus) {
     rintStates: nextRINTStates ?? state.rintStates,
     trialBinaryConfigs: trialBinaryConfigs ?? state.trialBinaryConfigs,
     audioStreamIndexes: audioStreamIndexes ?? [],
+    rstChainA: nextRSTChainA ?? state.rstChainA,
     respondedA: false,
     positionRespondedA: false,
     cctRespondedA: false,
@@ -1102,10 +1115,9 @@ export function processResponses(state, { pressedA, pressedExtra = [], pressedPo
     }
   }
 
-  if (hasRSTOverlay && state.currentStimulusA?._rst) {
-    // RST scoring fires only on trials where the engine actually attached an
-    // item. Off-trials (~75%) contribute nothing — RST density is bounded by
-    // RST_OVERLAY_RATE so reading load stays sustainable.
+  if (hasRSTOverlay && state.currentStimulusA?._rst?.hasConclusion) {
+    // Score only when a conclusion was shown. Pre-N trials have a premise
+    // only — no target to evaluate, no scoring.
     if (state.isRSTTargetA && pressedRSTA) next.rstHitsA = (next.rstHitsA || 0) + 1;
     else if (state.isRSTTargetA && !pressedRSTA) next.rstMissesA = (next.rstMissesA || 0) + 1;
     else if (!state.isRSTTargetA && pressedRSTA) next.rstFalseAlarmsA = (next.rstFalseAlarmsA || 0) + 1;
@@ -1164,7 +1176,7 @@ export function processResponses(state, { pressedA, pressedExtra = [], pressedPo
     });
   }
 
-  if (hasRSTOverlay && state.currentStimulusA?._rst) {
+  if (hasRSTOverlay && state.currentStimulusA?._rst?.hasConclusion) {
     trialRecords.push({
       trialNumber: state.round,
       streamLabel: 'A',
