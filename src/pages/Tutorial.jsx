@@ -173,6 +173,15 @@ export default function Tutorial() {
             <div>
               <span className="text-accent font-semibold">Per-Trial Feedback:</span> After every trial, each stream briefly flashes a verdict tag — <span className="text-foreground">HIT</span> · <span className="text-foreground">MISS</span> · <span className="text-foreground">FALSE ALARM</span> · <span className="text-foreground">CORRECT REJECTION</span> — alongside the relation name. Slows the session slightly but dramatically accelerates rule learning. Turn it on while you're new to a mode; turn it off once you can sight-read the visuals.
             </div>
+            <div>
+              <span className="text-accent font-semibold">Lure Trials:</span> About 1 in 5 non-target trials becomes a <span className="text-foreground font-semibold">near-miss</span> — a stim that would have been a target at <span className="text-foreground">N-1 or N+1</span> instead of N. The careful counter rejects; the loose counter false-alarms. Results show a separate <span className="text-foreground">Lure Resistance</span> percentage so you can track interference resistance over time. Idea adapted from Capacity Gym v2.
+            </div>
+            <div>
+              <span className="text-accent font-semibold">Negation:</span> About 30 % of trials are flipped to <span className="text-red-400 font-bold">¬</span> (red badge top-right of the stim). The visual stays the same but its <span className="text-foreground font-semibold">logical fact is inverted</span>. An n-back match requires both the relation AND the negation flag to agree, so two visually-identical relations with different ¬ states are <em>not</em> a match. Trains explicit logical inversion alongside relational encoding.
+            </div>
+            <div>
+              <span className="text-accent font-semibold">RST Side-Task (Reasoning):</span> Layered on stream A like CCT, but instead of arithmetic it tests <span className="text-foreground font-semibold">deductive inference</span>. About 1 in 4 trials shows a small box with 2 premises and a conclusion (e.g. "α more than β, β more than γ. ∴ α more than γ?"). Press the <span className="text-violet-400 font-bold">R</span> key (or A · RST button) if the conclusion is <span className="text-foreground">logically valid</span>; ignore it if it isn't. Generators ported from <a href="https://github.com/4skinskywalker/Syllogimous-v3" target="_blank" rel="noreferrer" className="underline text-violet-300">Syllogimous v3</a> (CC BY-NC 3.0). Easy difficulty only for now (Distinction / Comparison / Temporal, 2 premises each).
+            </div>
           </div>
         </div>
 
@@ -223,6 +232,43 @@ export default function Tutorial() {
             <div>
               <div className="text-fuchsia-300 font-semibold mb-2">Complex relations</div>
               <p className="text-muted-foreground">Five new scan-for-difference relations live in their own <span className="text-foreground">Complex</span> category — e.g. "3 Pairs · 1 Different" shows three pairs of shapes where two pairs are touching and one has a gap. You play them like any normal n-back relation, except the visual content forces you to scan multiple groups rather than just compare two shapes. Try the Stimuli Mix slider with Complex weighted at 30–50% for a focused session.</p>
+            </div>
+
+            <div>
+              <div className="text-fuchsia-300 font-semibold mb-2">Lure trials (N = 2)</div>
+              <p className="text-muted-foreground mb-2">Lures match at the wrong N-offset. Tempting if you're counting loose.</p>
+              <div className="rounded bg-background/60 border border-border p-3 text-xs space-y-1">
+                <div>Trial 1: <span className="text-primary">Inside</span></div>
+                <div>Trial 2: <span className="text-primary">Above/Below</span></div>
+                <div>Trial 3: <span className="text-primary">Touching</span> → not a match (≠ Inside), <span className="text-red-400 font-bold">don't press</span></div>
+                <div>Trial 4 (lure): <span className="text-primary">Above/Below</span> → matches <span className="text-foreground">N=2</span>… but engine flagged it as a <span className="text-amber-300">lure at offset +1</span>: it really matches trial 3 distance, not trial 2 → <span className="text-red-400 font-bold">non-target</span>. Pressing here = lure FA.</div>
+                <div className="text-muted-foreground/70 mt-1">Results screen shows Lure Resistance = % of lure trials you correctly rejected.</div>
+              </div>
+            </div>
+
+            <div>
+              <div className="text-fuchsia-300 font-semibold mb-2">RST Side-Task (Reasoning)</div>
+              <p className="text-muted-foreground mb-2">A premise/conclusion side-task on stream A. Independent from the n-back response.</p>
+              <div className="rounded bg-background/60 border border-border p-3 text-xs space-y-1">
+                <div>Trial 7 shows the relation visual, plus a violet box at the bottom:</div>
+                <div className="text-foreground/85 pl-3">α more than β</div>
+                <div className="text-foreground/85 pl-3">β more than γ</div>
+                <div className="text-violet-200 font-semibold pl-3">∴ α more than γ ?</div>
+                <div>Press <span className="text-primary font-bold">REL</span> if the relation matches trial 5 (the n-back, unchanged).</div>
+                <div>Press <span className="text-violet-400 font-bold">R</span> if the conclusion is logically valid (here: yes).</div>
+                <div className="text-muted-foreground/70">RST scores its own hit/miss/FA/CR pile, separate from REL.</div>
+              </div>
+            </div>
+
+            <div>
+              <div className="text-fuchsia-300 font-semibold mb-2">Negation</div>
+              <p className="text-muted-foreground mb-2">¬ on the corner = "this visual means the OPPOSITE". The match has to agree on negation, not just relation.</p>
+              <div className="rounded bg-background/60 border border-border p-3 text-xs space-y-1">
+                <div>Trial 1: <span className="text-primary">Inside</span> (no ¬)</div>
+                <div>Trial 2: <span className="text-primary">Above/Below</span> (no ¬)</div>
+                <div>Trial 3a: <span className="text-primary">Inside</span> (no ¬) → matches trial 1 fully → <span className="text-emerald-400 font-bold">TARGET</span></div>
+                <div>Trial 3b: <span className="text-primary">Inside</span> with <span className="text-red-400 font-bold">¬</span> → same relation but opposite logical fact → <span className="text-red-400 font-bold">non-target</span> (negation lure)</div>
+              </div>
             </div>
           </div>
         </div>

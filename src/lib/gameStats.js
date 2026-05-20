@@ -16,13 +16,27 @@ export function streamStats(hits, misses, falseAlarms, correctRejections) {
   return { hits, misses, falseAlarms, correctRejections, total, accuracy, hitRate, falseAlarmRate };
 }
 
+// Lure-trial stats: lures are always non-targets, so we only see FAs vs CRs.
+// Surface as a "lure resistance" number (1 - FA/(FA+CR)) when present.
+function lureStats(lureFA, lureCR) {
+  const total = (lureFA || 0) + (lureCR || 0);
+  if (total === 0) return null;
+  const lureFARate = Math.round(((lureFA || 0) / total) * 100);
+  const resistance = 100 - lureFARate;
+  return { lureFA: lureFA || 0, lureCR: lureCR || 0, total, lureFARate, resistance };
+}
+
 export function calculateResults(state) {
   const A = streamStats(state.hitsA, state.missesA, state.falseAlarmsA, state.correctRejectionsA);
+  const luresA = lureStats(state.lureFalseAlarmsA, state.lureCorrectRejectionsA);
   const positionA = (state.modes?.includes('alien_cube') || state.modes?.includes('alien_square'))
     ? streamStats(state.positionHitsA || 0, state.positionMissesA || 0, state.positionFalseAlarmsA || 0, state.positionCorrectRejectionsA || 0)
     : null;
   const cctA = state.modes?.includes('cct_overlay')
     ? streamStats(state.cctHitsA || 0, state.cctMissesA || 0, state.cctFalseAlarmsA || 0, state.cctCorrectRejectionsA || 0)
+    : null;
+  const rstA = state.modes?.includes('rst_overlay')
+    ? streamStats(state.rstHitsA || 0, state.rstMissesA || 0, state.rstFalseAlarmsA || 0, state.rstCorrectRejectionsA || 0)
     : null;
 
   const extra = (state.extraHits || []).map((h, i) =>
@@ -32,6 +46,10 @@ export function calculateResults(state) {
       (state.extraFalseAlarms || [])[i] || 0,
       (state.extraCorrectRejections || [])[i] || 0
     )
+  );
+
+  const extraLures = (state.extraLureFalseAlarms || []).map((fa, i) =>
+    lureStats(fa || 0, (state.extraLureCorrectRejections || [])[i] || 0)
   );
 
   const extraPosition = positionA ? (state.extraPositionHits || []).map((h, i) =>
@@ -61,7 +79,7 @@ export function calculateResults(state) {
   const allCR = allStreamsStats.reduce((s, x) => s + x.correctRejections, 0);
   const overall = streamStats(allHits, allMisses, allFA, allCR);
 
-  return { A, positionA, cctA, extra, extraPosition, extraCCT, overall };
+  return { A, positionA, cctA, rstA, luresA, extra, extraPosition, extraCCT, extraLures, overall };
 }
 
 export function computeNextNLevel(currentN, results) {

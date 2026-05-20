@@ -121,11 +121,13 @@ export default function GameScreen({ nLevel, modes, relationshipPool, totalRound
   }, [stimulusDuration, modes]);
   const hasAlienPosition = modes.includes('alien_cube') || modes.includes('alien_tesseract') || modes.includes('alien_square');
   const hasCCTOverlay = modes.includes('cct_overlay');
+  const hasRSTOverlay = modes.includes('rst_overlay');
   const allStreams = [
     {
       key: streamA?.key || 'Space', keyDisplay: streamA?.keyDisplay || 'SPACE',
       positionKey: streamA?.positionKey || 'KeyP', positionKeyDisplay: streamA?.positionKeyDisplay || 'P',
       cctKey: streamA?.cctKey || 'KeyM', cctKeyDisplay: streamA?.cctKeyDisplay || 'M',
+      rstKey: streamA?.rstKey || 'KeyR', rstKeyDisplay: streamA?.rstKeyDisplay || 'R',
       streamType: streamA?.streamType || 'relation',
       label: 'A',
     },
@@ -153,6 +155,8 @@ export default function GameScreen({ nLevel, modes, relationshipPool, totalRound
   const respondedRefs = useRef(allStreams.map(() => false));
   const positionRespondedRefs = useRef(allStreams.map(() => false));
   const cctRespondedRefs = useRef(allStreams.map(() => false));
+  // RST lives on stream A only — single ref.
+  const rstRespondedRef = useRef(false);
   const phaseTimerRef = useRef([]);
   const gameStateRef = useRef(gameState);
   const phaseRef = useRef(phase);
@@ -207,6 +211,7 @@ export default function GameScreen({ nLevel, modes, relationshipPool, totalRound
     respondedRefs.current = allStreams.map(() => false);
     positionRespondedRefs.current = allStreams.map(() => false);
     cctRespondedRefs.current = allStreams.map(() => false);
+    rstRespondedRef.current = false;
     setClearCanvas(false);
     setActiveSlide(0);
     setResponsesUnlocked(false);
@@ -265,8 +270,9 @@ export default function GameScreen({ nLevel, modes, relationshipPool, totalRound
       const pressedPositionExtra = positionRespondedRefs.current.slice(1);
       const pressedCCTA = cctRespondedRefs.current[0];
       const pressedCCTExtra = cctRespondedRefs.current.slice(1);
+      const pressedRSTA = rstRespondedRef.current;
 
-      const updatedState = processResponses(state, { pressedA, pressedExtra, pressedPositionA, pressedPositionExtra, pressedCCTA, pressedCCTExtra });
+      const updatedState = processResponses(state, { pressedA, pressedExtra, pressedPositionA, pressedPositionExtra, pressedCCTA, pressedCCTExtra, pressedRSTA });
       progressStateRef.current = updatedState;
       setGameState(updatedState);
       setPhase('feedback');
@@ -298,12 +304,13 @@ export default function GameScreen({ nLevel, modes, relationshipPool, totalRound
     const pressedPositionExtra = positionRespondedRefs.current.slice(1);
     const pressedCCTA = cctRespondedRefs.current[0];
     const pressedCCTExtra = cctRespondedRefs.current.slice(1);
+    const pressedRSTA = rstRespondedRef.current;
 
     if (noobMode) {
       const alreadyScored = (progressStateRef.current?.scoredTrialKeys || []).includes(state.round);
       const progressState = alreadyScored
         ? progressStateRef.current
-        : processResponses(state, { pressedA, pressedExtra, pressedPositionA, pressedPositionExtra, pressedCCTA, pressedCCTExtra });
+        : processResponses(state, { pressedA, pressedExtra, pressedPositionA, pressedPositionExtra, pressedCCTA, pressedCCTExtra, pressedRSTA });
 
       progressStateRef.current = progressState;
 
@@ -329,7 +336,7 @@ export default function GameScreen({ nLevel, modes, relationshipPool, totalRound
       return;
     }
 
-    const updatedState = processResponses(state, { pressedA, pressedExtra, pressedPositionA, pressedPositionExtra, pressedCCTA, pressedCCTExtra });
+    const updatedState = processResponses(state, { pressedA, pressedExtra, pressedPositionA, pressedPositionExtra, pressedCCTA, pressedCCTExtra, pressedRSTA });
     progressStateRef.current = updatedState;
 
     if (updatedState.round >= updatedState.totalRounds) {
@@ -366,6 +373,14 @@ export default function GameScreen({ nLevel, modes, relationshipPool, totalRound
     if (!(phaseRef.current === 'stimulus')) return;
     if (!responsesUnlocked) return;
     if (noobMode && (progressStateRef.current?.scoredTrialKeys || []).includes(gameStateRef.current?.round)) return;
+    // RST is stream-A only; ignore non-A.
+    if (type === 'rst') {
+      if (idx !== 0) return;
+      if (rstRespondedRef.current) return;
+      rstRespondedRef.current = true;
+      setGameState(prev => ({ ...prev, rstRespondedA: true }));
+      return;
+    }
     const refs = type === 'position' ? positionRespondedRefs
                : type === 'cct' ? cctRespondedRefs
                : respondedRefs;
@@ -408,10 +423,15 @@ export default function GameScreen({ nLevel, modes, relationshipPool, totalRound
           markResponse(idx, 'cct');
         }
       });
+      // RST is stream-A only.
+      if (hasRSTOverlay && e.code === (allStreams[0]?.rstKey || 'KeyR')) {
+        e.preventDefault();
+        markResponse(0, 'rst');
+      }
     };
     window.addEventListener('keydown', handleKey);
     return () => window.removeEventListener('keydown', handleKey);
-  }, [phase, markResponse, hasAlienPosition, hasCCTOverlay]);
+  }, [phase, markResponse, hasAlienPosition, hasCCTOverlay, hasRSTOverlay]);
 
   // Get current stimulus & rel for each stream (A + extras)
   const allTrialModes = [gameState.trialMode, ...(gameState.extraTrialModes || [])];
@@ -424,6 +444,7 @@ export default function GameScreen({ nLevel, modes, relationshipPool, totalRound
       responded: gameState.respondedA,
       positionResponded: gameState.positionRespondedA,
       cctResponded: gameState.cctRespondedA,
+      rstResponded: gameState.rstRespondedA,
     },
     ...(gameState.extraCurrentRels || []).map((rel, i) => ({
       rel,
@@ -588,7 +609,7 @@ export default function GameScreen({ nLevel, modes, relationshipPool, totalRound
                     )}
                   </div>
                 )}
-                {(s.responded || s.positionResponded || s.cctResponded) && phase === 'stimulus' && (
+                {(s.responded || s.positionResponded || s.cctResponded || s.rstResponded) && phase === 'stimulus' && (
                   <div className="absolute bottom-2 left-1/2 -translate-x-1/2 flex gap-2 z-20 pointer-events-none flex-wrap justify-center max-w-[95%]">
                     {s.responded && (
                       <div className="px-2.5 py-1 rounded-md text-xs font-mono font-semibold tracking-wider bg-primary/25 border border-primary shadow-[0_0_22px_rgba(43,227,198,0.55)] flex items-center gap-1">
@@ -608,6 +629,12 @@ export default function GameScreen({ nLevel, modes, relationshipPool, totalRound
                         <span className="text-rose-300">{STREAM_LABELS[idx]} CCT</span>
                       </div>
                     )}
+                    {s.rstResponded && idx === 0 && (
+                      <div className="px-2.5 py-1 rounded-md text-xs font-mono font-semibold tracking-wider bg-violet-500/25 border border-violet-400 shadow-[0_0_22px_rgba(167,139,250,0.55)] flex items-center gap-1">
+                        <span className="text-violet-300">✓</span>
+                        <span className="text-violet-300">A RST</span>
+                      </div>
+                    )}
                   </div>
                 )}
                 {phase === 'wipe' && (
@@ -622,6 +649,7 @@ export default function GameScreen({ nLevel, modes, relationshipPool, totalRound
                   const rel = records.find(t => (t.responseType || 'relation') === 'relation');
                   const pos = records.find(t => t.responseType === 'position');
                   const cct = records.find(t => t.responseType === 'cct');
+                  const rst = records.find(t => t.responseType === 'rst');
                   const verdict = (rec) => {
                     if (!rec) return null;
                     if (rec.isTarget && rec.userResponded) return { tag: 'HIT', cls: 'text-emerald-300 bg-emerald-500/20 border-emerald-400/60' };
@@ -632,6 +660,7 @@ export default function GameScreen({ nLevel, modes, relationshipPool, totalRound
                   const relV = verdict(rel);
                   const posV = verdict(pos);
                   const cctV = verdict(cct);
+                  const rstV = verdict(rst);
                   return (
                     <div className="absolute inset-0 bg-background/70 backdrop-blur-sm rounded-xl flex flex-col items-center justify-center gap-2 px-3">
                       {relV && (
@@ -647,6 +676,11 @@ export default function GameScreen({ nLevel, modes, relationshipPool, totalRound
                       {cctV && (
                         <div className={`px-3 py-1.5 rounded-lg border font-mono text-xs font-semibold tracking-wide ${cctV.cls}`}>
                           CCT · {cctV.tag}
+                        </div>
+                      )}
+                      {rstV && (
+                        <div className={`px-3 py-1.5 rounded-lg border font-mono text-xs font-semibold tracking-wide ${rstV.cls}`}>
+                          RST · {rstV.tag}
                         </div>
                       )}
                       {rel?.relationship && (
@@ -668,6 +702,25 @@ export default function GameScreen({ nLevel, modes, relationshipPool, totalRound
                       {i < arr.length - 1 && <span className="text-muted-foreground/40 mx-1">·</span>}
                     </span>
                   ))}
+                </div>
+              )}
+              {/* RST side-task strip — stream A only, only when the engine
+                  attached an item. Sits below the canvas (mirrors the RINT
+                  chain layout) so it never collides with feedback pills. */}
+              {hasRSTOverlay && idx === 0 && phase === 'stimulus' && !clearCanvas && s.stimulus?._rst && (
+                <div className="shrink-0 px-2 py-1.5 border-t-2 border-violet-400/60 bg-violet-500/10 font-mono">
+                  <div className="flex items-center justify-between text-[10px] uppercase tracking-widest text-violet-300 mb-0.5">
+                    <span className="font-bold">RST · valid?</span>
+                    <span className="text-muted-foreground/60">{s.stimulus._rst.family}</span>
+                  </div>
+                  <div className="space-y-0.5">
+                    {s.stimulus._rst.premises.map((p, i) => (
+                      <div key={i} className="text-[11px] sm:text-xs text-foreground/85 leading-tight">{p}</div>
+                    ))}
+                    <div className="text-[11px] sm:text-xs text-violet-200 font-semibold leading-tight pt-0.5 border-t border-violet-400/30">
+                      ∴ {s.stimulus._rst.conclusion}
+                    </div>
+                  </div>
                 </div>
               )}
             </div>
@@ -692,6 +745,8 @@ export default function GameScreen({ nLevel, modes, relationshipPool, totalRound
               <kbd className="px-1 py-0.5 rounded bg-muted text-muted-foreground font-semibold text-xs">{stream.keyDisplay}</kbd>
               {' '}= {STREAM_LABELS[idx]} REL
               {hasAlienPosition && <><kbd className="ml-1 px-1 py-0.5 rounded bg-muted text-amber-400 font-semibold text-xs">{stream.positionKeyDisplay}</kbd> = {STREAM_LABELS[idx]} POS</>}
+              {hasCCTOverlay && stream.streamType !== 'cct' && <><kbd className="ml-1 px-1 py-0.5 rounded bg-muted text-rose-400 font-semibold text-xs">{stream.cctKeyDisplay}</kbd> = {STREAM_LABELS[idx]} CCT</>}
+              {hasRSTOverlay && idx === 0 && <><kbd className="ml-1 px-1 py-0.5 rounded bg-muted text-violet-400 font-semibold text-xs">{stream.rstKeyDisplay}</kbd> = A RST</>}
             </span>
           ))}
 
@@ -733,6 +788,12 @@ export default function GameScreen({ nLevel, modes, relationshipPool, totalRound
                   style={{ WebkitTapHighlightColor: 'transparent', touchAction: 'manipulation' }}
                   onPointerDown={(e) => { e.preventDefault(); markResponse(idx, 'cct'); }}>
                   {STREAM_LABELS[idx]} · CCT
+                </button>,
+                hasRSTOverlay && idx === 0 && <button key={`${idx}-rst`}
+                  className={`h-11 rounded-lg bg-secondary border font-mono text-xs text-violet-400 active:bg-secondary/70 transition-colors border-violet-400/40`}
+                  style={{ WebkitTapHighlightColor: 'transparent', touchAction: 'manipulation' }}
+                  onPointerDown={(e) => { e.preventDefault(); markResponse(0, 'rst'); }}>
+                  A · RST
                 </button>
               ].filter(Boolean))}
               <button
@@ -761,6 +822,12 @@ export default function GameScreen({ nLevel, modes, relationshipPool, totalRound
                 style={{ WebkitTapHighlightColor: 'transparent', touchAction: 'manipulation' }}
                 onPointerDown={(e) => { e.preventDefault(); markResponse(idx, 'cct'); }}>
                 {STREAM_LABELS[idx]} · CCT
+              </button>,
+              hasRSTOverlay && idx === 0 && <button key={`${idx}-rst`}
+                className={`h-12 rounded-lg bg-secondary border font-mono text-xs text-violet-400 transition-colors border-violet-400/40`}
+                style={{ WebkitTapHighlightColor: 'transparent', touchAction: 'manipulation' }}
+                onPointerDown={(e) => { e.preventDefault(); markResponse(0, 'rst'); }}>
+                A · RST
               </button>
             ].filter(Boolean))
           )}
@@ -792,6 +859,11 @@ export default function GameScreen({ nLevel, modes, relationshipPool, totalRound
               onMouseDown={(e) => { e.preventDefault(); markResponse(idx, 'cct'); }}
               className={`px-6 h-10 rounded-lg bg-secondary border font-mono text-sm text-rose-400 transition-colors ${STREAM_BORDER_COLORS[idx % STREAM_BORDER_COLORS.length]}`}>
               {stream.cctKeyDisplay} CCT
+            </button>,
+            hasRSTOverlay && idx === 0 && <button key={`${idx}-rst`}
+              onMouseDown={(e) => { e.preventDefault(); markResponse(0, 'rst'); }}
+              className={`px-6 h-10 rounded-lg bg-secondary border border-violet-400/40 font-mono text-sm text-violet-400 transition-colors`}>
+              {stream.rstKeyDisplay} RST
             </button>
           ].filter(Boolean))}
           <button

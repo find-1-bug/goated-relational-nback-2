@@ -11,5 +11,11 @@ export default defineConfig({
       '@': path.resolve(process.cwd(), 'src'),
     },
   },
+  // Don't let Vite's dep-optimizer scan research / vendor folders sitting in
+  // the repo root (Capacity Gym, Syllogimous v3). They import their own deps
+  // (e.g. @supabase/supabase-js) that this app doesn't ship.
+  optimizeDeps: {
+    entries: ['index.html', 'src/**/*.{js,jsx}'],
+  },
   plugins: [react()],
 });

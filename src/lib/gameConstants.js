@@ -494,6 +494,17 @@ export const MATCH_CHANCE = 0.3;
 export const DUAL_MATCH_CHANCE = 0.25;
 export const HIER_MATCH_CHANCE = 0.25;
 export const DISTRACTOR_CHANCE = 0.15;
+// Fraction of non-target trials that become a "near-miss" lure — a stim
+// matching the N±1 position. The careful player counts properly and rejects;
+// the loose counter false-alarms. Tracked separately in stats.
+export const LURE_RATE = 0.22;
+// Per-trial probability of negating the displayed relation when the
+// 'negation' mode is on. The renderer overlays a ¬ badge; the engine
+// compares (rel, negated) as a tuple for n-back matches.
+export const NEGATION_RATE = 0.30;
+// RST overlay schedule — fraction of trials that carry a Syllogimous
+// premise/conclusion side-task (only when 'rst_overlay' mode is on).
+export const RST_OVERLAY_RATE = 0.25;
 export const TOTAL_ROUNDS = 20;
 export const STIMULUS_DURATION = 2800;
 export const WIPE_DURATION = 500;

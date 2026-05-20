@@ -33,6 +33,26 @@ function StreamResults({ title, stats, color = 'text-primary' }) {
   );
 }
 
+// Lure-trial readout — only meaningful when there were any lure trials this
+// session. Surfaces "lure resistance" (= 1 - FA rate on lures), the cleanest
+// summary of how well the player isolated N from N-1/N+1.
+function LureResults({ stats }) {
+  if (!stats || stats.total === 0) return null;
+  return (
+    <div className="space-y-2">
+      <div className="text-xs font-mono uppercase tracking-widest font-semibold text-fuchsia-400">Lure Resistance</div>
+      <div className="grid grid-cols-3 gap-3 bg-secondary/40 rounded-lg p-3 border border-border">
+        <StatBlock label="Resistance" value={stats.resistance} suffix="%" color={stats.resistance >= 75 ? 'text-emerald-400' : stats.resistance >= 50 ? 'text-amber-400' : 'text-red-400'} />
+        <StatBlock label="Lure FAs" value={stats.lureFA} color="text-red-400" />
+        <StatBlock label="Lure CRs" value={stats.lureCR} color="text-primary" />
+      </div>
+      <div className="text-[10px] font-mono text-muted-foreground/60 text-center">
+        Lures look like targets at N±1 instead of N. Lower FA = sharper count.
+      </div>
+    </div>
+  );
+}
+
 export default function ResultsScreen({ gameState, onRestart, onBack }) {
   const results = calculateResults(gameState);
   const nextN = computeNextNLevel(gameState.nLevel, results);
@@ -90,11 +110,14 @@ export default function ResultsScreen({ gameState, onRestart, onBack }) {
           <StreamResults title="Stream A · Relation" stats={results.A} color="text-primary" />
           {results.positionA && <StreamResults title="Stream A · Position" stats={results.positionA} color="text-amber-400" />}
           {results.cctA && <StreamResults title="Stream A · CCT" stats={results.cctA} color="text-rose-400" />}
+          {results.rstA && results.rstA.total > 0 && <StreamResults title="Stream A · RST (Reasoning)" stats={results.rstA} color="text-violet-400" />}
+          {results.luresA && <LureResults stats={results.luresA} />}
           {(results.extra || []).map((s, i) => (
             <React.Fragment key={i}>
               <StreamResults title={`Stream ${String.fromCharCode(66 + i)} · Relation`} stats={s} color={['text-accent','text-chart-3','text-chart-4','text-chart-5'][i] || 'text-accent'} />
               {(results.extraPosition || [])[i] && <StreamResults title={`Stream ${String.fromCharCode(66 + i)} · Position`} stats={(results.extraPosition || [])[i]} color="text-amber-400" />}
               {(results.extraCCT || [])[i] && <StreamResults title={`Stream ${String.fromCharCode(66 + i)} · CCT`} stats={(results.extraCCT || [])[i]} color="text-rose-400" />}
+              {(results.extraLures || [])[i] && <LureResults stats={(results.extraLures || [])[i]} />}
             </React.Fragment>
           ))}
           {results.C && <StreamResults title="Category (Hierarchical)" stats={results.C} color="text-chart-3" />}

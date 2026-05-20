@@ -525,7 +525,36 @@ export function renderRelationship(ctx, canvasW, canvasH, relationship, prevVisu
     drawRINTEntityHeader(ctx, canvasW, canvasH, stimulus.wordA, stimulus.wordB);
   }
 
+  // Negation overlay — when the engine flagged this stim as logically negated,
+  // we keep the visual as-is and stamp a ¬ badge on the corner so the player
+  // reads it as "NOT (rel)". The n-back matcher compares (rel, negated) as a
+  // tuple, so two visually-identical relations with different ¬ states do not
+  // count as a match.
+  if (stimulus?._negated) {
+    drawNegationBadge(ctx, canvasW, canvasH);
+  }
+
   return visuals;
+}
+
+function drawNegationBadge(ctx, canvasW, canvasH) {
+  ctx.save();
+  const r = Math.max(14, Math.min(22, canvasW * 0.06));
+  const cx = canvasW - r - 10;
+  const cy = r + 10;
+  ctx.fillStyle = 'rgba(239, 68, 68, 0.85)';
+  ctx.strokeStyle = 'rgba(254, 226, 226, 0.95)';
+  ctx.lineWidth = 1.5;
+  ctx.beginPath();
+  ctx.arc(cx, cy, r, 0, Math.PI * 2);
+  ctx.fill();
+  ctx.stroke();
+  ctx.fillStyle = '#fff';
+  ctx.font = `bold ${Math.round(r * 1.2)}px 'JetBrains Mono', monospace`;
+  ctx.textAlign = 'center';
+  ctx.textBaseline = 'middle';
+  ctx.fillText('¬', cx, cy + 1);
+  ctx.restore();
 }
 
 function drawRINTEntityHeader(ctx, canvasW, canvasH, entityA, entityB) {

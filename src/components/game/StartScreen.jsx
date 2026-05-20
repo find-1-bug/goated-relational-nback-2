@@ -41,6 +41,9 @@ const MODE_OPTIONS = [
   { id: 'adaptive',      icon: TrendingUp, label: 'Adaptive N',        desc: 'N auto-adjusts between sessions based on accuracy (≥80% → up, ≤50% → down).' },
   { id: 'distractors',   icon: Shuffle,    label: 'Distractors',       desc: 'Near-match stimuli from the same category create interference in normal mode.' },
   { id: 'feedback_per_trial', icon: Brain, label: 'Per-Trial Feedback', desc: 'After every trial, each stream briefly flashes a result tag (hit · miss · correct rejection · false alarm) — designed to accelerate learning of the rules.' },
+  { id: 'lures',         icon: Zap,        label: 'Lure Trials',       desc: 'About 1 in 5 non-target trials becomes a near-miss: a stim that would match at N-1 or N+1 instead of N. The careful counter rejects; the loose counter false-alarms. Trains interference resistance. Tracked as a separate "lure FA rate" in results.', minN: 2 },
+  { id: 'negation',      icon: GitBranch,  label: 'Negation',          desc: 'About 30 % of trials are flipped to ¬ (red badge in the corner). The visual stays the same but the logical fact is inverted — "A NOT inside B". An n-back match requires both the relation AND the negation flag to agree, so the player must read the ¬ to score.', minN: 2 },
+  { id: 'rst_overlay',   icon: GitBranch,  label: 'RST Side-Task (Reasoning)', desc: 'About 1 in 4 trials gets a tiny premise / conclusion box overlaid on stream A — e.g., "α more than β, β more than γ. ∴ α more than γ?" Press the RST key when the conclusion is logically valid. Layered on top of n-back, the way CCT is, but trains deductive inference instead of arithmetic. Premise generators ported from Syllogimous v3 (CC BY-NC).', minN: 2 },
 ];
 
 // Modes that are mutually exclusive with each other (only one from each group active)
@@ -1067,6 +1070,7 @@ export default function StartScreen({ onStart, suggestedN, lastSettings }) {
                 {KEY_OPTIONS.find(k => k.code === streamAKey)?.display || 'SPACE'}
               </kbd> = Stream A REL
               {alienModeActive && <>{' '}<kbd className="px-1.5 py-0.5 rounded bg-muted text-amber-400 font-semibold">{KEY_OPTIONS.find(k => k.code === streamAPositionKey)?.display || 'P'}</kbd> = Stream A POS</>}
+              {modes.includes('rst_overlay') && <>{' '}<kbd className="px-1.5 py-0.5 rounded bg-muted text-violet-400 font-semibold">R</kbd> = Stream A RST</>}
               {extraStreams.map((s, i) => (
                 <span key={i}>
                   {' '}&nbsp;<kbd className="px-1.5 py-0.5 rounded bg-muted text-foreground font-semibold">{s.keyDisplay}</kbd> = Stream {STREAM_LABELS[1 + i]} REL

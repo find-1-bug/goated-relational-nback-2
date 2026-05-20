@@ -7,6 +7,9 @@ import {
   DUAL_MATCH_CHANCE,
   HIER_MATCH_CHANCE,
   DISTRACTOR_CHANCE,
+  LURE_RATE,
+  NEGATION_RATE,
+  RST_OVERLAY_RATE,
   TOTAL_ROUNDS,
   getCategory,
   pickRandom,
@@ -21,6 +24,7 @@ import {
   INVERSE_RELATIONSHIP,
   filterTransitiveRelationships,
 } from './gameConstants';
+import { generateRSTItem } from './syllogimousAdapter.js';
 
 import { createRINTState, createRINTStates, generateRINTStimulus, isRINTConclusion, RINT_MIN_N } from './relationalIntegration.js';
 export { calculateResults, computeNextNLevel } from './gameStats.js';
@@ -88,6 +92,22 @@ function relationshipMatches(rel, targetRel) {
   return rel === targetRel || INVERSE_RELATIONSHIP[targetRel] === rel || INVERSE_RELATIONSHIP[rel] === targetRel;
 }
 
+// Negation-aware logical match: two stims encode the same fact iff their
+// relations match AND their negation flags are equal. ("A inside B" ≠
+// "NOT A inside B".) When negation mode is off, _negated is always false on
+// both sides, so this reduces to plain relationshipMatches.
+function logicalFactsMatch(currStim, pastEntry) {
+  if (!currStim || !pastEntry) return false;
+  if (!relationshipMatches(currStim.rel, pastEntry.rel)) return false;
+  return !!currStim._negated === !!pastEntry._negated;
+}
+
+// When negation mode is on, each trial is flipped to "¬" with NEGATION_RATE
+// probability. Off → always false.
+function pickNegationFlag(negationMode) {
+  return negationMode ? Math.random() < NEGATION_RATE : false;
+}
+
 function evaluateStimulusForMode({ stim, mode, history, typeHistory, rintState, effectiveN, hierHistory }) {
   if (!stim) return false;
   if (mode === 'rint') return isRINTConclusion(rintState, stim, effectiveN);
@@ -99,14 +119,20 @@ function evaluateStimulusForMode({ stim, mode, history, typeHistory, rintState, 
     const enabledFlags = stim?._nrintEnabledFlags || NRINT_DEFAULT_FLAGS;
     return attrsReachableFromSubset(tail, stim.attrs || emptyAttrs(), enabledFlags);
   }
-  if (mode === 'type') return isTypeNbackMatch(typeHistory, stim.rel, effectiveN);
+  if (mode === 'type') {
+    if (!isTypeNbackMatch(typeHistory, stim.rel, effectiveN)) return false;
+    // With negation on, the rel-history-match must also agree on _negated.
+    const entries = getTypeHistory(typeHistory, stim.rel);
+    const past = entries[entries.length - effectiveN];
+    return !!stim._negated === !!past?._negated;
+  }
   if (mode === 'hierarchical') {
     const canHier = (hierHistory || []).length >= effectiveN;
     const nBackCat = canHier ? hierHistory[hierHistory.length - effectiveN] : null;
     return canHier && getCategory(stim.rel) === nBackCat;
   }
   const nBackEntry = history.length >= effectiveN ? history[history.length - effectiveN] : null;
-  return !!nBackEntry && relationshipMatches(stim.rel, nBackEntry.rel);
+  return logicalFactsMatch(stim, nBackEntry);
 }
 
 function makeNonTargetRelationship(pool, isAccidentalTarget) {
@@ -445,7 +471,7 @@ function makeNRINTStim(attrs) {
 
 // Generate stimulus for a single stream, given its own history/typeHistory/rintState
 // streamConfig: { trialMode, binaryMode, binaryOp, hierHistory } for Hierarchical and Binary Logic
-function generateOneStreamStimulus({ history, typeHistory, rintState, pool, effectiveN, trialMode, matchChance, hasDistractors, trialIndex, hierHistory, binaryMode, binaryOp, signalOnly = false, baseStim = null, alienCube = false, alienSquare = false, alienTesseract = false, alienSettings = {}, nrintEnabledFlags = NRINT_DEFAULT_FLAGS, nrintHideLegend = false }) {
+function generateOneStreamStimulus({ history, typeHistory, rintState, pool, effectiveN, trialMode, matchChance, hasDistractors, hasLures = false, negationMode = false, trialIndex, hierHistory, binaryMode, binaryOp, signalOnly = false, baseStim = null, alienCube = false, alienSquare = false, alienTesseract = false, alienSettings = {}, nrintEnabledFlags = NRINT_DEFAULT_FLAGS, nrintHideLegend = false }) {
    let stim, isPrimaryTarget = false, isPositionTarget = false, nextRINTState = rintState;
    const canTarget = history.length >= effectiveN;
 
@@ -508,10 +534,22 @@ function generateOneStreamStimulus({ history, typeHistory, rintState, pool, effe
       stim = isVerbal(forcedRel)
         ? (Math.random() < 0.35 ? makeInverseStimulus(targetEntry) : null) || makeStimulusEntry(forcedRel)
         : maybeInvertVisual(makeStimulusEntry(forcedRel));
+      // When negation mode is on, match the past entry's _negated to keep
+      // the target intact (since type-match now requires both rel & negation).
+      stim._negated = !!targetEntry?._negated;
     } else {
       stim = makeStimulusEntry(makeNonTargetRelationship(finalPool, rel => isTypeNbackMatch(typeHistory, rel, effectiveN)));
+      stim._negated = pickNegationFlag(negationMode);
     }
-    isPrimaryTarget = isTypeNbackMatch(typeHistory, stim.rel, effectiveN);
+    // Negation lure: if we made a rel-match but flipped negation, it becomes a
+    // non-target. Roll this on a fraction of the "target" path under negation
+    // mode to keep negation differentiating from rel-matches.
+    if (negationMode && forcedRel && Math.random() < NEGATION_RATE) {
+      stim._negated = !stim._negated;
+    }
+    isPrimaryTarget = evaluateStimulusForMode({
+      stim, mode: 'type', history, typeHistory, rintState, effectiveN, hierHistory,
+    });
   } else if (trialMode === 'hierarchical') {
     const canHier = (hierHistory || []).length >= effectiveN;
     const nBackCat = canHier ? hierHistory[hierHistory.length - effectiveN] : null;
@@ -521,16 +559,51 @@ function generateOneStreamStimulus({ history, typeHistory, rintState, pool, effe
     stim = makeStimulusEntry(rel);
     isPrimaryTarget = canHier && getCategory(stim.rel) === nBackCat;
   } else {
+    let isLure = false;
+    let lureOffset = 0;
     if (canTarget && nBackEntry && finalPool.includes(nBackEntry.rel) && Math.random() < matchChance) {
       stim = isVerbal(nBackEntry.rel)
-        ? (Math.random() < 0.35 ? makeInverseStimulus(nBackEntry) : null) || nBackEntry
+        ? (Math.random() < 0.35 ? makeInverseStimulus(nBackEntry) : null) || { ...nBackEntry }
         : maybeInvertVisual(makeStimulusEntry(nBackEntry.rel));
+      // Keep _negated consistent with the past so the rel-match becomes a real
+      // target under negation mode. Negation lures are rolled below.
+      stim._negated = !!nBackEntry?._negated;
+    } else if (hasLures && canTarget && history.length >= effectiveN + 1 && Math.random() < LURE_RATE) {
+      // Near-miss lure: pick a stim that would be a target at N-1 or N+1
+      // instead of N. The careful counter rejects; the loose counter FAs.
+      const candidates = [];
+      if (effectiveN >= 2 && history.length >= effectiveN - 1) candidates.push(effectiveN - 1);
+      if (history.length >= effectiveN + 1) candidates.push(effectiveN + 1);
+      const lureN = candidates.length ? pickRandom(candidates) : effectiveN;
+      const lureEntry = history[history.length - lureN];
+      if (lureEntry && finalPool.includes(lureEntry.rel) && !relationshipMatches(lureEntry.rel, nBackEntry?.rel)) {
+        stim = isVerbal(lureEntry.rel)
+          ? (Math.random() < 0.35 ? makeInverseStimulus(lureEntry) : null) || { ...lureEntry }
+          : maybeInvertVisual(makeStimulusEntry(lureEntry.rel));
+        stim._negated = !!lureEntry._negated;
+        isLure = true;
+        lureOffset = lureN - effectiveN;
+      } else {
+        stim = makeStimulusEntry(makeNonTargetRelationship(finalPool, rel => canTarget && relationshipMatches(rel, nBackEntry?.rel)));
+        stim._negated = pickNegationFlag(negationMode);
+      }
     } else if (hasDistractors && canTarget && nBackEntry && Math.random() < DISTRACTOR_CHANCE) {
       stim = makeStimulusEntry(makeDistractor(nBackEntry.rel, pool));
+      stim._negated = pickNegationFlag(negationMode);
     } else {
       stim = makeStimulusEntry(makeNonTargetRelationship(finalPool, rel => canTarget && relationshipMatches(rel, nBackEntry?.rel)));
+      stim._negated = pickNegationFlag(negationMode);
     }
-    isPrimaryTarget = canTarget && relationshipMatches(stim.rel, nBackEntry?.rel);
+    // Negation lure on a would-be target: flip negation so the rel matches but
+    // the logical fact doesn't. Player who ignores the ¬ badge FAs.
+    if (negationMode && nBackEntry && relationshipMatches(stim.rel, nBackEntry.rel) && Math.random() < NEGATION_RATE) {
+      stim._negated = !stim._negated;
+    }
+    if (isLure) {
+      stim._isLure = true;
+      stim._lureOffset = lureOffset;
+    }
+    isPrimaryTarget = logicalFactsMatch(stim, nBackEntry);
   }
 
   if (alienCube || alienSquare || alienTesseract) {
@@ -657,6 +730,8 @@ export function createGameState({ nLevel, modes, relationshipPool, totalRounds, 
     extraMisses: Array(numExtra).fill(0),
     extraFalseAlarms: Array(numExtra).fill(0),
     extraCorrectRejections: Array(numExtra).fill(0),
+    extraLureFalseAlarms: Array(numExtra).fill(0),
+    extraLureCorrectRejections: Array(numExtra).fill(0),
 
     isDistractor: false,
     respondedA: false,
@@ -665,6 +740,9 @@ export function createGameState({ nLevel, modes, relationshipPool, totalRounds, 
     missesA: 0,
     falseAlarmsA: 0,
     correctRejectionsA: 0,
+    // Lure-trial sub-counts (subset of FA/CR — lures are always non-targets).
+    lureFalseAlarmsA: 0,
+    lureCorrectRejectionsA: 0,
     positionHitsA: 0,
     positionMissesA: 0,
     positionFalseAlarmsA: 0,
@@ -682,6 +760,16 @@ export function createGameState({ nLevel, modes, relationshipPool, totalRounds, 
     cctMissesA: 0,
     cctFalseAlarmsA: 0,
     cctCorrectRejectionsA: 0,
+    // RST (Reasoning Side-Task) axis — single stream A, fires ~25% of trials
+    // when modes.includes('rst_overlay'). Each item is a 2-premise transitive
+    // chain from the ported Syllogimous Easy generators; target = conclusion
+    // is logically valid.
+    isRSTTargetA: false,
+    rstRespondedA: false,
+    rstHitsA: 0,
+    rstMissesA: 0,
+    rstFalseAlarmsA: 0,
+    rstCorrectRejectionsA: 0,
     extraCCTHits: Array(numExtra).fill(0),
     extraCCTMisses: Array(numExtra).fill(0),
     extraCCTFalseAlarms: Array(numExtra).fill(0),
@@ -711,6 +799,8 @@ export function generateNextStimulus(state) {
     ? ['NRINT_COMPOSITE']
     : ((relationshipPool && relationshipPool.length > 0) ? relationshipPool : ALL_RELATIONSHIPS);
   const hasDistractors = modes.includes('distractors');
+  const hasLures = modes.includes('lures');
+  const negationMode = modes.includes('negation');
   const isImpossible = modes.includes('impossible');
   // Modes without 'cct' — used for rollTrialMode on relation streams so a
   // global cct toggle doesn't drag relation streams into cct mode.
@@ -776,7 +866,7 @@ export function generateNextStimulus(state) {
     pool: streamPoolFor(0), effectiveN,
     trialMode: trialModeA,
     matchChance: MATCH_CHANCE,
-    hasDistractors, trialIndex,
+    hasDistractors, hasLures, negationMode, trialIndex,
     hierHistory: (hierHistories || [])[0] || [],
     binaryMode: isBinaryLogic ? cfgA.binaryMode : null,
     binaryOp: cfgA.binaryOp,
@@ -812,7 +902,7 @@ export function generateNextStimulus(state) {
       pool: streamPoolFor(1 + i), effectiveN,
       trialMode: extraStreamModes[i],
       matchChance: DUAL_MATCH_CHANCE,
-      hasDistractors, trialIndex,
+      hasDistractors, hasLures, negationMode, trialIndex,
       hierHistory: (hierHistories || [])[1 + i] || [],
       binaryMode: isBinaryLogic ? cfg.binaryMode : null,
       binaryOp: cfg.binaryOp,
@@ -860,6 +950,20 @@ export function generateNextStimulus(state) {
     });
   }
 
+  // ── RST side-task layer (Reasoning Side-Task) ──
+  // When 'rst_overlay' is on, ~RST_OVERLAY_RATE of stream-A trials get an
+  // attached Syllogimous-style premise/conclusion item. Player presses the
+  // RST key (default "R") if the conclusion is logically valid.
+  // RST scoring lives on stream A only — adding it per-stream would crowd
+  // small screens and dilute the deduction load.
+  let isRSTTargetA = false;
+  if (modes.includes('rst_overlay') && Math.random() < RST_OVERLAY_RATE) {
+    const negationActive = modes.includes('negation');
+    const item = generateRSTItem('easy', { negation: negationActive });
+    resultA.stim = { ...resultA.stim, _rst: item };
+    isRSTTargetA = !!item.isValid;
+  }
+
   // Compute next RINT states array
   const nextRINTStates = (rintStates || []).map((rs, i) => {
     if (i === 0) return resultA.nextRINTState;
@@ -873,6 +977,7 @@ export function generateNextStimulus(state) {
     isTargetA: resultA.isTarget,
     isPositionTargetA: resultA.isPositionTarget,
     isCCTTargetA,
+    isRSTTargetA,
     extraCCTTargets,
     categoryA,
     isDistractor: false,
@@ -895,7 +1000,7 @@ export function generateNextStimulus(state) {
 export function advanceRound(state, stimulus) {
   const {
     stimA, relA, extraStimuli, extraIsTargets, extraPositionTargets,
-    isTargetA, isPositionTargetA, isCCTTargetA, extraCCTTargets, categoryA, isDistractor,
+    isTargetA, isPositionTargetA, isCCTTargetA, isRSTTargetA, extraCCTTargets, categoryA, isDistractor,
     effectiveN, trialMode, extraTrialModes, nextRINTStates, allCategories, trialBinaryConfigs, audioStreamIndexes,
   } = stimulus;
   const trialIndex = state.round;
@@ -939,6 +1044,7 @@ export function advanceRound(state, stimulus) {
     isTargetA,
     isPositionTargetA,
     isCCTTargetA: !!isCCTTargetA,
+    isRSTTargetA: !!isRSTTargetA,
     isDistractor,
     trialMode: trialMode ?? 'normal',
     rintStates: nextRINTStates ?? state.rintStates,
@@ -947,18 +1053,20 @@ export function advanceRound(state, stimulus) {
     respondedA: false,
     positionRespondedA: false,
     cctRespondedA: false,
+    rstRespondedA: false,
     finished: state.round + 1 >= state.totalRounds,
   };
 }
 
 // ─── Process Responses ────────────────────────────────────────────────────────
 
-export function processResponses(state, { pressedA, pressedExtra = [], pressedPositionA = false, pressedPositionExtra = [], pressedCCTA = false, pressedCCTExtra = [] }) {
+export function processResponses(state, { pressedA, pressedExtra = [], pressedPositionA = false, pressedPositionExtra = [], pressedCCTA = false, pressedCCTExtra = [], pressedRSTA = false }) {
   const trialKey = state.round;
   if ((state.scoredTrialKeys || []).includes(trialKey)) return state;
 
   const hasAlienPosition = state.modes?.includes('alien_cube') || state.modes?.includes('alien_tesseract') || state.modes?.includes('alien_square');
   const hasCCTOverlay = state.modes?.includes('cct_overlay');
+  const hasRSTOverlay = state.modes?.includes('rst_overlay');
   let next = { ...state, scoredTrialKeys: [...(state.scoredTrialKeys || []), trialKey] };
   const trialRecords = [];
 
@@ -967,6 +1075,13 @@ export function processResponses(state, { pressedA, pressedExtra = [], pressedPo
   else if (state.isTargetA && !pressedA) next.missesA++;
   else if (!state.isTargetA && pressedA) next.falseAlarmsA++;
   else next.correctRejectionsA++;
+  // Lure-trial sub-tally (lures are never targets, so they only show up in
+  // the FA / CR branches). Track them separately so the results screen can
+  // surface "lure resistance" — a key Capacity-Gym-style construct.
+  if (state.currentStimulusA?._isLure) {
+    if (pressedA) next.lureFalseAlarmsA = (next.lureFalseAlarmsA || 0) + 1;
+    else next.lureCorrectRejectionsA = (next.lureCorrectRejectionsA || 0) + 1;
+  }
 
   if (hasAlienPosition) {
     if (state.isPositionTargetA && pressedPositionA) next.positionHitsA++;
@@ -987,6 +1102,16 @@ export function processResponses(state, { pressedA, pressedExtra = [], pressedPo
     }
   }
 
+  if (hasRSTOverlay && state.currentStimulusA?._rst) {
+    // RST scoring fires only on trials where the engine actually attached an
+    // item. Off-trials (~75%) contribute nothing — RST density is bounded by
+    // RST_OVERLAY_RATE so reading load stays sustainable.
+    if (state.isRSTTargetA && pressedRSTA) next.rstHitsA = (next.rstHitsA || 0) + 1;
+    else if (state.isRSTTargetA && !pressedRSTA) next.rstMissesA = (next.rstMissesA || 0) + 1;
+    else if (!state.isRSTTargetA && pressedRSTA) next.rstFalseAlarmsA = (next.rstFalseAlarmsA || 0) + 1;
+    else next.rstCorrectRejectionsA = (next.rstCorrectRejectionsA || 0) + 1;
+  }
+
   trialRecords.push({
     trialNumber: state.round,
     streamLabel: 'A',
@@ -998,6 +1123,9 @@ export function processResponses(state, { pressedA, pressedExtra = [], pressedPo
     correct: state.isTargetA === !!pressedA,
     responseType: 'relation',
     nBackValue: state.currentEffectiveN ?? state.nLevel,
+    isLure: !!state.currentStimulusA?._isLure,
+    lureOffset: state.currentStimulusA?._lureOffset || 0,
+    negated: !!state.currentStimulusA?._negated,
     binaryLogicPrimary: state.trialBinaryConfigs?.[0]?.primaryMode,
     binaryLogicSecondary: state.trialBinaryConfigs?.[0]?.binaryMode,
     binaryLogicOp: state.trialBinaryConfigs?.[0]?.binaryOp,
@@ -1036,6 +1164,22 @@ export function processResponses(state, { pressedA, pressedExtra = [], pressedPo
     });
   }
 
+  if (hasRSTOverlay && state.currentStimulusA?._rst) {
+    trialRecords.push({
+      trialNumber: state.round,
+      streamLabel: 'A',
+      relationship: state.currentRelationship,
+      stimulus: state.currentStimulusA,
+      trialMode: state.trialMode,
+      isTarget: state.isRSTTargetA,
+      userResponded: !!pressedRSTA,
+      correct: state.isRSTTargetA === !!pressedRSTA,
+      responseType: 'rst',
+      rst: state.currentStimulusA._rst,
+      nBackValue: state.currentEffectiveN ?? state.nLevel,
+    });
+  }
+
   // Extra streams
   const nextExtraHits = [...(state.extraHits || [])];
   const nextExtraMisses = [...(state.extraMisses || [])];
@@ -1049,12 +1193,18 @@ export function processResponses(state, { pressedA, pressedExtra = [], pressedPo
   const nextExtraCCTMisses = [...(state.extraCCTMisses || [])];
   const nextExtraCCTFA = [...(state.extraCCTFalseAlarms || [])];
   const nextExtraCCTCR = [...(state.extraCCTCorrectRejections || [])];
+  const nextExtraLureFA = [...(state.extraLureFalseAlarms || [])];
+  const nextExtraLureCR = [...(state.extraLureCorrectRejections || [])];
   (state.extraIsTargets || []).forEach((isTarget, i) => {
     const pressed = pressedExtra[i] || false;
     if (isTarget && pressed) nextExtraHits[i] = (nextExtraHits[i] || 0) + 1;
     else if (isTarget && !pressed) nextExtraMisses[i] = (nextExtraMisses[i] || 0) + 1;
     else if (!isTarget && pressed) nextExtraFA[i] = (nextExtraFA[i] || 0) + 1;
     else nextExtraCR[i] = (nextExtraCR[i] || 0) + 1;
+    if (state.extraCurrentStimuli?.[i]?._isLure) {
+      if (pressed) nextExtraLureFA[i] = (nextExtraLureFA[i] || 0) + 1;
+      else nextExtraLureCR[i] = (nextExtraLureCR[i] || 0) + 1;
+    }
 
     trialRecords.push({
       trialNumber: state.round,
@@ -1067,6 +1217,9 @@ export function processResponses(state, { pressedA, pressedExtra = [], pressedPo
       correct: isTarget === pressed,
       responseType: 'relation',
       nBackValue: state.currentEffectiveN ?? state.nLevel,
+      isLure: !!state.extraCurrentStimuli?.[i]?._isLure,
+      lureOffset: state.extraCurrentStimuli?.[i]?._lureOffset || 0,
+      negated: !!state.extraCurrentStimuli?.[i]?._negated,
       binaryLogicPrimary: state.trialBinaryConfigs?.[i + 1]?.primaryMode,
       binaryLogicSecondary: state.trialBinaryConfigs?.[i + 1]?.binaryMode,
       binaryLogicOp: state.trialBinaryConfigs?.[i + 1]?.binaryOp,
@@ -1123,6 +1276,8 @@ export function processResponses(state, { pressedA, pressedExtra = [], pressedPo
   next.extraMisses = nextExtraMisses;
   next.extraFalseAlarms = nextExtraFA;
   next.extraCorrectRejections = nextExtraCR;
+  next.extraLureFalseAlarms = nextExtraLureFA;
+  next.extraLureCorrectRejections = nextExtraLureCR;
   next.extraPositionHits = nextExtraPositionHits;
   next.extraPositionMisses = nextExtraPositionMisses;
   next.extraPositionFalseAlarms = nextExtraPositionFA;

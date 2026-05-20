@@ -5,6 +5,17 @@ import pluginReactHooks from "eslint-plugin-react-hooks";
 import pluginUnusedImports from "eslint-plugin-unused-imports";
 
 export default [
+  // Top-level ignores: research / vendor folders sitting in the repo root
+  // (Capacity Gym, Syllogimous v3) aren't part of this app's source. Without
+  // this, `eslint .` parses their JSX-in-template strings and fails.
+  {
+    ignores: [
+      "trident-g-platform-main/**",
+      "Syllogimous-v3-main/**",
+      "dist/**",
+      "node_modules/**",
+    ],
+  },
   {
     files: [
       "src/components/**/*.{js,mjs,cjs,jsx}",
