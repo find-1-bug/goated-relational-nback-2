@@ -62,6 +62,68 @@ export default function ResultsScreen({ gameState, onRestart, onBack }) {
   const [transferText, setTransferText] = React.useState('');
   const [savedTransfer, setSavedTransfer] = React.useState(false);
 
+  React.useEffect(() => {
+    try {
+      const saved = localStorage.getItem('goated_coach_state');
+      const coach = saved ? JSON.parse(saved) : {
+        nLevel: 2,
+        rounds: 20,
+        speedMs: 2800,
+        rankName: "Initiate (Rank I)",
+        consecutiveSuccesses: 0,
+        consecutiveFailures: 0
+      };
+
+      const accuracy = results.overall.accuracy;
+      if (results.overall.total >= 8) {
+        if (accuracy >= 75) {
+          coach.consecutiveSuccesses += 1;
+          coach.consecutiveFailures = 0;
+
+          if (coach.consecutiveSuccesses >= 2) {
+            if (coach.speedMs > 1800) {
+              coach.speedMs = Math.max(1800, coach.speedMs - 200);
+            } else if (coach.rounds < 40) {
+              coach.rounds = Math.min(40, coach.rounds + 5);
+            } else {
+              coach.nLevel += 1;
+              coach.speedMs = 2800;
+              coach.rounds = 20;
+            }
+            coach.consecutiveSuccesses = 0;
+            
+            const ranks = [
+              "Initiate (Rank I)", 
+              "Apprentice (Rank II)", 
+              "Specialist (Rank III)", 
+              "Elite Specialist (Rank IV)", 
+              "Quantum Operator (Rank V)",
+              "GOATED Focus Master (Rank VI)"
+            ];
+            const rankIdx = Math.min(ranks.length - 1, coach.nLevel - 1);
+            coach.rankName = ranks[rankIdx];
+          }
+        } else if (accuracy < 55) {
+          coach.consecutiveFailures += 1;
+          coach.consecutiveSuccesses = 0;
+
+          if (coach.consecutiveFailures >= 2) {
+            if (coach.speedMs < 3000) {
+              coach.speedMs = Math.min(3000, coach.speedMs + 200);
+            } else if (coach.nLevel > 2) {
+              coach.nLevel -= 1;
+              coach.speedMs = 2600;
+            }
+            coach.consecutiveFailures = 0;
+          }
+        }
+        localStorage.setItem('goated_coach_state', JSON.stringify(coach));
+      }
+    } catch (e) {
+      console.error(e);
+    }
+  }, []);
+
   const saveZoneCheckIn = (zone, accuracy, nLevel) => {
     try {
       const history = JSON.parse(localStorage.getItem('goated_zone_checkins') || '[]');

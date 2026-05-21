@@ -25,29 +25,36 @@ function buildWeightedPool(enabledRels, catWeights) {
 }
 
 const MODE_OPTIONS = [
+  // Easiest / Foundational (Feedback & Lures)
+  { id: 'feedback_per_trial', icon: Brain, label: 'Per-Trial Feedback', desc: 'After every trial, each stream briefly flashes a result tag (hit · miss · correct rejection · false alarm) — designed to accelerate learning of the rules.' },
+  { id: 'distractors',   icon: Shuffle,    label: 'Distractors',       desc: 'Near-match stimuli from the same category create interference in normal mode.' },
+  { id: 'lures',         icon: Zap,        label: 'Lure Trials',       desc: 'About 1 in 5 non-target trials becomes a near-miss: a stim that would match at N-1 or N+1 instead of N. The careful counter rejects; the loose counter false-alarms. Trains interference resistance. Tracked as a separate "lure FA rate" in results.', minN: 2 },
+  { id: 'negation',      icon: GitBranch,  label: 'Negation',          desc: 'About 30 % of trials are flipped to ¬ (red badge in the corner). The visual stays the same but the logical fact is inverted — "A NOT inside B". An n-back match requires both the relation AND the negation flag to agree, so the player must read the ¬ to score.', minN: 2 },
+
+  // Medium / Complexity Layers (Control & Arithmetic)
+  { id: 'cct',           icon: Brain,      label: 'Cognitive Control Training', desc: 'Each trial shows one digit (1–9). From trial N onwards a candidate result also appears. Press REL when the result equals the current digit + the digit from N trials ago. Pure arithmetic working-memory — no relations or shapes.' },
+  { id: 'cct_overlay',   icon: Brain,      label: 'CCT Side-Task',     desc: 'Layers CCT arithmetic onto every relation stream as a separate response axis (like alien-square adds a position axis). Each stream then has REL (relation match), CCT (digit + N-back == result), and POS keys if alien mode is also on.' },
+  { id: 'rst_overlay',   icon: GitBranch,  label: 'RST Side-Task (Reasoning)', desc: 'About 1 in 4 trials gets a tiny premise / conclusion box overlaid on stream A — e.g., "α more than β, β more than γ. ∴ α more than γ?" Press the RST key when the conclusion is logically valid. Layered on top of n-back, the way CCT is, but trains deductive inference instead of arithmetic. Premise generators ported from Syllogimous v3 (CC BY-NC).', minN: 2 },
+  { id: 'variable_n',    icon: Shuffle,    label: 'Variable N',        desc: 'N changes randomly each trial (±1 around your chosen N). Forces flexible updating.' },
+  { id: 'adaptive',      icon: TrendingUp, label: 'Adaptive N',        desc: 'N auto-adjusts between sessions based on accuracy (≥80% → up, ≤50% → down).' },
+  { id: 'adaptive_closed_loop', icon: TrendingUp, label: 'Closed-Loop Adaptivity', desc: 'Dynamically scales speeds, lure rates, and negation levels continuously inside a session based on your real-time performance. High accuracy speeds up the flow and multiplies lures; low accuracy slows down parameters.' },
+
+  // Hard / Dynamic Rules (Integration & Multitasking)
   { id: 'type_nback',    icon: Brain,      label: 'Type N-Back',       desc: 'Each relation type has its own N-back queue. Match fires when this relation appeared N times ago in its own history — regardless of trial distance. Very hard.' },
   { id: 'rint',          icon: GitBranch,  label: 'Relational Integration', desc: 'Entities (alpha, beta…) persist across trials. A target fires when the current stimulus is a VALID logical conclusion from chaining the N previous facts (e.g. A>B, B>C → A>C). Requires N≥2.', minN: 2 },
   { id: 'nonverbal_rint',icon: GitBranch,  label: 'Nonverbal RINT',    desc: 'Each stimulus carries up to 4 independent attributes — touching · hollow · size-mismatch · audio. A target fires when the union of the last N stimuli\'s attributes exactly equals the current stimulus. Genuinely cross-modal (visual + auditory). Requires N≥2.', minN: 2 },
-  { id: 'cct',           icon: Brain,      label: 'Cognitive Control Training', desc: 'Each trial shows one digit (1–9). From trial N onwards a candidate result also appears. Press REL when the result equals the current digit + the digit from N trials ago. Pure arithmetic working-memory — no relations or shapes.' },
-  { id: 'cct_overlay',   icon: Brain,      label: 'CCT Side-Task',     desc: 'Layers CCT arithmetic onto every relation stream as a separate response axis (like alien-square adds a position axis). Each stream then has REL (relation match), CCT (digit + N-back == result), and POS keys if alien mode is also on.' },
   { id: 'mixed_nback',   icon: Shuffle,    label: 'Mixed N-Back',      desc: 'Randomly switches between Normal and Type N-back each trial. You never know which rule applies.' },
   { id: 'mixed_rint',    icon: Shuffle,    label: 'Mixed RINT',        desc: 'Three-way random per trial: Normal / Type / RINT. Maximum flexibility demand. Requires N≥2.', minN: 2 },
-  { id: 'impossible',    icon: Zap,        label: 'Impossible',        desc: 'Each stream independently randomizes between Normal, Type, and RINT every trial — different rules per stream simultaneously. Requires ≥2 streams and N≥2.', minN: 2, minStreams: 2 },
   { id: 'binary_logic',  icon: GitBranch,  label: 'Binary Logic',      desc: 'Each trial, each stream is assigned a random pair: <NBack type> <OP> <NBack type> (e.g. NRM AND NOT RINT). A match fires only when the combined boolean condition is true. Shown as live badges on each stream. Requires N≥2.', minN: 2 },
+
+  // Spatial & Stress Overloads (Alien Dimensions & Distractors)
+  { id: 'alien_square',    icon: Layers,     label: 'Alien Square Mode',    desc: 'Each stream appears inside a rotating 3×3 square. Relation and square position can be answered with separate keys.' },
   { id: 'alien_cube',      icon: Layers,     label: 'Alien Cube Mode',      desc: 'Each stream appears inside a rotating transparent 3×3×3 cube. Relation and position can be answered with separate keys.' },
   { id: 'alien_tesseract', icon: Layers,     label: 'Alien Tesseract Mode', desc: 'Each stream appears inside a projected 4D tesseract. Position targets include the visible cube cell plus an inner/outer hyperspace layer.' },
-  { id: 'alien_square',    icon: Layers,     label: 'Alien Square Mode',    desc: 'Each stream appears inside a rotating 3×3 square. Relation and square position can be answered with separate keys.' },
-  { id: 'variable_n',    icon: Shuffle,    label: 'Variable N',        desc: 'N changes randomly each trial (±1 around your chosen N). Forces flexible updating.' },
-  { id: 'adaptive',      icon: TrendingUp, label: 'Adaptive N',        desc: 'N auto-adjusts between sessions based on accuracy (≥80% → up, ≤50% → down).' },
-  { id: 'distractors',   icon: Shuffle,    label: 'Distractors',       desc: 'Near-match stimuli from the same category create interference in normal mode.' },
-  { id: 'feedback_per_trial', icon: Brain, label: 'Per-Trial Feedback', desc: 'After every trial, each stream briefly flashes a result tag (hit · miss · correct rejection · false alarm) — designed to accelerate learning of the rules.' },
-  { id: 'lures',         icon: Zap,        label: 'Lure Trials',       desc: 'About 1 in 5 non-target trials becomes a near-miss: a stim that would match at N-1 or N+1 instead of N. The careful counter rejects; the loose counter false-alarms. Trains interference resistance. Tracked as a separate "lure FA rate" in results.', minN: 2 },
-  { id: 'negation',      icon: GitBranch,  label: 'Negation',          desc: 'About 30 % of trials are flipped to ¬ (red badge in the corner). The visual stays the same but the logical fact is inverted — "A NOT inside B". An n-back match requires both the relation AND the negation flag to agree, so the player must read the ¬ to score.', minN: 2 },
-  { id: 'rst_overlay',   icon: GitBranch,  label: 'RST Side-Task (Reasoning)', desc: 'About 1 in 4 trials gets a tiny premise / conclusion box overlaid on stream A — e.g., "α more than β, β more than γ. ∴ α more than γ?" Press the RST key when the conclusion is logically valid. Layered on top of n-back, the way CCT is, but trains deductive inference instead of arithmetic. Premise generators ported from Syllogimous v3 (CC BY-NC).', minN: 2 },
-  { id: 'adaptive_closed_loop', icon: TrendingUp, label: 'Closed-Loop Adaptivity', desc: 'Dynamically scales speeds, lure rates, and negation levels continuously inside a session based on your real-time performance. High accuracy speeds up the flow and multiplies lures; low accuracy slows down parameters.' },
   { id: 'stress_glitch', icon: Shuffle, label: 'Stress Glitch Engine', desc: 'Randomly injects intense visual glitch distortions into stream cards to overload optical stability.' },
   { id: 'stress_shake', icon: Shuffle, label: 'Screen Shake Distractor', desc: 'Triggers intense structural screen shakes to challenge cognitive stability.' },
   { id: 'timer_panic', icon: Zap, label: 'Timer Panic Heatbar', desc: 'Renders a shrinking countdown bar that signals imminent trial termination. Creates extreme urgency.' },
+  { id: 'impossible',    icon: Zap,        label: 'Impossible',        desc: 'Each stream independently randomizes between Normal, Type, and RINT every trial — different rules per stream simultaneously. Requires ≥2 streams and N≥2.', minN: 2, minStreams: 2 },
 ];
 
 // Modes that are mutually exclusive with each other (only one from each group active)
@@ -293,7 +300,24 @@ export default function StartScreen({ onStart, suggestedN, lastSettings }) {
   const allRels = Object.values(RELATIONSHIP_CATEGORIES).flat();
   const savedRels = (lastSettings?.rels || []).filter(rel => allRels.includes(rel));
 
-  const [nLevel, setNLevel] = React.useState(suggestedN || lastSettings?.n || 2);
+  const [coachState, setCoachState] = React.useState(() => {
+    try {
+      const saved = localStorage.getItem('goated_coach_state');
+      if (saved) return JSON.parse(saved);
+    } catch (e) {
+      console.error(e);
+    }
+    return {
+      nLevel: 2,
+      rounds: 20,
+      speedMs: 2800,
+      rankName: "Initiate (Rank I)",
+      consecutiveSuccesses: 0,
+      consecutiveFailures: 0
+    };
+  });
+
+  const [nLevel, setNLevel] = React.useState(suggestedN || lastSettings?.n || coachState.nLevel);
   const [modes, setModes] = React.useState(() => [...new Set(lastSettings?.modes || [])]);
 
   // Multi-stream config: stream A key + extra streams
@@ -437,8 +461,8 @@ export default function StartScreen({ onStart, suggestedN, lastSettings }) {
   };
   const updateAlienSetting = (key, value) => setAlienSettings(prev => ({ ...prev, [key]: value }));
   const [showRelTypes, setShowRelTypes] = React.useState(false);
-  const [rounds, setRounds] = React.useState(lastSettings?.rounds || 20);
-  const [speedMs, setSpeedMs] = React.useState(lastSettings?.speedMs || 2800);
+  const [rounds, setRounds] = React.useState(lastSettings?.rounds || coachState.rounds);
+  const [speedMs, setSpeedMs] = React.useState(lastSettings?.speedMs || coachState.speedMs);
   const [noobMode, setNoobMode] = React.useState(lastSettings?.noobMode || false);
   const [showLedger, setShowLedger] = React.useState(false);
   const [ledgerEntries, setLedgerEntries] = React.useState([]);
@@ -624,13 +648,27 @@ export default function StartScreen({ onStart, suggestedN, lastSettings }) {
           )}
         </div>
 
+        {/* Dynamic Coach Level & Progression Card */}
+        <div className="bg-secondary/35 border border-border/80 rounded-xl p-3.5 space-y-2 text-center">
+          <div className="text-[10px] font-mono uppercase tracking-widest font-semibold text-primary/80 flex items-center justify-center gap-1.5">
+            <Brain className="w-3.5 h-3.5 animate-pulse text-primary" /> Cognitive Coach Active
+          </div>
+          <div className="flex justify-between items-center text-xs font-mono border-t border-border/40 pt-2 px-1">
+            <span className="text-muted-foreground">Rank: <strong className="text-emerald-400">{coachState.rankName}</strong></span>
+            <span className="text-muted-foreground">Level: <strong className="text-primary">N={coachState.nLevel}</strong> &middot; <strong className="text-cyan-400">{coachState.speedMs}ms</strong></span>
+          </div>
+          <p className="text-[9px] font-mono text-muted-foreground/80 leading-normal">
+            The coach tracks your accuracy over sessions and slowly adjusts the baseline parameters to keep you in the optimal zone.
+          </p>
+        </div>
+
         {/* Quick Actions & Presets */}
         <div className="flex gap-2 justify-center shrink-0">
           <Button 
             onClick={() => {
-              setNLevel(3);
-              setRounds(30);
-              setSpeedMs(2000);
+              setNLevel(coachState.nLevel);
+              setRounds(Math.max(25, coachState.rounds));
+              setSpeedMs(coachState.speedMs);
               setModes(['adaptive_closed_loop', 'timer_panic', 'lures', 'negation', 'rst_overlay']);
               setEnabledCats(prev => {
                 const copy = new Set(prev);
@@ -638,7 +676,7 @@ export default function StartScreen({ onStart, suggestedN, lastSettings }) {
                 copy.add('SOUND');
                 return copy;
               });
-              alert("🚀 DAILY BRAIN WARM-UP LOADED!\n\nParameters: N=3 (Base), 30 Rounds, 2000ms\nModes: Closed-Loop Adaptivity, Timer Panic, Lures, Negation, RST reasoning.\nCategories: Verbal & Sound enabled.\n\nPress 'Start Training' below to begin!");
+              alert(`🚀 PERSONALIZED WARM-UP LOADED!\n\nParameters customized to your current ability:\nN=${coachState.nLevel} (Base), ${Math.max(25, coachState.rounds)} Rounds, ${coachState.speedMs}ms\n\nModes: Closed-Loop Adaptivity, Timer Panic, Lures, Negation, RST reasoning.\nCategories: Verbal & Sound enabled.\n\nPress 'Start Training' below to begin!`);
             }}
             className="flex-1 h-9 bg-gradient-to-r from-amber-600 to-fuchsia-600 hover:from-amber-500 hover:to-fuchsia-500 text-white font-mono text-xs gap-1.5 shadow-lg shadow-fuchsia-600/20"
           >
