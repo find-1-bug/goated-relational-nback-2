@@ -3,6 +3,7 @@ import { Link } from 'react-router-dom';
 import { motion } from 'framer-motion';
 import { Button } from '@/components/ui/button';
 import { ChevronLeft, Brain, Zap, Layers, Gamepad2, GitBranch, Hash } from 'lucide-react';
+import { COACH_PHASES } from '@/lib/gameConstants';
 
 export default function Tutorial() {
   const sections = [
@@ -328,6 +329,47 @@ export default function Tutorial() {
                 <p className="text-muted-foreground mt-0.5">Phases 14-20. Forces 2D spatial matrices, transparent 3D rotations, 4D tesseracts, GPU skews, and parallel dual-stream multitasking.</p>
               </div>
             </div>
+
+            {/* Dynamic Training Phases Table */}
+            <div className="border border-border/80 rounded-xl overflow-hidden mt-4 shrink-0 bg-background/50">
+              <div className="overflow-x-auto max-h-[400px] scrollbar-thin">
+                <table className="w-full text-[10px] sm:text-xs font-mono text-left border-collapse">
+                  <thead className="sticky top-0 bg-secondary z-10">
+                    <tr className="border-b border-border/60 text-primary font-bold">
+                      <th className="p-2 sm:p-3">LVL</th>
+                      <th className="p-2 sm:p-3">PHASE TITLE</th>
+                      <th className="p-2 sm:p-3 text-center">N</th>
+                      <th className="p-2 sm:p-3 text-center">SPEED</th>
+                      <th className="p-2 sm:p-3 text-center">ROUNDS</th>
+                      <th className="p-2 sm:p-3">MODES INCLUDED</th>
+                    </tr>
+                  </thead>
+                  <tbody className="divide-y divide-border/40">
+                    {COACH_PHASES.map((p, idx) => {
+                      let phaseBadgeColor = "text-emerald-400";
+                      if (idx >= 4 && idx < 8) phaseBadgeColor = "text-cyan-400";
+                      if (idx >= 8 && idx < 13) phaseBadgeColor = "text-fuchsia-400";
+                      if (idx >= 13) phaseBadgeColor = "text-amber-400";
+                      
+                      return (
+                        <tr key={idx} className="hover:bg-secondary/20 transition-colors">
+                          <td className="p-2 sm:p-3 font-semibold text-foreground/80">{idx + 1}</td>
+                          <td className={`p-2 sm:p-3 font-bold ${phaseBadgeColor}`}>{p.title}</td>
+                          <td className="p-2 sm:p-3 text-center font-bold text-foreground">{p.nLevel}</td>
+                          <td className="p-2 sm:p-3 text-center text-muted-foreground">{p.speedMs}ms</td>
+                          <td className="p-2 sm:p-3 text-center text-muted-foreground">{p.rounds}</td>
+                          <td className="p-2 sm:p-3 text-[10px] text-muted-foreground/90 leading-tight">
+                            {p.modes.length > 0 ? p.modes.map(m => m.replace(/_/g, ' ')).join(', ') : 'normal relation matching'}
+                            {p.streamsCount && p.streamsCount > 1 ? ` (${p.streamsCount} streams)` : ''}
+                          </td>
+                        </tr>
+                      );
+                    })}
+                  </tbody>
+                </table>
+              </div>
+            </div>
+
             <div className="bg-secondary/40 border border-border rounded-lg p-3">
               <span className="text-emerald-400 font-bold block mb-1">Rank Progression Rules:</span>
               <ul className="list-disc pl-5 space-y-1 text-muted-foreground">

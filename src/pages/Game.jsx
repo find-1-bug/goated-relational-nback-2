@@ -7,6 +7,9 @@ import InstallAppButton from '@/components/InstallAppButton';
 import ThemeToggle from '@/components/ThemeToggle';
 import { calculateResults, computeNextNLevel } from '@/lib/gameEngine';
 import { addSession, saveSettings, getSettings } from '@/lib/localStorageManager';
+import { AnimatePresence, motion } from 'framer-motion';
+import { Brain } from 'lucide-react';
+import { Button } from '@/components/ui/button';
 
 export default function Game() {
   const [screen, setScreen] = useState('start');
@@ -28,6 +31,7 @@ export default function Game() {
   const [phaseTitle, setPhaseTitle] = useState('');
   const [startTime, setStartTime] = useState(null);
   const [gameRunId, setGameRunId] = useState(0);
+  const [showStudies, setShowStudies] = useState(false);
 
   // Persisted settings restored on mount
   const [lastSettings, setLastSettings] = useState(() => {
@@ -168,6 +172,12 @@ export default function Game() {
           <>
             <ThemeToggle />
             <InstallAppButton />
+            <button
+              onClick={() => setShowStudies(true)}
+              className="px-2.5 sm:px-3 py-1.5 rounded-lg bg-emerald-500/15 border border-emerald-500/50 text-emerald-400 hover:bg-emerald-500/25 hover:border-emerald-500 text-xs font-mono font-semibold transition-colors"
+            >
+              Studies
+            </button>
             <Link to="/tutorial" className="px-2.5 sm:px-3 py-1.5 rounded-lg bg-accent/15 border border-accent/50 text-accent hover:bg-accent/25 hover:border-accent text-xs font-mono font-semibold transition-colors">
               Tutorial
             </Link>
@@ -177,6 +187,127 @@ export default function Game() {
           </>
         )}
       </div>
+
+      <AnimatePresence>
+        {showStudies && (
+          <motion.div
+            initial={{ opacity: 0 }}
+            animate={{ opacity: 1 }}
+            exit={{ opacity: 0 }}
+            className="fixed inset-0 z-50 flex items-center justify-center bg-background/80 backdrop-blur-md p-4"
+          >
+            <motion.div
+              initial={{ scale: 0.95, y: 15 }}
+              animate={{ scale: 1, y: 0 }}
+              exit={{ scale: 0.95, y: 15 }}
+              className="w-full max-w-lg bg-card border border-border rounded-xl shadow-2xl overflow-hidden flex flex-col max-h-[85vh]"
+            >
+              {/* Header */}
+              <div className="p-4 border-b border-border/80 flex items-center justify-between shrink-0">
+                <div className="flex items-center gap-2">
+                  <Brain className="w-5 h-5 text-emerald-400 animate-pulse animate-duration-3000" />
+                  <h3 className="text-sm font-mono font-bold uppercase tracking-wider text-foreground">Working Memory &amp; Transfer Studies</h3>
+                </div>
+                <button
+                  onClick={() => setShowStudies(false)}
+                  className="text-xs font-mono text-muted-foreground hover:text-foreground border border-border px-2 py-1 rounded bg-secondary/50 hover:bg-secondary transition-colors"
+                >
+                  ESC
+                </button>
+              </div>
+
+              {/* Scrollable Content */}
+              <div className="p-4 overflow-y-auto space-y-4 font-mono text-xs text-foreground/90 scrollbar-thin">
+                <div className="text-[11px] text-muted-foreground leading-relaxed border-b border-border/40 pb-3">
+                  This cognitive trainer applies evidence-based paradigms shown in peer-reviewed neuroscience publications to improve working memory capacity and cognitive control.
+                </div>
+
+                {/* Study 1 */}
+                <div className="p-3 bg-secondary/30 rounded-lg border border-border/60 space-y-1.5 text-left">
+                  <div className="text-emerald-400 font-bold">1. Fluid Intelligence Transfer Landmark</div>
+                  <div className="text-[11px] text-muted-foreground font-semibold">Jaeggi et al. (2008) · Proceedings of the National Academy of Sciences (PNAS)</div>
+                  <p className="text-[11px] text-foreground/75 leading-relaxed">
+                    <strong>Paradigms:</strong> Dual N-Back vs. Passive/Active Controls.
+                  </p>
+                  <p className="text-[11px] text-foreground/75 leading-relaxed">
+                    <strong>Cognitive Impact:</strong> Established that daily training on working memory tasks directly improves Fluid Intelligence (Gf) scores in healthy young adults. Discovered a linear dose-response relationship: more training days yield larger intelligence gains.
+                  </p>
+                </div>
+
+                {/* Study 2 */}
+                <div className="p-3 bg-secondary/30 rounded-lg border border-border/60 space-y-1.5 text-left">
+                  <div className="text-emerald-400 font-bold">2. Cognitive Control &amp; Stress Resilience</div>
+                  <div className="text-[11px] text-muted-foreground font-semibold">Novick et al. (2014) · Cognitive Science</div>
+                  <p className="text-[11px] text-foreground/75 leading-relaxed">
+                    <strong>Paradigms:</strong> Cognitive Control Training (CCT) / Conflict Resolution.
+                  </p>
+                  <p className="text-[11px] text-foreground/75 leading-relaxed">
+                    <strong>Cognitive Impact:</strong> Proven to structurally strengthen prefrontal conflict resolution, allowing subjects to ignore intense emotional/sensory distractors and maintain mental focus under high pressure.
+                  </p>
+                </div>
+
+                {/* Study 3 */}
+                <div className="p-3 bg-secondary/30 rounded-lg border border-border/60 space-y-1.5 text-left">
+                  <div className="text-emerald-400 font-bold">3. Relational Bottleneck of Human Intelligence (g)</div>
+                  <div className="text-[11px] text-muted-foreground font-semibold">Halford, Cowan, &amp; Andrews (2007) · Trends in Cognitive Sciences</div>
+                  <p className="text-[11px] text-foreground/75 leading-relaxed">
+                    <strong>Paradigms:</strong> Relational Complexity Mapping.
+                  </p>
+                  <p className="text-[11px] text-foreground/75 leading-relaxed">
+                    <strong>Cognitive Impact:</strong> Argues that processing complex relationships simultaneously (like transitive chaining in our RINT mode) is the core active constraint of human reasoning. Relational reasoning training acts as a direct multiplier of human fluid ability.
+                  </p>
+                </div>
+
+                {/* Study 4 */}
+                <div className="p-3 bg-secondary/30 rounded-lg border border-border/60 space-y-1.5 text-left">
+                  <div className="text-emerald-400 font-bold">4. Fluid Transfer Confirmed via Meta-Analysis</div>
+                  <div className="text-[11px] text-muted-foreground font-semibold">Au et al. (2015) · Psychonomic Bulletin &amp; Review</div>
+                  <p className="text-[11px] text-foreground/75 leading-relaxed">
+                    <strong>Paradigms:</strong> Quantitative meta-analysis of N-back training.
+                  </p>
+                  <p className="text-[11px] text-foreground/75 leading-relaxed">
+                    <strong>Cognitive Impact:</strong> Aggregated dozens of studies using active-control groups, concluding that working memory training leads to statistically significant and generalizable improvements in Fluid Intelligence.
+                  </p>
+                </div>
+
+                {/* Study 5 */}
+                <div className="p-3 bg-secondary/30 rounded-lg border border-border/60 space-y-1.5 text-left">
+                  <div className="text-emerald-400 font-bold">5. Multi-stream Memory Capacity Scaling</div>
+                  <div className="text-[11px] text-muted-foreground font-semibold">Schmiedek et al. (2010) · Cognitive Psychology</div>
+                  <p className="text-[11px] text-foreground/75 leading-relaxed">
+                    <strong>Paradigms:</strong> Multi-axis working memory paradigms.
+                  </p>
+                  <p className="text-[11px] text-foreground/75 leading-relaxed">
+                    <strong>Cognitive Impact:</strong> Proved that daily multi-stream working memory sessions lead to massive neurocognitive changes, transferring broadly to spatial orientation, verbal working memory, and logical processing speeds.
+                  </p>
+                </div>
+
+                {/* Study 6 */}
+                <div className="p-3 bg-secondary/30 rounded-lg border border-border/60 space-y-1.5 text-left">
+                  <div className="text-emerald-400 font-bold">6. Prefrontal Dopamine Receptor Density Tuning</div>
+                  <div className="text-[11px] text-muted-foreground font-semibold">McNab et al. (2009) · Science</div>
+                  <p className="text-[11px] text-foreground/75 leading-relaxed">
+                    <strong>Paradigms:</strong> PET brain scans of working memory training.
+                  </p>
+                  <p className="text-[11px] text-foreground/75 leading-relaxed">
+                    <strong>Cognitive Impact:</strong> First clinical paper showing physical neurochemical changes: working memory training alters dopamine D1 receptor binding potential in prefrontal and parietal lobes, confirming structural cortical plasticity.
+                  </p>
+                </div>
+              </div>
+
+              {/* Footer */}
+              <div className="p-4 border-t border-border/80 shrink-0 bg-secondary/20 flex justify-end">
+                <Button
+                  onClick={() => setShowStudies(false)}
+                  className="bg-primary text-primary-foreground hover:bg-primary/90 font-mono text-xs"
+                >
+                  Got It
+                </Button>
+              </div>
+            </motion.div>
+          </motion.div>
+        )}
+      </AnimatePresence>
     </div>
   );
 }
