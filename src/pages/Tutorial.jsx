@@ -306,27 +306,33 @@ export default function Tutorial() {
             <Brain className="w-5 h-5 text-emerald-400 animate-pulse" /> Cognitive Coach Autopilot Curriculum
           </h2>
           <p className="text-sm font-mono text-muted-foreground mb-4">
-            Struggling to find the right balance of parameters? The <strong className="text-foreground">Cognitive Coach Autopilot</strong> handles the complexity for you. It locks your training settings into a progressive 20-stage scientifically designed curriculum. By demonstrating steady performance, the coach automatically unlocks new challenges:
+            Struggling to find the right balance of parameters? The <strong className="text-foreground">Cognitive Coach Autopilot</strong> handles the complexity for you. It locks your training settings into a progressive 24-stage scientifically designed curriculum. By demonstrating steady performance, the coach automatically unlocks new challenges:
           </p>
-          <div className="space-y-3 text-xs font-mono text-foreground/90">
+          <div className="space-y-3 text-xs font-mono text-foreground/90 font-mono">
             <div className="grid grid-cols-1 sm:grid-cols-2 gap-3 border-b border-border/40 pb-3">
               <div>
-                <span className="text-emerald-300 font-semibold">Phase A: Foundational Support</span>
-                <p className="text-muted-foreground mt-0.5">Phases 1-4. Focuses on base relational matching, selective visual filters, lure protection, and negation operators under helpful trial-by-trial diagnostic feedback.</p>
+                <span className="text-emerald-300 font-semibold">Phase A: Classic Warm-up</span>
+                <p className="text-muted-foreground mt-0.5">Phases A-D. Simple entry points modeled after the classic trainer (N=1 focus, auditory/visual switching, bind tasks, and N=2 slow training).</p>
               </div>
               <div>
-                <span className="text-cyan-300 font-semibold">Phase B: Dual-Tasking &amp; Logic</span>
-                <p className="text-muted-foreground mt-0.5">Phases 5-8. Introduces pure arithmetic calculations, dual-task overlay matching, deductive syllogisms, and adaptive closed-loop pacing.</p>
+                <span className="text-cyan-300 font-semibold">Phase 1: Foundational Support</span>
+                <p className="text-muted-foreground mt-0.5">Levels 1-4. Focuses on base relational matching, selective visual filters, lure protection, and negation operators under helpful trial-by-trial diagnostic feedback.</p>
               </div>
             </div>
             <div className="grid grid-cols-1 sm:grid-cols-2 gap-3 border-b border-border/40 pb-3">
               <div>
-                <span className="text-fuchsia-300 font-semibold">Phase C: Memory Integration</span>
-                <p className="text-muted-foreground mt-0.5">Phases 9-13. Engages advanced semantic queues, Relational Chaining (RINT), subset-unions, rule flexibility, and Boolean logic operations.</p>
+                <span className="text-fuchsia-300 font-semibold">Phase 2: Dual-Tasking &amp; Logic</span>
+                <p className="text-muted-foreground mt-0.5">Levels 5-8. Introduces pure arithmetic calculations, dual-task overlay matching, deductive syllogisms, and adaptive closed-loop pacing.</p>
               </div>
               <div>
-                <span className="text-amber-300 font-semibold">Phase D: Spatial Rotations &amp; Glitches</span>
-                <p className="text-muted-foreground mt-0.5">Phases 14-20. Forces 2D spatial matrices, transparent 3D rotations, 4D tesseracts, GPU skews, and parallel dual-stream multitasking.</p>
+                <span className="text-amber-300 font-semibold">Phase 3: Memory Integration</span>
+                <p className="text-muted-foreground mt-0.5">Levels 9-13. Engages advanced semantic queues, Relational Chaining (RINT), subset-unions, rule flexibility, and Boolean logic operations.</p>
+              </div>
+            </div>
+            <div className="grid grid-cols-1 sm:grid-cols-2 gap-3 border-b border-border/40 pb-3">
+              <div className="sm:col-span-2">
+                <span className="text-rose-300 font-semibold">Phase 4: Spatial Rotations &amp; Glitches</span>
+                <p className="text-muted-foreground mt-0.5">Levels 14-20. Forces 2D spatial matrices, transparent 3D rotations, 4D tesseracts, GPU skews, and parallel dual-stream multitasking.</p>
               </div>
             </div>
 
@@ -348,8 +354,9 @@ export default function Tutorial() {
                     {COACH_PHASES.map((p, idx) => {
                       let phaseBadgeColor = "text-emerald-400";
                       if (idx >= 4 && idx < 8) phaseBadgeColor = "text-cyan-400";
-                      if (idx >= 8 && idx < 13) phaseBadgeColor = "text-fuchsia-400";
-                      if (idx >= 13) phaseBadgeColor = "text-amber-400";
+                      if (idx >= 8 && idx < 12) phaseBadgeColor = "text-fuchsia-400";
+                      if (idx >= 12 && idx < 17) phaseBadgeColor = "text-amber-400";
+                      if (idx >= 17) phaseBadgeColor = "text-rose-400";
                       
                       return (
                         <tr key={idx} className="hover:bg-secondary/20 transition-colors">
