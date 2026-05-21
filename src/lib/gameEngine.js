@@ -104,8 +104,8 @@ function logicalFactsMatch(currStim, pastEntry) {
 
 // When negation mode is on, each trial is flipped to "¬" with NEGATION_RATE
 // probability. Off → always false.
-function pickNegationFlag(negationMode) {
-  return negationMode ? Math.random() < NEGATION_RATE : false;
+function pickNegationFlag(negationMode, rate = NEGATION_RATE) {
+  return negationMode ? Math.random() < rate : false;
 }
 
 function evaluateStimulusForMode({ stim, mode, history, typeHistory, rintState, effectiveN, hierHistory }) {
@@ -471,7 +471,7 @@ function makeNRINTStim(attrs) {
 
 // Generate stimulus for a single stream, given its own history/typeHistory/rintState
 // streamConfig: { trialMode, binaryMode, binaryOp, hierHistory } for Hierarchical and Binary Logic
-function generateOneStreamStimulus({ history, typeHistory, rintState, pool, effectiveN, trialMode, matchChance, hasDistractors, hasLures = false, negationMode = false, trialIndex, hierHistory, binaryMode, binaryOp, signalOnly = false, baseStim = null, alienCube = false, alienSquare = false, alienTesseract = false, alienSettings = {}, nrintEnabledFlags = NRINT_DEFAULT_FLAGS, nrintHideLegend = false }) {
+function generateOneStreamStimulus({ history, typeHistory, rintState, pool, effectiveN, trialMode, matchChance, hasDistractors, hasLures = false, negationMode = false, trialIndex, hierHistory, binaryMode, binaryOp, signalOnly = false, baseStim = null, alienCube = false, alienSquare = false, alienTesseract = false, alienSettings = {}, nrintEnabledFlags = NRINT_DEFAULT_FLAGS, nrintHideLegend = false, customLureRate = null, customNegationRate = null }) {
    let stim, isPrimaryTarget = false, isPositionTarget = false, nextRINTState = rintState;
    const canTarget = history.length >= effectiveN;
 
@@ -568,7 +568,7 @@ function generateOneStreamStimulus({ history, typeHistory, rintState, pool, effe
       // Keep _negated consistent with the past so the rel-match becomes a real
       // target under negation mode. Negation lures are rolled below.
       stim._negated = !!nBackEntry?._negated;
-    } else if (hasLures && canTarget && history.length >= effectiveN + 1 && Math.random() < LURE_RATE) {
+    } else if (hasLures && canTarget && history.length >= effectiveN + 1 && Math.random() < (customLureRate !== null ? customLureRate : LURE_RATE)) {
       // Near-miss lure: pick a stim that would be a target at N-1 or N+1
       // instead of N. The careful counter rejects; the loose counter FAs.
       const candidates = [];
@@ -585,18 +585,18 @@ function generateOneStreamStimulus({ history, typeHistory, rintState, pool, effe
         lureOffset = lureN - effectiveN;
       } else {
         stim = makeStimulusEntry(makeNonTargetRelationship(finalPool, rel => canTarget && relationshipMatches(rel, nBackEntry?.rel)));
-        stim._negated = pickNegationFlag(negationMode);
+        stim._negated = pickNegationFlag(negationMode, customNegationRate !== null ? customNegationRate : NEGATION_RATE);
       }
     } else if (hasDistractors && canTarget && nBackEntry && Math.random() < DISTRACTOR_CHANCE) {
       stim = makeStimulusEntry(makeDistractor(nBackEntry.rel, pool));
-      stim._negated = pickNegationFlag(negationMode);
+      stim._negated = pickNegationFlag(negationMode, customNegationRate !== null ? customNegationRate : NEGATION_RATE);
     } else {
       stim = makeStimulusEntry(makeNonTargetRelationship(finalPool, rel => canTarget && relationshipMatches(rel, nBackEntry?.rel)));
-      stim._negated = pickNegationFlag(negationMode);
+      stim._negated = pickNegationFlag(negationMode, customNegationRate !== null ? customNegationRate : NEGATION_RATE);
     }
     // Negation lure on a would-be target: flip negation so the rel matches but
     // the logical fact doesn't. Player who ignores the ¬ badge FAs.
-    if (negationMode && nBackEntry && relationshipMatches(stim.rel, nBackEntry.rel) && Math.random() < NEGATION_RATE) {
+    if (negationMode && nBackEntry && relationshipMatches(stim.rel, nBackEntry.rel) && Math.random() < (customNegationRate !== null ? customNegationRate : NEGATION_RATE)) {
       stim._negated = !stim._negated;
     }
     if (isLure) {
@@ -676,7 +676,7 @@ function randomBinaryConfig(effectiveN) {
 
 // ─── State Creation ──────────────────────────────────────────────────────────
 
-export function createGameState({ nLevel, modes, relationshipPool, totalRounds, extraStreams = [], alienSettings = {}, streamA = null, nrintEnabledFlags = null, nrintHideLegend = false }) {
+export function createGameState({ nLevel, modes, relationshipPool, totalRounds, extraStreams = [], alienSettings = {}, streamA = null, nrintEnabledFlags = null, nrintHideLegend = false, initialSpeedMs = 2800 }) {
   const numExtra = extraStreams.length;
   const totalStreams = 1 + numExtra;
   // Per-stream type: 'relation' (default) or 'cct'. Falls back to global 'cct'
@@ -699,6 +699,11 @@ export function createGameState({ nLevel, modes, relationshipPool, totalRounds, 
     streamTypes,
     nrintEnabledFlags: (nrintEnabledFlags && nrintEnabledFlags.length) ? nrintEnabledFlags : NRINT_DEFAULT_FLAGS,
     nrintHideLegend: !!nrintHideLegend,
+    initialSpeedMs,
+    adaptiveSpeedMs: initialSpeedMs,
+    adaptiveLureRate: 0.20,
+    adaptiveNegationRate: 0.30,
+    adaptiveMessage: '',
     // Per-trial randomized binary configs (only used when binary_logic mode is active)
     trialBinaryConfigs: Array(totalStreams).fill(null).map(() => ({ primaryMode: 'normal', binaryMode: null, binaryOp: 'AND' })),
     audioStreamIndexes: [],
@@ -868,6 +873,9 @@ export function generateNextStimulus(state) {
 
   const nrintEnabledFlags = state.nrintEnabledFlags || NRINT_DEFAULT_FLAGS;
   const nrintHideLegend = !!state.nrintHideLegend;
+  const customLureRate = state.adaptiveLureRate !== undefined ? state.adaptiveLureRate : null;
+  const customNegationRate = state.adaptiveNegationRate !== undefined ? state.adaptiveNegationRate : null;
+
   const resultA = generateOneStreamStimulus({
     history: historyA,
     typeHistory: typeHistoryA,
@@ -885,6 +893,8 @@ export function generateNextStimulus(state) {
     alienSettings,
     nrintEnabledFlags,
     nrintHideLegend,
+    customLureRate,
+    customNegationRate,
   });
 
   const stimA = resultA.stim;
@@ -921,6 +931,8 @@ export function generateNextStimulus(state) {
       alienSettings,
       nrintEnabledFlags,
       nrintHideLegend,
+      customLureRate,
+      customNegationRate,
     });
   });
 
@@ -1367,6 +1379,48 @@ export function processResponses(state, { pressedA, pressedExtra = [], pressedPo
   next.extraRSTFalseAlarms = nextExtraRSTFA;
   next.extraRSTCorrectRejections = nextExtraRSTCR;
   next.allTrials = [...(state.allTrials || []), ...trialRecords];
+
+  // Closed-loop dynamic adaptivity adjustment
+  if (next.modes?.includes('adaptive_closed_loop')) {
+    const relationTrials = next.allTrials.filter(t => t.responseType === 'relation');
+    const uniqueTrialNums = [...new Set(relationTrials.map(t => t.trialNumber))];
+    if (uniqueTrialNums.length >= 4) {
+      const recentTrialNums = uniqueTrialNums.slice(-4);
+      const recentTrials = relationTrials.filter(t => recentTrialNums.includes(t.trialNumber));
+      if (recentTrials.length > 0) {
+        const correctCount = recentTrials.filter(t => t.correct).length;
+        const accuracy = correctCount / recentTrials.length;
+        
+        let speedFactor = next.adaptiveSpeedMs || next.initialSpeedMs || 2800;
+        let lureRate = next.adaptiveLureRate !== undefined ? next.adaptiveLureRate : 0.20;
+        let negationRate = next.adaptiveNegationRate !== undefined ? next.adaptiveNegationRate : 0.30;
+        let msg = '';
+
+        if (accuracy >= 0.80) {
+          speedFactor = Math.max(1000, Math.round(speedFactor * 0.92));
+          lureRate = Math.min(0.50, lureRate + 0.05);
+          negationRate = Math.min(0.60, negationRate + 0.05);
+          if (speedFactor < (state.adaptiveSpeedMs || state.initialSpeedMs || 2800)) {
+            msg = 'SPEED UP ↑ Lures & Negations Enhanced';
+          } else {
+            msg = 'Complexity Enhanced';
+          }
+        } else if (accuracy < 0.60) {
+          speedFactor = Math.min(4500, Math.round(speedFactor * 1.08));
+          lureRate = Math.max(0.10, lureRate - 0.05);
+          negationRate = Math.max(0.15, negationRate - 0.05);
+          msg = 'SPEED DOWN ↓ Complexity Eased';
+        } else {
+          msg = 'FLOW ZONE (In Band)';
+        }
+
+        next.adaptiveSpeedMs = speedFactor;
+        next.adaptiveLureRate = lureRate;
+        next.adaptiveNegationRate = negationRate;
+        next.adaptiveMessage = msg;
+      }
+    }
+  }
 
   return next;
 }

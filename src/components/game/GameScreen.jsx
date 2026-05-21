@@ -116,6 +116,9 @@ function mergeHistoricalWithProgress(historicalState, progressState, streamCount
 export default function GameScreen({ nLevel, modes, relationshipPool, totalRounds, stimulusDuration, extraStreams, streamA, alienSettings, carouselSettings, nrintEnabledFlags, nrintHideLegend, noobMode, onFinish, onExit }) {
   // extraStreams: [{ key, label, keyDisplay, positionKey, positionKeyDisplay }]
   const getStimulusDuration = useCallback(() => {
+    if (modes.includes('adaptive_closed_loop') && gameStateRef.current?.adaptiveSpeedMs) {
+      return gameStateRef.current.adaptiveSpeedMs;
+    }
     const duration = stimulusDuration === 'random' ? 1000 + Math.random() * 3000 : stimulusDuration || 2800;
     return modes.includes('alien_cube') || modes.includes('alien_tesseract') ? Math.max(1400, duration) : duration;
   }, [stimulusDuration, modes]);
@@ -138,16 +141,20 @@ export default function GameScreen({ nLevel, modes, relationshipPool, totalRound
       cctKey: stream.cctKey || 'KeyM',
       cctKeyDisplay: stream.cctKeyDisplay || 'M',
       streamType: stream.streamType || 'relation',
+      label: String.fromCharCode(66 + (extraStreams || []).indexOf(stream)),
     })),
   ];
   const numExtra = (extraStreams || []).length;
 
   const [gameState, setGameState] = useState(() =>
-    createGameState({ nLevel, modes, relationshipPool, totalRounds, extraStreams: extraStreams || [], alienSettings, streamA, nrintEnabledFlags, nrintHideLegend })
+    createGameState({ nLevel, modes, relationshipPool, totalRounds, extraStreams: extraStreams || [], alienSettings, streamA, nrintEnabledFlags, nrintHideLegend, initialSpeedMs: stimulusDuration === 'random' ? 2800 : (stimulusDuration || 2800) })
   );
   const [phase, setPhase] = useState('stimulus');
   const [clearCanvas, setClearCanvas] = useState(false);
   const [activeSlide, setActiveSlide] = useState(0);
+  const [timerKey, setTimerKey] = useState(0);
+  const [shouldShake, setShouldShake] = useState(false);
+  const [shouldGlitch, setShouldGlitch] = useState(false);
   const [responsesUnlocked, setResponsesUnlocked] = useState(true);
   // Store full game state after each generated trial, indexed by round number.
 
@@ -215,6 +222,16 @@ export default function GameScreen({ nLevel, modes, relationshipPool, totalRound
     setActiveSlide(0);
     setResponsesUnlocked(false);
     setPhase('stimulus');
+    setTimerKey(prev => prev + 1);
+
+    if (modes.includes('stress_shake') && Math.random() < 0.35) {
+      setShouldShake(true);
+      setTimeout(() => setShouldShake(false), 500);
+    }
+    if (modes.includes('stress_glitch') && Math.random() < 0.25) {
+      setShouldGlitch(true);
+      setTimeout(() => setShouldGlitch(false), 600);
+    }
     
     // Store this state for later playback (only if new trial, not from history)
     // Store indexed by round number for easy lookup during prev/next
@@ -528,7 +545,64 @@ export default function GameScreen({ nLevel, modes, relationshipPool, totalRound
     : Math.ceil(Math.sqrt(visibleCount));
 
   return (
-    <div className="flex flex-col min-h-[100dvh] h-[100dvh] overflow-hidden px-2 sm:px-3 py-2 sm:py-3 select-none" style={{ paddingTop: 'max(0.5rem, env(safe-area-inset-top))', paddingBottom: 'max(0.5rem, env(safe-area-inset-bottom))' }}>
+    <div className={`flex flex-col min-h-[100dvh] h-[100dvh] overflow-hidden px-2 sm:px-3 py-2 sm:py-3 select-none ${shouldShake ? 'animate-shake' : ''} ${shouldGlitch ? 'animate-glitch' : ''}`} style={{ paddingTop: 'max(0.5rem, env(safe-area-inset-top))', paddingBottom: 'max(0.5rem, env(safe-area-inset-bottom))' }}>
+      <style>{`
+        @keyframes screen-shake {
+          0%, 100% { transform: translate(0, 0) rotate(0deg); }
+          10% { transform: translate(-2px, -1px) rotate(-0.5deg); }
+          20% { transform: translate(-3px, 0px) rotate(1deg); }
+          30% { transform: translate(0px, 2px) rotate(0deg); }
+          40% { transform: translate(1px, -1px) rotate(1deg); }
+          50% { transform: translate(-1px, 2px) rotate(-1deg); }
+          60% { transform: translate(-3px, 1px) rotate(0deg); }
+          75% { transform: translate(2px, 1px) rotate(-0.5deg); }
+          90% { transform: translate(-1px, -2px) rotate(1deg); }
+        }
+        @keyframes visual-glitch {
+          0%, 100% { filter: hue-rotate(0deg) saturate(1); transform: scale(1); }
+          10% { filter: hue-rotate(30deg) saturate(1.4); transform: skewX(0.5deg); }
+          25% { filter: hue-rotate(-20deg) saturate(1.2); }
+          45% { filter: hue-rotate(60deg) saturate(1.6); transform: skewX(-0.5deg); }
+          60% { filter: hue-rotate(0deg) saturate(1); }
+        }
+        @keyframes timer-countdown {
+          from { width: 100%; }
+          to { width: 0%; }
+        }
+        .animate-shake {
+          animation: screen-shake 0.3s ease-in-out infinite;
+        }
+        .animate-glitch {
+          animation: visual-glitch 0.4s ease-in-out infinite;
+        }
+      `}</style>
+
+      {/* Dynamic Closed Loop Alert */}
+      {modes.includes('adaptive_closed_loop') && gameState.adaptiveMessage && (
+        <div className="absolute top-16 left-1/2 -translate-x-1/2 z-50 pointer-events-none">
+          <div className="px-4 py-2 rounded-full border border-primary/30 bg-background/90 backdrop-blur-md shadow-lg shadow-primary/20 text-primary font-mono text-xs font-semibold animate-pulse flex items-center gap-2">
+            <span className="w-2 h-2 rounded-full bg-primary animate-ping" />
+            {gameState.adaptiveMessage}
+            <span className="text-[10px] text-muted-foreground opacity-80">
+              ({gameState.adaptiveSpeedMs}ms)
+            </span>
+          </div>
+        </div>
+      )}
+
+      {/* Timer Panic Heatbar */}
+      {modes.includes('timer_panic') && phase === 'stimulus' && (
+        <div className="w-full h-1 bg-secondary/20 relative overflow-hidden shrink-0 mb-2 rounded-full border border-border/10">
+          <div 
+            key={timerKey}
+            className="h-full bg-gradient-to-r from-emerald-500 via-amber-500 to-rose-500 animate-[timer-countdown_linear_forwards]"
+            style={{
+              animationDuration: `${getStimulusDuration()}ms`
+            }}
+          />
+        </div>
+      )}
+
       {/* HUD */}
       <div className="w-full flex items-center gap-2 mb-2 shrink-0">
         <div className="flex-1 min-w-0">

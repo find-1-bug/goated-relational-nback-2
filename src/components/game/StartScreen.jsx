@@ -44,6 +44,10 @@ const MODE_OPTIONS = [
   { id: 'lures',         icon: Zap,        label: 'Lure Trials',       desc: 'About 1 in 5 non-target trials becomes a near-miss: a stim that would match at N-1 or N+1 instead of N. The careful counter rejects; the loose counter false-alarms. Trains interference resistance. Tracked as a separate "lure FA rate" in results.', minN: 2 },
   { id: 'negation',      icon: GitBranch,  label: 'Negation',          desc: 'About 30 % of trials are flipped to ¬ (red badge in the corner). The visual stays the same but the logical fact is inverted — "A NOT inside B". An n-back match requires both the relation AND the negation flag to agree, so the player must read the ¬ to score.', minN: 2 },
   { id: 'rst_overlay',   icon: GitBranch,  label: 'RST Side-Task (Reasoning)', desc: 'About 1 in 4 trials gets a tiny premise / conclusion box overlaid on stream A — e.g., "α more than β, β more than γ. ∴ α more than γ?" Press the RST key when the conclusion is logically valid. Layered on top of n-back, the way CCT is, but trains deductive inference instead of arithmetic. Premise generators ported from Syllogimous v3 (CC BY-NC).', minN: 2 },
+  { id: 'adaptive_closed_loop', icon: TrendingUp, label: 'Closed-Loop Adaptivity', desc: 'Dynamically scales speeds, lure rates, and negation levels continuously inside a session based on your real-time performance. High accuracy speeds up the flow and multiplies lures; low accuracy slows down parameters.' },
+  { id: 'stress_glitch', icon: Shuffle, label: 'Stress Glitch Engine', desc: 'Randomly injects intense visual glitch distortions into stream cards to overload optical stability.' },
+  { id: 'stress_shake', icon: Shuffle, label: 'Screen Shake Distractor', desc: 'Triggers intense structural screen shakes to challenge cognitive stability.' },
+  { id: 'timer_panic', icon: Zap, label: 'Timer Panic Heatbar', desc: 'Renders a shrinking countdown bar that signals imminent trial termination. Creates extreme urgency.' },
 ];
 
 // Modes that are mutually exclusive with each other (only one from each group active)
@@ -436,6 +440,23 @@ export default function StartScreen({ onStart, suggestedN, lastSettings }) {
   const [rounds, setRounds] = React.useState(lastSettings?.rounds || 20);
   const [speedMs, setSpeedMs] = React.useState(lastSettings?.speedMs || 2800);
   const [noobMode, setNoobMode] = React.useState(lastSettings?.noobMode || false);
+  const [showLedger, setShowLedger] = React.useState(false);
+  const [ledgerEntries, setLedgerEntries] = React.useState([]);
+
+  const loadLedgerEntries = () => {
+    try {
+      const ledger = JSON.parse(localStorage.getItem('goated_mindware_ledger') || '[]');
+      setLedgerEntries(ledger.reverse());
+    } catch (e) {
+      console.error(e);
+    }
+  };
+
+  React.useEffect(() => {
+    if (showLedger) {
+      loadLedgerEntries();
+    }
+  }, [showLedger]);
 
   // Category mix weights (0–100 sliders, equal by default)
   const [catWeights, setCatWeights] = React.useState(
@@ -601,6 +622,36 @@ export default function StartScreen({ onStart, suggestedN, lastSettings }) {
           {suggestedN && suggestedN !== 2 && (
             <p className="text-xs font-mono text-accent">↑ Adaptive suggestion: N={suggestedN}</p>
           )}
+        </div>
+
+        {/* Quick Actions & Presets */}
+        <div className="flex gap-2 justify-center shrink-0">
+          <Button 
+            onClick={() => {
+              setNLevel(3);
+              setRounds(30);
+              setSpeedMs(2000);
+              setModes(['adaptive_closed_loop', 'timer_panic', 'lures', 'negation', 'rst_overlay']);
+              setEnabledCats(prev => {
+                const copy = new Set(prev);
+                copy.add('VERBAL');
+                copy.add('SOUND');
+                return copy;
+              });
+              alert("🚀 DAILY BRAIN WARM-UP LOADED!\n\nParameters: N=3 (Base), 30 Rounds, 2000ms\nModes: Closed-Loop Adaptivity, Timer Panic, Lures, Negation, RST reasoning.\nCategories: Verbal & Sound enabled.\n\nPress 'Start Training' below to begin!");
+            }}
+            className="flex-1 h-9 bg-gradient-to-r from-amber-600 to-fuchsia-600 hover:from-amber-500 hover:to-fuchsia-500 text-white font-mono text-xs gap-1.5 shadow-lg shadow-fuchsia-600/20"
+          >
+            <Zap className="w-3.5 h-3.5" /> Daily Warm-up
+          </Button>
+
+          <Button 
+            variant="outline"
+            onClick={() => setShowLedger(true)}
+            className="flex-1 h-9 border-primary/30 text-primary hover:bg-primary/5 font-mono text-xs gap-1.5"
+          >
+            <TrendingUp className="w-3.5 h-3.5" /> Mindware Ledger
+          </Button>
         </div>
 
         {/* N-Level spinner */}
@@ -1157,6 +1208,86 @@ export default function StartScreen({ onStart, suggestedN, lastSettings }) {
             Start Training
           </Button>
         </div>
+
+        {/* Mindware Ledger Drawer */}
+        <AnimatePresence>
+          {showLedger && (
+            <motion.div
+              initial={{ opacity: 0 }}
+              animate={{ opacity: 1 }}
+              exit={{ opacity: 0 }}
+              className="fixed inset-0 z-[100] bg-background/95 backdrop-blur-md flex flex-col justify-between p-4 sm:p-6"
+            >
+              <div className="flex-1 overflow-y-auto max-w-md w-full mx-auto space-y-4">
+                <div className="flex items-center justify-between border-b border-border pb-3">
+                  <div className="flex items-center gap-2">
+                    <TrendingUp className="w-5 h-5 text-fuchsia-400 animate-pulse" />
+                    <h3 className="font-mono font-bold text-lg text-foreground">Mindware Ledger</h3>
+                  </div>
+                  <button 
+                    onClick={() => setShowLedger(false)}
+                    className="px-2 py-1 bg-secondary hover:bg-secondary/80 text-muted-foreground hover:text-foreground font-mono text-xs rounded border border-border"
+                  >
+                    Close
+                  </button>
+                </div>
+
+                <p className="text-[11px] font-mono text-muted-foreground leading-relaxed">
+                  Your stored real-world cue-fired intentions ($G_c$) mapped from logical fluid reasoning ($G_f$) training sessions:
+                </p>
+
+                <div className="space-y-3">
+                  {ledgerEntries.length === 0 ? (
+                    <div className="text-center py-12 border border-dashed border-border rounded-xl text-muted-foreground font-mono text-xs">
+                      No mindware logged yet. Finish a training session to write your first entry!
+                    </div>
+                  ) : (
+                    ledgerEntries.map(entry => (
+                      <div key={entry.id} className="bg-secondary/40 border border-border rounded-xl p-3 space-y-2">
+                        <div className="flex justify-between items-center text-[10px] font-mono text-muted-foreground border-b border-border/40 pb-1.5">
+                          <span>{new Date(entry.timestamp).toLocaleDateString()}</span>
+                          <span className="px-1.5 py-0.5 rounded bg-primary/10 border border-primary/20 text-primary">
+                            N={entry.nLevel} &middot; {entry.accuracy}%
+                          </span>
+                        </div>
+                        <p className="text-xs font-mono text-foreground leading-relaxed italic">
+                          "{entry.text}"
+                        </p>
+                        <div className="flex items-center justify-between text-[9px] font-mono text-muted-foreground pt-1">
+                          <span>State: <strong className="text-primary">{entry.zone?.replace('_', ' ').toUpperCase()}</strong></span>
+                          <button
+                            onClick={() => {
+                              try {
+                                const currentLedger = JSON.parse(localStorage.getItem('goated_mindware_ledger') || '[]');
+                                const filtered = currentLedger.filter(item => item.id !== entry.id);
+                                localStorage.setItem('goated_mindware_ledger', JSON.stringify(filtered));
+                                loadLedgerEntries();
+                              } catch (e) {
+                                console.error(e);
+                              }
+                            }}
+                            className="text-red-400 hover:text-red-300 font-bold"
+                          >
+                            Delete
+                          </button>
+                        </div>
+                      </div>
+                    ))
+                  )}
+                </div>
+              </div>
+
+              <div className="max-w-md w-full mx-auto pt-4 border-t border-border mt-4">
+                <Button 
+                  onClick={() => setShowLedger(false)}
+                  className="w-full font-mono text-xs bg-primary text-primary-foreground hover:bg-primary/90"
+                >
+                  Return to Menu
+                </Button>
+              </div>
+            </motion.div>
+          )}
+        </AnimatePresence>
 
       </div>
     </motion.div>

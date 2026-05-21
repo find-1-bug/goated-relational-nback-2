@@ -58,6 +58,42 @@ export default function ResultsScreen({ gameState, onRestart, onBack }) {
   const nextN = computeNextNLevel(gameState.nLevel, results);
   const nChanged = nextN !== gameState.nLevel;
 
+  const [selectedZone, setSelectedZone] = React.useState(null);
+  const [mindwareText, setMindwareText] = React.useState('');
+  const [savedMindware, setSavedMindware] = React.useState(false);
+
+  const saveZoneCheckIn = (zone, accuracy, nLevel) => {
+    try {
+      const history = JSON.parse(localStorage.getItem('goated_zone_checkins') || '[]');
+      history.push({
+        timestamp: new Date().toISOString(),
+        zone,
+        accuracy,
+        nLevel,
+      });
+      localStorage.setItem('goated_zone_checkins', JSON.stringify(history));
+    } catch (e) {
+      console.error(e);
+    }
+  };
+
+  const saveMindwareCard = (text, zone, accuracy, nLevel) => {
+    try {
+      const ledger = JSON.parse(localStorage.getItem('goated_mindware_ledger') || '[]');
+      ledger.push({
+        id: Math.random().toString(36).substring(2, 9),
+        timestamp: new Date().toISOString(),
+        text,
+        zone: zone || 'unknown',
+        accuracy,
+        nLevel,
+      });
+      localStorage.setItem('goated_mindware_ledger', JSON.stringify(ledger));
+    } catch (e) {
+      console.error(e);
+    }
+  };
+
   const getGrade = (acc) => {
     if (acc >= 90) return { label: 'Excellent', color: 'text-emerald-400' };
     if (acc >= 75) return { label: 'Good', color: 'text-primary' };
@@ -104,6 +140,75 @@ export default function ResultsScreen({ gameState, onRestart, onBack }) {
               : `Adaptive: N stays at ${gameState.nLevel} (keep going!)`}
           </div>
         )}
+
+        {/* Metacognitive State Zone Assessment */}
+        <div className="bg-secondary/20 rounded-xl p-4 border border-border/60 space-y-3">
+          <div className="text-xs font-mono uppercase tracking-widest font-semibold text-primary flex items-center gap-1.5">
+            <Brain className="w-3.5 h-3.5" /> Metacognitive Zone Check-in
+          </div>
+          <p className="text-[11px] font-mono text-muted-foreground leading-normal">
+            Assess your arousal & attention state during this session to calibrate your zone:
+          </p>
+          <div className="grid grid-cols-2 gap-2">
+            {[
+              { id: 'too_hot', label: 'Too Hot', desc: 'Overloaded, reactive, tense', cls: 'border-red-500/30 hover:bg-red-500/10 text-red-400 bg-red-500/5' },
+              { id: 'in_band', label: 'In Band', desc: 'Flow, workable focus', cls: 'border-emerald-500/30 hover:bg-emerald-500/10 text-emerald-400 bg-emerald-500/5' },
+              { id: 'too_cold', label: 'Too Cold', desc: 'Flat, slow, fatigued', cls: 'border-blue-500/30 hover:bg-blue-500/10 text-blue-400 bg-blue-500/5' },
+              { id: 'shaky', label: 'Shaky', desc: 'Volatile, distracted', cls: 'border-amber-500/30 hover:bg-amber-500/10 text-amber-400 bg-amber-500/5' },
+            ].map(zone => (
+              <button
+                key={zone.id}
+                onClick={() => {
+                  setSelectedZone(zone.id);
+                  saveZoneCheckIn(zone.id, results.overall.accuracy, gameState.nLevel);
+                }}
+                className={`flex flex-col items-center justify-center p-2.5 rounded-lg border font-mono transition-all text-center group relative overflow-hidden ${
+                  selectedZone === zone.id 
+                    ? 'ring-2 ring-primary border-primary bg-primary/10' 
+                    : zone.cls
+                }`}
+              >
+                <span className="text-xs font-bold">{zone.label}</span>
+                <span className="text-[9px] opacity-70 group-hover:opacity-100 transition-opacity mt-0.5">{zone.desc}</span>
+              </button>
+            ))}
+          </div>
+        </div>
+
+        {/* Mindware Operator Far-Transfer Prompt */}
+        <div className="bg-secondary/20 rounded-xl p-4 border border-border/60 space-y-3">
+          <div className="text-xs font-mono uppercase tracking-widest font-semibold text-fuchsia-400 flex items-center gap-1.5">
+            <TrendingUp className="w-3.5 h-3.5" /> Mindware Operator Card
+          </div>
+          <p className="text-[11px] font-mono text-muted-foreground leading-normal">
+            Crystallize this raw relational focus ($G_f$) into portable real-world mindware ($G_c$):
+          </p>
+          
+          {savedMindware ? (
+            <div className="p-3 rounded-lg border border-emerald-500/30 bg-emerald-500/10 text-emerald-400 font-mono text-xs text-center animate-pulse">
+              ✓ Mindware operator logged in your Ledger!
+            </div>
+          ) : (
+            <div className="space-y-2">
+              <textarea
+                value={mindwareText}
+                onChange={e => setMindwareText(e.target.value)}
+                placeholder="E.g., I will apply this deep auditory relational tracking to isolate key requirements in my upcoming client sync today."
+                className="w-full h-20 bg-background/50 border border-border rounded-lg p-2 font-mono text-xs text-foreground placeholder:text-muted-foreground/50 focus:outline-none focus:ring-1 focus:ring-primary focus:border-primary resize-none"
+              />
+              <Button
+                disabled={!mindwareText.trim()}
+                onClick={() => {
+                  saveMindwareCard(mindwareText, selectedZone, results.overall.accuracy, gameState.nLevel);
+                  setSavedMindware(true);
+                }}
+                className="w-full font-mono text-xs py-1 h-8 bg-fuchsia-600 hover:bg-fuchsia-500 text-white disabled:opacity-50"
+              >
+                Log to Mindware Ledger
+              </Button>
+            </div>
+          )}
+        </div>
 
         {/* Per-stream results */}
         <div className="space-y-4">
