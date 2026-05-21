@@ -529,3 +529,186 @@ export function pickRandomExcluding(arr, ...excludes) {
 export function randomBetween(min, max) {
   return min + Math.random() * (max - min);
 }
+
+export const COACH_PHASES = [
+  {
+    title: "Phase 1: Foundational Focus",
+    nLevel: 2,
+    speedMs: 3200,
+    rounds: 20,
+    modes: ['feedback_per_trial'],
+    desc: "Focus on simple relational matching with per-trial diagnostic feedback.",
+    streamsCount: 1
+  },
+  {
+    title: "Phase 2: Selective Attention",
+    nLevel: 2,
+    speedMs: 3000,
+    rounds: 20,
+    modes: ['feedback_per_trial', 'distractors'],
+    desc: "Introduces near-match distractors to test your selective visual filtering.",
+    streamsCount: 1
+  },
+  {
+    title: "Phase 3: Interference Inoculation",
+    nLevel: 2,
+    speedMs: 2800,
+    rounds: 22,
+    modes: ['feedback_per_trial', 'distractors', 'lures'],
+    desc: "Introduces N-1 or N+1 lure trials to challenge loose counter habits.",
+    streamsCount: 1
+  },
+  {
+    title: "Phase 4: Logical Inversion",
+    nLevel: 2,
+    speedMs: 2600,
+    rounds: 24,
+    modes: ['feedback_per_trial', 'distractors', 'lures', 'negation'],
+    desc: "Introduces negation flags (¬) that flip relations to their logical opposite.",
+    streamsCount: 1
+  },
+  {
+    title: "Phase 5: Cognitive Control",
+    nLevel: 2,
+    speedMs: 2600,
+    rounds: 25,
+    modes: ['distractors', 'lures', 'negation', 'cct'],
+    desc: "Replaces shape relations with pure Cognitive Control arithmetic n-back.",
+    streamsCount: 1
+  },
+  {
+    title: "Phase 6: Mathematical Dual-Tasking",
+    nLevel: 2,
+    speedMs: 2600,
+    rounds: 25,
+    modes: ['distractors', 'lures', 'negation', 'cct_overlay'],
+    desc: "Layers CCT calculation as a separate key axis alongside relational matching.",
+    streamsCount: 1
+  },
+  {
+    title: "Phase 7: Deductive Integration",
+    nLevel: 2,
+    speedMs: 2400,
+    rounds: 25,
+    modes: ['distractors', 'lures', 'negation', 'rst_overlay'],
+    desc: "Layers Syllogistic Deductive Reasoning (RST) premises and conclusions.",
+    streamsCount: 1
+  },
+  {
+    title: "Phase 8: Closed-Loop Regulation",
+    nLevel: 2,
+    speedMs: 2400,
+    rounds: 26,
+    modes: ['distractors', 'lures', 'negation', 'rst_overlay', 'adaptive_closed_loop'],
+    desc: "Engages closed-loop adaptivity that speeds up or slows down per-trial.",
+    streamsCount: 1
+  },
+  {
+    title: "Phase 9: Semantic Memory Queue",
+    nLevel: 2,
+    speedMs: 2200,
+    rounds: 26,
+    modes: ['distractors', 'lures', 'negation', 'rst_overlay', 'adaptive_closed_loop', 'type_nback'],
+    desc: "Matches stimuli by relationship category history instead of distance.",
+    streamsCount: 1
+  },
+  {
+    title: "Phase 10: Relational Chaining",
+    nLevel: 2,
+    speedMs: 2200,
+    rounds: 28,
+    modes: ['distractors', 'lures', 'negation', 'rst_overlay', 'adaptive_closed_loop', 'rint'],
+    desc: "Uses Relational Integration to logically chain comparisons over N trials.",
+    streamsCount: 1
+  },
+  {
+    title: "Phase 11: Cross-Modal Union",
+    nLevel: 2,
+    speedMs: 2000,
+    rounds: 28,
+    modes: ['distractors', 'lures', 'negation', 'adaptive_closed_loop', 'nonverbal_rint'],
+    desc: "Tests cross-modal subset-unions across multiple sensory attributes.",
+    streamsCount: 1
+  },
+  {
+    title: "Phase 12: Rule Flexibility",
+    nLevel: 2,
+    speedMs: 2000,
+    rounds: 30,
+    modes: ['distractors', 'lures', 'negation', 'adaptive_closed_loop', 'mixed_nback'],
+    desc: "Randomly switches matching rules (Normal vs Type) on every trial.",
+    streamsCount: 1
+  },
+  {
+    title: "Phase 13: Boolean Operations",
+    nLevel: 2,
+    speedMs: 1800,
+    rounds: 30,
+    modes: ['distractors', 'lures', 'negation', 'adaptive_closed_loop', 'binary_logic'],
+    desc: "Demands composite logical evaluations (AND / OR / NOT) per trial.",
+    streamsCount: 1
+  },
+  {
+    title: "Phase 14: 2D Spatial Rotations",
+    nLevel: 2,
+    speedMs: 1800,
+    rounds: 30,
+    modes: ['distractors', 'lures', 'negation', 'adaptive_closed_loop', 'alien_square'],
+    desc: "Forces tracking of a 2D rotating spatial matrix position axis.",
+    streamsCount: 1
+  },
+  {
+    title: "Phase 15: 3D Transparent Rotations",
+    nLevel: 2,
+    speedMs: 1800,
+    rounds: 32,
+    modes: ['distractors', 'lures', 'negation', 'adaptive_closed_loop', 'alien_cube'],
+    desc: "Forces tracking of a transparent rotating 3D spatial matrix cube.",
+    streamsCount: 1
+  },
+  {
+    title: "Phase 16: 4D Hyperspace Projection",
+    nLevel: 2,
+    speedMs: 1800,
+    rounds: 32,
+    modes: ['distractors', 'lures', 'negation', 'adaptive_closed_loop', 'alien_tesseract'],
+    desc: "Tests tracking of a projected 4D tesseract hyperspace layer.",
+    streamsCount: 1
+  },
+  {
+    title: "Phase 17: Stress Inoculation",
+    nLevel: 2,
+    speedMs: 1800,
+    rounds: 35,
+    modes: ['distractors', 'lures', 'negation', 'adaptive_closed_loop', 'alien_cube', 'stress_glitch', 'timer_panic'],
+    desc: "Overloads focal processing using GPU-accelerated glitch skews and time countdown panic.",
+    streamsCount: 1
+  },
+  {
+    title: "Phase 18: Structural Disruption",
+    nLevel: 2,
+    speedMs: 1600,
+    rounds: 35,
+    modes: ['distractors', 'lures', 'negation', 'adaptive_closed_loop', 'alien_cube', 'stress_glitch', 'stress_shake', 'timer_panic'],
+    desc: "Injects physical structural screen shakes at high stress moments.",
+    streamsCount: 1
+  },
+  {
+    title: "Phase 19: Dual Stream Multitasking",
+    nLevel: 2,
+    speedMs: 1600,
+    rounds: 35,
+    modes: ['distractors', 'lures', 'negation', 'adaptive_closed_loop', 'stress_glitch', 'stress_shake', 'timer_panic'],
+    desc: "Expands the challenge to tracking two parallel stimulus streams simultaneously.",
+    streamsCount: 2
+  },
+  {
+    title: "Phase 20: Quantum Focus",
+    nLevel: 3,
+    speedMs: 1500,
+    rounds: 35,
+    modes: ['distractors', 'lures', 'negation', 'adaptive_closed_loop', 'stress_glitch', 'stress_shake', 'timer_panic', 'impossible'],
+    desc: "The peak challenge: 2 streams at N=3 with random multi-rules and full stressors active.",
+    streamsCount: 2
+  }
+];

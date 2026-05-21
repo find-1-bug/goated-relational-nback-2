@@ -24,6 +24,8 @@ export default function Game() {
   const [nrintEnabledFlags, setNrintEnabledFlags] = useState(null);
   const [nrintHideLegend, setNrintHideLegend] = useState(false);
   const [noobMode, setNoobMode] = useState(false);
+  const [autopilot, setAutopilot] = useState(false);
+  const [phaseTitle, setPhaseTitle] = useState('');
   const [startTime, setStartTime] = useState(null);
   const [gameRunId, setGameRunId] = useState(0);
 
@@ -50,6 +52,8 @@ export default function Game() {
     setNrintEnabledFlags(extraSettings?.nrintEnabledFlags || null);
     setNrintHideLegend(!!extraSettings?.nrintHideLegend);
     setNoobMode(noob || false);
+    setAutopilot(!!extraSettings?.autopilot);
+    setPhaseTitle(extraSettings?.phaseTitle || '');
     setStartTime(Date.now());
     setGameRunId(id => id + 1);
 
@@ -144,6 +148,8 @@ export default function Game() {
           nrintEnabledFlags={nrintEnabledFlags}
           nrintHideLegend={nrintHideLegend}
           noobMode={noobMode}
+          autopilot={autopilot}
+          phaseTitle={phaseTitle}
           onFinish={handleFinish}
           onExit={handleBack}
         />

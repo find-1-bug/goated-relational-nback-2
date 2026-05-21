@@ -3,6 +3,7 @@ import { Button } from '@/components/ui/button';
 import { Brain, RotateCcw, ArrowLeft, TrendingUp } from 'lucide-react';
 import { motion } from 'framer-motion';
 import { calculateResults, computeNextNLevel } from '@/lib/gameEngine';
+import { COACH_PHASES } from '@/lib/gameConstants';
 
 function StatBlock({ label, value, suffix = '', color = 'text-foreground' }) {
   return (
@@ -61,6 +62,8 @@ export default function ResultsScreen({ gameState, onRestart, onBack }) {
   const [selectedZone, setSelectedZone] = React.useState(null);
   const [transferText, setTransferText] = React.useState('');
   const [savedTransfer, setSavedTransfer] = React.useState(false);
+  const [coachProgressionText, setCoachProgressionText] = React.useState('');
+  const [phaseUpgradeState, setPhaseUpgradeState] = React.useState(null); // 'up', 'down', or null
 
   React.useEffect(() => {
     try {
@@ -68,11 +71,13 @@ export default function ResultsScreen({ gameState, onRestart, onBack }) {
       const coach = saved ? JSON.parse(saved) : {
         nLevel: 2,
         rounds: 20,
-        speedMs: 2800,
+        speedMs: 3200,
         rankName: "Initiate (Rank I)",
         consecutiveSuccesses: 0,
-        consecutiveFailures: 0
+        consecutiveFailures: 0,
+        phaseIndex: 0
       };
+      if (coach.phaseIndex === undefined) coach.phaseIndex = 0;
 
       const accuracy = results.overall.accuracy;
       if (results.overall.total >= 8) {
@@ -81,42 +86,57 @@ export default function ResultsScreen({ gameState, onRestart, onBack }) {
           coach.consecutiveFailures = 0;
 
           if (coach.consecutiveSuccesses >= 2) {
-            if (coach.speedMs > 1800) {
-              coach.speedMs = Math.max(1800, coach.speedMs - 200);
-            } else if (coach.rounds < 40) {
-              coach.rounds = Math.min(40, coach.rounds + 5);
+            if (coach.phaseIndex < 19) {
+              coach.phaseIndex += 1;
+              setPhaseUpgradeState('up');
+              setCoachProgressionText(`🚀 COGNITIVE LEAP! Advanced to ${COACH_PHASES[coach.phaseIndex].title}!`);
             } else {
-              coach.nLevel += 1;
-              coach.speedMs = 2800;
-              coach.rounds = 20;
+              // Peak level! Dynamically upgrade base fields:
+              coach.nLevel = Math.min(20, coach.nLevel + 1);
+              setCoachProgressionText(`🔥 MAX CURRICULUM UPGRADE: N bumped to N=${coach.nLevel}!`);
             }
             coach.consecutiveSuccesses = 0;
-            
-            const ranks = [
-              "Initiate (Rank I)", 
-              "Apprentice (Rank II)", 
-              "Specialist (Rank III)", 
-              "Elite Specialist (Rank IV)", 
-              "Quantum Operator (Rank V)",
-              "GOATED Focus Master (Rank VI)"
-            ];
-            const rankIdx = Math.min(ranks.length - 1, coach.nLevel - 1);
-            coach.rankName = ranks[rankIdx];
+          } else {
+            setCoachProgressionText(`Coach calibration: ${2 - coach.consecutiveSuccesses} more success needed to rank up.`);
           }
         } else if (accuracy < 55) {
           coach.consecutiveFailures += 1;
           coach.consecutiveSuccesses = 0;
 
           if (coach.consecutiveFailures >= 2) {
-            if (coach.speedMs < 3000) {
-              coach.speedMs = Math.min(3000, coach.speedMs + 200);
-            } else if (coach.nLevel > 2) {
-              coach.nLevel -= 1;
-              coach.speedMs = 2600;
+            if (coach.phaseIndex > 0) {
+              coach.phaseIndex -= 1;
+              setPhaseUpgradeState('down');
+              setCoachProgressionText(`⚠️ Dialing back to match pace: De-escalated to ${COACH_PHASES[coach.phaseIndex].title}.`);
             }
             coach.consecutiveFailures = 0;
+          } else {
+            setCoachProgressionText(`Coach calibration: 1 more fallback warning until phase de-escalation.`);
           }
+        } else {
+          setCoachProgressionText(`Coach calibration: Solid holding pattern. Keep training in this phase!`);
         }
+
+        // Apply updated parameters from current phase to keep coach object fully in sync!
+        const p = COACH_PHASES[coach.phaseIndex] || COACH_PHASES[0];
+        // If not already overridden at max level:
+        if (coach.phaseIndex < 19) {
+          coach.nLevel = p.nLevel;
+        }
+        coach.speedMs = p.speedMs;
+        coach.rounds = p.rounds;
+
+        const ranks = [
+          "Initiate (Rank I)", 
+          "Apprentice (Rank II)", 
+          "Specialist (Rank III)", 
+          "Elite Specialist (Rank IV)", 
+          "Quantum Operator (Rank V)",
+          "GOATED Focus Master (Rank VI)"
+        ];
+        const rankIdx = Math.min(ranks.length - 1, Math.floor(coach.phaseIndex / 3.5));
+        coach.rankName = ranks[rankIdx];
+
         localStorage.setItem('goated_coach_state', JSON.stringify(coach));
       }
     } catch (e) {
@@ -183,6 +203,28 @@ export default function ResultsScreen({ gameState, onRestart, onBack }) {
             {gameState.modes?.length > 0 && <> &middot; {gameState.modes.join(', ')}</>}
           </p>
         </div>
+
+        {gameState.autopilot && (
+          <div className={`p-4 rounded-xl border font-mono text-center space-y-1.5 shadow-lg transition-all duration-300
+            ${phaseUpgradeState === 'up' 
+              ? 'bg-emerald-500/10 border-emerald-500/40 text-emerald-400 shadow-emerald-500/5' 
+              : phaseUpgradeState === 'down' 
+                ? 'bg-amber-500/10 border-amber-500/40 text-amber-400 shadow-amber-500/5' 
+                : 'bg-secondary/40 border-border/80 text-foreground'}`}
+          >
+            <div className="text-[10px] uppercase tracking-widest font-semibold text-primary/80 flex items-center justify-center gap-1.5">
+              <Brain className="w-3.5 h-3.5 animate-pulse text-primary" /> Coach Autopilot Evaluation
+            </div>
+            <div className="text-xs font-bold text-fuchsia-400">
+              {gameState.phaseTitle || "Curriculum Phase"}
+            </div>
+            {coachProgressionText && (
+              <p className="text-[11px] font-semibold leading-relaxed mt-1 text-muted-foreground/90">
+                {coachProgressionText}
+              </p>
+            )}
+          </div>
+        )}
 
         {/* Overall */}
         <div className="text-center py-4 border-y border-border">

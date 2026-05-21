@@ -113,7 +113,7 @@ function mergeHistoricalWithProgress(historicalState, progressState, streamCount
   };
 }
 
-export default function GameScreen({ nLevel, modes, relationshipPool, totalRounds, stimulusDuration, extraStreams, streamA, alienSettings, carouselSettings, nrintEnabledFlags, nrintHideLegend, noobMode, onFinish, onExit }) {
+export default function GameScreen({ nLevel, modes, relationshipPool, totalRounds, stimulusDuration, extraStreams, streamA, alienSettings, carouselSettings, nrintEnabledFlags, nrintHideLegend, noobMode, autopilot, phaseTitle, onFinish, onExit }) {
   // extraStreams: [{ key, label, keyDisplay, positionKey, positionKeyDisplay }]
   const getStimulusDuration = useCallback(() => {
     if (modes.includes('adaptive_closed_loop') && gameStateRef.current?.adaptiveSpeedMs) {
@@ -146,9 +146,12 @@ export default function GameScreen({ nLevel, modes, relationshipPool, totalRound
   ];
   const numExtra = (extraStreams || []).length;
 
-  const [gameState, setGameState] = useState(() =>
-    createGameState({ nLevel, modes, relationshipPool, totalRounds, extraStreams: extraStreams || [], alienSettings, streamA, nrintEnabledFlags, nrintHideLegend, initialSpeedMs: stimulusDuration === 'random' ? 2800 : (stimulusDuration || 2800) })
-  );
+  const [gameState, setGameState] = useState(() => {
+    const state = createGameState({ nLevel, modes, relationshipPool, totalRounds, extraStreams: extraStreams || [], alienSettings, streamA, nrintEnabledFlags, nrintHideLegend, initialSpeedMs: stimulusDuration === 'random' ? 2800 : (stimulusDuration || 2800) });
+    state.autopilot = autopilot;
+    state.phaseTitle = phaseTitle;
+    return state;
+  });
   const [phase, setPhase] = useState('stimulus');
   const [clearCanvas, setClearCanvas] = useState(false);
   const [activeSlide, setActiveSlide] = useState(0);

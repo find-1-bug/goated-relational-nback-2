@@ -2,7 +2,7 @@ import React from 'react';
 import { Button } from '@/components/ui/button';
 import { Brain, Zap, TrendingUp, Layers, GitBranch, Shuffle, ChevronDown, ChevronUp, Plus, Minus } from 'lucide-react';
 import { motion, AnimatePresence } from 'framer-motion';
-import { RELATIONSHIP_CATEGORIES, setTokenWeights, getTokenWeights, filterTransitiveRelationships } from '@/lib/gameConstants';
+import { RELATIONSHIP_CATEGORIES, setTokenWeights, getTokenWeights, filterTransitiveRelationships, COACH_PHASES } from '@/lib/gameConstants';
 import { NRINT_FLAGS, NRINT_FLAG_META } from '@/lib/gameEngine';
 
 // Build a weighted pool from category weights + enabled rels
@@ -303,17 +303,22 @@ export default function StartScreen({ onStart, suggestedN, lastSettings }) {
   const [coachState, setCoachState] = React.useState(() => {
     try {
       const saved = localStorage.getItem('goated_coach_state');
-      if (saved) return JSON.parse(saved);
+      if (saved) {
+        const parsed = JSON.parse(saved);
+        if (parsed.phaseIndex === undefined) parsed.phaseIndex = 0;
+        return parsed;
+      }
     } catch (e) {
       console.error(e);
     }
     return {
       nLevel: 2,
       rounds: 20,
-      speedMs: 2800,
+      speedMs: 3200,
       rankName: "Initiate (Rank I)",
       consecutiveSuccesses: 0,
-      consecutiveFailures: 0
+      consecutiveFailures: 0,
+      phaseIndex: 0
     };
   });
 
@@ -649,26 +654,30 @@ export default function StartScreen({ onStart, suggestedN, lastSettings }) {
         </div>
 
         {/* Dynamic Coach Level & Progression Card */}
-        <div className="bg-secondary/35 border border-border/80 rounded-xl p-3.5 space-y-2 text-center">
+        <div className="bg-secondary/35 border border-border/80 rounded-xl p-3.5 space-y-2 text-center shadow-inner">
           <div className="text-[10px] font-mono uppercase tracking-widest font-semibold text-primary/80 flex items-center justify-center gap-1.5">
-            <Brain className="w-3.5 h-3.5 animate-pulse text-primary" /> Cognitive Coach Active
+            <Brain className="w-3.5 h-3.5 animate-pulse text-primary" /> Cognitive Coach Autopilot
           </div>
-          <div className="flex justify-between items-center text-xs font-mono border-t border-border/40 pt-2 px-1">
-            <span className="text-muted-foreground">Rank: <strong className="text-emerald-400">{coachState.rankName}</strong></span>
-            <span className="text-muted-foreground">Level: <strong className="text-primary">N={coachState.nLevel}</strong> &middot; <strong className="text-cyan-400">{coachState.speedMs}ms</strong></span>
+          <div className="text-[11px] font-mono font-bold text-fuchsia-400">
+            {COACH_PHASES[coachState.phaseIndex || 0]?.title || "Phase 1: Foundational Focus"}
           </div>
-          <p className="text-[9px] font-mono text-muted-foreground/80 leading-normal">
-            The coach tracks your accuracy over sessions and slowly adjusts the baseline parameters to keep you in the optimal zone.
+          <p className="text-[9px] font-mono text-muted-foreground/90 max-w-sm mx-auto leading-normal">
+            "{COACH_PHASES[coachState.phaseIndex || 0]?.desc || ""}"
           </p>
+          <div className="flex justify-between items-center text-[10px] font-mono border-t border-border/40 pt-2 px-1">
+            <span className="text-muted-foreground">Rank: <strong className="text-emerald-400">{coachState.rankName}</strong></span>
+            <span className="text-muted-foreground">Autopilot Target: <strong className="text-primary">N={COACH_PHASES[coachState.phaseIndex || 0]?.nLevel || 2}</strong> &middot; <strong className="text-cyan-400">{COACH_PHASES[coachState.phaseIndex || 0]?.speedMs || 3200}ms</strong></span>
+          </div>
         </div>
 
         {/* Quick Actions & Presets */}
         <div className="flex gap-2 justify-center shrink-0">
           <Button 
             onClick={() => {
-              setNLevel(coachState.nLevel);
-              setRounds(Math.max(25, coachState.rounds));
-              setSpeedMs(coachState.speedMs);
+              const p = COACH_PHASES[coachState.phaseIndex || 0] || COACH_PHASES[0];
+              setNLevel(p.nLevel);
+              setRounds(Math.max(25, p.rounds));
+              setSpeedMs(p.speedMs);
               setModes(['adaptive_closed_loop', 'timer_panic', 'lures', 'negation', 'rst_overlay']);
               setEnabledCats(prev => {
                 const copy = new Set(prev);
@@ -676,7 +685,7 @@ export default function StartScreen({ onStart, suggestedN, lastSettings }) {
                 copy.add('SOUND');
                 return copy;
               });
-              alert(`🚀 PERSONALIZED WARM-UP LOADED!\n\nParameters customized to your current ability:\nN=${coachState.nLevel} (Base), ${Math.max(25, coachState.rounds)} Rounds, ${coachState.speedMs}ms\n\nModes: Closed-Loop Adaptivity, Timer Panic, Lures, Negation, RST reasoning.\nCategories: Verbal & Sound enabled.\n\nPress 'Start Training' below to begin!`);
+              alert(`🚀 PERSONALIZED WARM-UP LOADED!\n\nParameters customized to your current ability:\nN=${p.nLevel} (Base), ${Math.max(25, p.rounds)} Rounds, ${p.speedMs}ms\n\nModes: Closed-Loop Adaptivity, Timer Panic, Lures, Negation, RST reasoning.\nCategories: Verbal & Sound enabled.\n\nPress 'Manual Mode' or 'Coach Autopilot' below to begin!`);
             }}
             className="flex-1 h-9 bg-gradient-to-r from-amber-600 to-fuchsia-600 hover:from-amber-500 hover:to-fuchsia-500 text-white font-mono text-xs gap-1.5 shadow-lg shadow-fuchsia-600/20"
           >
@@ -1140,41 +1149,52 @@ export default function StartScreen({ onStart, suggestedN, lastSettings }) {
               <motion.div initial={{ height: 0, opacity: 0 }} animate={{ height: 'auto', opacity: 1 }} exit={{ height: 0, opacity: 0 }}
                 className="overflow-hidden">
                 <div className="grid grid-cols-1 gap-2 pt-1">
-            {MODE_OPTIONS.map(({ id, icon: Icon, label, desc, minN, minStreams }) => {
-              const active = modes.includes(id);
-              const needsHigherN = minN && nLevel < minN;
-              const needsMoreStreams = minStreams && (1 + extraStreams.length) < minStreams;
-              // Check if this mode is blocked by an active exclusive mode
-              const blockedBy = !active && EXCLUSIVE_GROUPS.some(g => g.includes(id) && g.some(m => m !== id && modes.includes(m)))
-                ? EXCLUSIVE_GROUPS.find(g => g.includes(id) && g.some(m => m !== id && modes.includes(m)))?.find(m => m !== id && modes.includes(m))
-                : null;
-              return (
-                <button key={id} onClick={() => toggleMode(id)}
-                  className={`flex items-start gap-3 p-3 rounded-lg border-2 text-left transition-all duration-150
-                    ${active ? 'border-primary bg-primary/10' : blockedBy ? 'border-border bg-secondary/20 opacity-50' : 'border-border bg-secondary/40 hover:border-muted-foreground/40'}`}>
-                  <Icon className={`w-4 h-4 mt-0.5 shrink-0 ${active ? 'text-primary' : 'text-muted-foreground'}`} />
-                  <div className="flex-1 min-w-0">
-                    <div className="flex items-center gap-2 flex-wrap">
-                      <span className={`text-xs font-mono font-semibold ${active ? 'text-primary' : 'text-muted-foreground'}`}>{label}</span>
-                      {minN && (
-                        <span className={`text-xs font-mono px-1.5 py-0.5 rounded border ${needsHigherN ? 'border-amber-500/40 text-amber-400 bg-amber-500/10' : 'border-border text-muted-foreground/50'}`}>
-                          N≥{minN}
-                        </span>
-                      )}
-                      {minStreams && (
-                        <span className={`text-xs font-mono px-1.5 py-0.5 rounded border ${needsMoreStreams ? 'border-amber-500/40 text-amber-400 bg-amber-500/10' : 'border-border text-muted-foreground/50'}`}>
-                          ≥{minStreams} streams
-                        </span>
-                      )}
-                    </div>
-                    <div className="text-xs font-mono text-muted-foreground/60 mt-0.5">{desc}</div>
-                    {active && needsHigherN && <div className="text-xs font-mono text-amber-400 mt-1">↑ N bumped to {minN}</div>}
-                    {active && needsMoreStreams && <div className="text-xs font-mono text-amber-400 mt-1">↑ Stream added automatically</div>}
-                    {blockedBy && <div className="text-xs font-mono text-muted-foreground/40 mt-1">conflicts with {blockedBy.replace(/_/g,' ')}</div>}
-                  </div>
-                </button>
-              );
-            })}
+            {(() => {
+              let lastPhase = null;
+              return MODE_OPTIONS.map(({ id, icon: Icon, label, desc, minN, minStreams, phase }) => {
+                const active = modes.includes(id);
+                const needsHigherN = minN && nLevel < minN;
+                const needsMoreStreams = minStreams && (1 + extraStreams.length) < minStreams;
+                const blockedBy = !active && EXCLUSIVE_GROUPS.some(g => g.includes(id) && g.some(m => m !== id && modes.includes(m)))
+                  ? EXCLUSIVE_GROUPS.find(g => g.includes(id) && g.some(m => m !== id && modes.includes(m)))?.find(m => m !== id && modes.includes(m))
+                  : null;
+                const showHeader = phase && (phase !== lastPhase);
+                lastPhase = phase;
+                return (
+                  <React.Fragment key={id}>
+                    {showHeader && (
+                      <div className="mt-4 first:mt-0 mb-1 border-b border-border/40 pb-1 flex items-center justify-between col-span-1">
+                        <span className="text-[10px] font-mono uppercase tracking-widest font-bold text-fuchsia-400">{phase}</span>
+                      </div>
+                    )}
+                    <button onClick={() => toggleMode(id)}
+                      className={`flex items-start gap-3 p-3 rounded-lg border-2 text-left transition-all duration-150
+                        ${active ? 'border-primary bg-primary/10' : blockedBy ? 'border-border bg-secondary/20 opacity-50' : 'border-border bg-secondary/40 hover:border-muted-foreground/40'}`}>
+                      <Icon className={`w-4 h-4 mt-0.5 shrink-0 ${active ? 'text-primary' : 'text-muted-foreground'}`} />
+                      <div className="flex-1 min-w-0">
+                        <div className="flex items-center gap-2 flex-wrap">
+                          <span className={`text-xs font-mono font-semibold ${active ? 'text-primary' : 'text-muted-foreground'}`}>{label}</span>
+                          {minN && (
+                            <span className={`text-xs font-mono px-1.5 py-0.5 rounded border ${needsHigherN ? 'border-amber-500/40 text-amber-400 bg-amber-500/10' : 'border-border text-muted-foreground/50'}`}>
+                              N≥{minN}
+                            </span>
+                          )}
+                          {minStreams && (
+                            <span className={`text-xs font-mono px-1.5 py-0.5 rounded border ${needsMoreStreams ? 'border-amber-500/40 text-amber-400 bg-amber-500/10' : 'border-border text-muted-foreground/50'}`}>
+                              ≥{minStreams} streams
+                            </span>
+                          )}
+                        </div>
+                        <div className="text-xs font-mono text-muted-foreground/60 mt-0.5">{desc}</div>
+                        {active && needsHigherN && <div className="text-xs font-mono text-amber-400 mt-1">↑ N bumped to {minN}</div>}
+                        {active && needsMoreStreams && <div className="text-xs font-mono text-amber-400 mt-1">↑ Stream added automatically</div>}
+                        {blockedBy && <div className="text-xs font-mono text-muted-foreground/40 mt-1">conflicts with {blockedBy.replace(/_/g,' ')}</div>}
+                      </div>
+                    </button>
+                  </React.Fragment>
+                );
+              });
+            })()}
                 </div>
               </motion.div>
             )}
@@ -1223,7 +1243,83 @@ export default function StartScreen({ onStart, suggestedN, lastSettings }) {
             With 2+ streams, choose at least one non-sound relationship too.
           </p>
         )}
-        <div className="flex justify-center pb-4">
+        <div className="flex flex-col sm:flex-row gap-3 justify-center pb-4 shrink-0">
+          <Button
+            disabled={soundOnlySelection}
+            onClick={() => {
+              if (soundOnlySelection) return;
+              setTokenWeights(tokenWeights);
+              
+              const currentPhase = COACH_PHASES[coachState.phaseIndex || 0] || COACH_PHASES[0];
+              const autopilotN = currentPhase.nLevel;
+              const autopilotSpeedMs = currentPhase.speedMs;
+              const autopilotRounds = currentPhase.rounds;
+              const autopilotModes = currentPhase.modes;
+              
+              // Stream A setup
+              const streamAObj = { key: streamAKey, keyDisplay: KEY_OPTIONS.find(k => k.code === streamAKey)?.display || 'SPACE' };
+              const streamAWithPosition = {
+                ...streamAObj,
+                positionKey: streamAPositionKey,
+                positionKeyDisplay: KEY_OPTIONS.find(k => k.code === streamAPositionKey)?.display || 'P',
+                cctKey: streamACCTKey,
+                cctKeyDisplay: KEY_OPTIONS.find(k => k.code === streamACCTKey)?.display || 'M',
+                rstKey: streamARSTKey,
+                rstKeyDisplay: KEY_OPTIONS.find(k => k.code === streamARSTKey)?.display || 'R',
+                streamType: autopilotModes.includes('cct') ? 'cct' : 'relation',
+              };
+              
+              // Stream B setup if streamsCount is 2
+              let autopilotExtraStreams = [];
+              if (currentPhase.streamsCount === 2) {
+                autopilotExtraStreams.push({
+                  key: 'KeyF',
+                  keyDisplay: 'F',
+                  positionKey: 'KeyK',
+                  positionKeyDisplay: 'K',
+                  cctKey: 'KeyC',
+                  cctKeyDisplay: 'C',
+                  rstKey: 'KeyR',
+                  rstKeyDisplay: 'R',
+                  streamType: 'relation'
+                });
+              }
+
+              const enabledRels = new Set(selectedRels);
+              let autopilotPool = buildWeightedPool(enabledRels, catWeights);
+              if (autopilotModes.includes('rint') || autopilotModes.includes('type_nback')) {
+                autopilotPool = filterTransitiveRelationships(autopilotPool);
+              }
+
+              onStart(
+                autopilotN, 
+                autopilotModes, 
+                autopilotPool, 
+                autopilotRounds, 
+                autopilotSpeedMs, 
+                { 
+                  catWeights, 
+                  useCustomMix, 
+                  rels: selectedRels, 
+                  tokenWeights, 
+                  streamA: streamAWithPosition, 
+                  extraStreams: autopilotExtraStreams, 
+                  streams: [streamAWithPosition, ...autopilotExtraStreams], 
+                  alienSettings, 
+                  carouselSettings, 
+                  nrintEnabledFlags, 
+                  nrintHideLegend,
+                  autopilot: true,
+                  phaseTitle: currentPhase.title
+                }, 
+                false
+              );
+            }}
+            className="flex-1 h-12 px-6 font-mono font-bold text-xs sm:text-sm tracking-wide bg-gradient-to-r from-emerald-600 to-cyan-600 hover:from-emerald-500 hover:to-cyan-500 text-white shadow-lg shadow-emerald-500/20 gap-1.5"
+          >
+            <Zap className="w-4 h-4 animate-bounce text-white shrink-0" /> Coach Autopilot
+          </Button>
+
           <Button
             disabled={soundOnlySelection}
             onClick={() => {
@@ -1240,10 +1336,11 @@ export default function StartScreen({ onStart, suggestedN, lastSettings }) {
                 rstKeyDisplay: KEY_OPTIONS.find(k => k.code === streamARSTKey)?.display || 'R',
                 streamType: streamAType,
               };
-              onStart(nLevel, modes, finalPool, rounds, speedMs, { catWeights, useCustomMix, rels: selectedRels, tokenWeights, streamA: streamAWithPosition, extraStreams, streams: [streamAWithPosition, ...extraStreams], alienSettings, carouselSettings, nrintEnabledFlags, nrintHideLegend }, noobMode);
+              onStart(nLevel, modes, finalPool, rounds, speedMs, { catWeights, useCustomMix, rels: selectedRels, tokenWeights, streamA: streamAWithPosition, extraStreams, streams: [streamAWithPosition, ...extraStreams], alienSettings, carouselSettings, nrintEnabledFlags, nrintHideLegend, autopilot: false }, noobMode);
             }}
-            className="h-12 px-10 font-mono font-semibold text-sm tracking-wide bg-primary text-primary-foreground hover:bg-primary/90 disabled:opacity-50 disabled:cursor-not-allowed">
-            Start Training
+            className="flex-1 h-12 px-6 font-mono font-semibold text-xs sm:text-sm tracking-wide bg-secondary hover:bg-secondary/85 text-foreground border border-border"
+          >
+            Manual Mode
           </Button>
         </div>
 

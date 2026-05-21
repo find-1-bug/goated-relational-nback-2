@@ -299,6 +299,45 @@ export default function Tutorial() {
           </div>
         </div>
 
+        {/* Cognitive Coach & Autopilot Curriculum */}
+        <div className="rounded-lg bg-gradient-to-r from-emerald-500/10 to-cyan-500/10 border border-emerald-500/30 p-6 mb-8">
+          <h2 className="text-lg font-mono font-semibold text-emerald-400 mb-3 flex items-center gap-2">
+            <Brain className="w-5 h-5 text-emerald-400 animate-pulse" /> Cognitive Coach Autopilot Curriculum
+          </h2>
+          <p className="text-sm font-mono text-muted-foreground mb-4">
+            Struggling to find the right balance of parameters? The <strong className="text-foreground">Cognitive Coach Autopilot</strong> handles the complexity for you. It locks your training settings into a progressive 20-stage scientifically designed curriculum. By demonstrating steady performance, the coach automatically unlocks new challenges:
+          </p>
+          <div className="space-y-3 text-xs font-mono text-foreground/90">
+            <div className="grid grid-cols-1 sm:grid-cols-2 gap-3 border-b border-border/40 pb-3">
+              <div>
+                <span className="text-emerald-300 font-semibold">Phase A: Foundational Support</span>
+                <p className="text-muted-foreground mt-0.5">Phases 1-4. Focuses on base relational matching, selective visual filters, lure protection, and negation operators under helpful trial-by-trial diagnostic feedback.</p>
+              </div>
+              <div>
+                <span className="text-cyan-300 font-semibold">Phase B: Dual-Tasking &amp; Logic</span>
+                <p className="text-muted-foreground mt-0.5">Phases 5-8. Introduces pure arithmetic calculations, dual-task overlay matching, deductive syllogisms, and adaptive closed-loop pacing.</p>
+              </div>
+            </div>
+            <div className="grid grid-cols-1 sm:grid-cols-2 gap-3 border-b border-border/40 pb-3">
+              <div>
+                <span className="text-fuchsia-300 font-semibold">Phase C: Memory Integration</span>
+                <p className="text-muted-foreground mt-0.5">Phases 9-13. Engages advanced semantic queues, Relational Chaining (RINT), subset-unions, rule flexibility, and Boolean logic operations.</p>
+              </div>
+              <div>
+                <span className="text-amber-300 font-semibold">Phase D: Spatial Rotations &amp; Glitches</span>
+                <p className="text-muted-foreground mt-0.5">Phases 14-20. Forces 2D spatial matrices, transparent 3D rotations, 4D tesseracts, GPU skews, and parallel dual-stream multitasking.</p>
+              </div>
+            </div>
+            <div className="bg-secondary/40 border border-border rounded-lg p-3">
+              <span className="text-emerald-400 font-bold block mb-1">Rank Progression Rules:</span>
+              <ul className="list-disc pl-5 space-y-1 text-muted-foreground">
+                <li>Demonstrating <strong className="text-foreground">&ge; 75% accuracy</strong> over 2 consecutive sessions triggers a <strong className="text-foreground">Phase Level Up</strong>, unlocking advanced cognitive stressors.</li>
+                <li>Dropping below <strong className="text-foreground">55% accuracy</strong> over 2 consecutive sessions signals the coach to de-escalate you by one phase to keep you in the flow zone.</li>
+              </ul>
+            </div>
+          </div>
+        </div>
+
         {/* Accuracy Tips */}
         <div className="rounded-lg bg-accent/10 border border-accent/30 p-6 mb-8">
           <h2 className="text-lg font-mono font-semibold text-accent mb-3">Tips for Better Accuracy</h2>
