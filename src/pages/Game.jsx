@@ -105,6 +105,8 @@ export default function Game() {
       extraPositionStats: results.extraPosition || [],
       durationSeconds,
       noobMode,
+      autopilot: !!state.autopilot,
+      phaseTitle: state.phaseTitle || '',
       trials: state.allTrials || [] // trials saved during gameplay
     };
     addSession(sessionData);
