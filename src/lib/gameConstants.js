@@ -532,6 +532,42 @@ export function randomBetween(min, max) {
 
 export const COACH_PHASES = [
   {
+    title: "Phase A: Classic N-1 Warm-up",
+    nLevel: 1,
+    speedMs: 3600,
+    rounds: 18,
+    modes: ['feedback_per_trial'],
+    desc: "Practice basic single-item focus at N=1. Matches visual and acoustic targets one turn back with direct training feedback.",
+    streamsCount: 1
+  },
+  {
+    title: "Phase B: Classic Switch Gym",
+    nLevel: 1,
+    speedMs: 3300,
+    rounds: 20,
+    modes: ['feedback_per_trial', 'distractors'],
+    desc: "Introduces switching selective attention focus between location cues and sound prompts at a warm-up pace.",
+    streamsCount: 1
+  },
+  {
+    title: "Phase C: Classic Bind Foundation",
+    nLevel: 1,
+    speedMs: 3000,
+    rounds: 20,
+    modes: ['feedback_per_trial', 'distractors', 'cct'],
+    desc: "Introduces simple cognitive control and basic binding tasks to establish strong executive focus at N=1.",
+    streamsCount: 1
+  },
+  {
+    title: "Phase D: Classic Resist Training",
+    nLevel: 2,
+    speedMs: 3300,
+    rounds: 20,
+    modes: ['feedback_per_trial'],
+    desc: "Step up to N=2 at a slow pace. Establishes the foundations of relational capacity mapping without stressors.",
+    streamsCount: 1
+  },
+  {
     title: "Phase 1: Foundational Focus",
     nLevel: 2,
     speedMs: 3200,

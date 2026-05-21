@@ -308,10 +308,10 @@ export default function Stats() {
             <div className="rounded-xl bg-secondary/35 border border-border/80 p-4 shadow-inner space-y-3 shrink-0">
               <div className="flex items-center justify-between font-mono text-xs font-bold text-foreground border-b border-border/40 pb-2">
                 <span>STAGE BASICS PROGRESSION</span>
-                <span className="text-cyan-400">{Math.round(((coachState.phaseIndex + 1) / 20) * 100)}% COMPLETE</span>
+                <span className="text-cyan-400">{Math.round(((coachState.phaseIndex + 1) / COACH_PHASES.length) * 100)}% COMPLETE</span>
               </div>
               <div className="grid grid-cols-5 sm:grid-cols-10 gap-1.5">
-                {Array.from({ length: 20 }).map((_, idx) => {
+                {Array.from({ length: COACH_PHASES.length }).map((_, idx) => {
                   const active = coachState.phaseIndex >= idx;
                   const isCurrent = coachState.phaseIndex === idx;
                   let color = active ? 'bg-emerald-500/25 border-emerald-500/60 text-emerald-400' : 'bg-secondary/40 border-border/50 text-muted-foreground';

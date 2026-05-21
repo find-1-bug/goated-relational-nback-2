@@ -86,7 +86,7 @@ export default function ResultsScreen({ gameState, onRestart, onBack }) {
           coach.consecutiveFailures = 0;
 
           if (coach.consecutiveSuccesses >= 2) {
-            if (coach.phaseIndex < 19) {
+            if (coach.phaseIndex < COACH_PHASES.length - 1) {
               coach.phaseIndex += 1;
               setPhaseUpgradeState('up');
               setCoachProgressionText(`🚀 COGNITIVE LEAP! Advanced to ${COACH_PHASES[coach.phaseIndex].title}!`);
@@ -120,7 +120,7 @@ export default function ResultsScreen({ gameState, onRestart, onBack }) {
         // Apply updated parameters from current phase to keep coach object fully in sync!
         const p = COACH_PHASES[coach.phaseIndex] || COACH_PHASES[0];
         // If not already overridden at max level:
-        if (coach.phaseIndex < 19) {
+        if (coach.phaseIndex < COACH_PHASES.length - 1) {
           coach.nLevel = p.nLevel;
         }
         coach.speedMs = p.speedMs;
@@ -134,7 +134,8 @@ export default function ResultsScreen({ gameState, onRestart, onBack }) {
           "Quantum Operator (Rank V)",
           "GOATED Focus Master (Rank VI)"
         ];
-        const rankIdx = Math.min(ranks.length - 1, Math.floor(coach.phaseIndex / 3.5));
+        const step = Math.max(1, COACH_PHASES.length / ranks.length);
+        const rankIdx = Math.min(ranks.length - 1, Math.floor(coach.phaseIndex / step));
         coach.rankName = ranks[rankIdx];
 
         localStorage.setItem('goated_coach_state', JSON.stringify(coach));
