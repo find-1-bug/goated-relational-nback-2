@@ -766,16 +766,23 @@ export function createGameState({ nLevel, modes, relationshipPool, totalRounds, 
     // conclusion is logically valid given the chain. Mirrors CCT's "digit +
     // candidate result" structure but with Syllogimous-style deductive items.
     isRSTTargetA: false,
+    extraRSTTargets: Array(numExtra).fill(false),
     rstRespondedA: false,
+    extraRSTResponded: Array(numExtra).fill(false),
     rstHitsA: 0,
     rstMissesA: 0,
     rstFalseAlarmsA: 0,
     rstCorrectRejectionsA: 0,
     rstChainA: createRSTChain(),
+    extraRSTChains: Array.from({ length: numExtra }, () => createRSTChain()),
     extraCCTHits: Array(numExtra).fill(0),
     extraCCTMisses: Array(numExtra).fill(0),
     extraCCTFalseAlarms: Array(numExtra).fill(0),
     extraCCTCorrectRejections: Array(numExtra).fill(0),
+    extraRSTHits: Array(numExtra).fill(0),
+    extraRSTMisses: Array(numExtra).fill(0),
+    extraRSTFalseAlarms: Array(numExtra).fill(0),
+    extraRSTCorrectRejections: Array(numExtra).fill(0),
 
     trialMode: 'normal',
     extraTrialModes: Array(numExtra).fill('normal'),
@@ -791,7 +798,7 @@ export function generateNextStimulus(state) {
   const {
     nLevel, round, historyA, typeHistoryA, modes, relationshipPool,
     extraHistories, extraTypeHistories, rintStates, hierHistories, alienSettings,
-    streamTypes,
+    streamTypes, extraRSTChains,
   } = state;
 
   const isNRINT = modes.includes('nonverbal_rint');
@@ -959,19 +966,44 @@ export function generateNextStimulus(state) {
   // fires on trials where hasConclusion is true.
   let isRSTTargetA = false;
   let nextRSTChainA = state.rstChainA;
+  const extraRSTTargets = [];
+  const nextExtraRSTChains = [...(extraRSTChains || [])];
+
   if (modes.includes('rst_overlay')) {
-    const turn = nextRSTTurn(state.rstChainA || createRSTChain(), effectiveN, MATCH_CHANCE);
-    nextRSTChainA = turn.chain;
+    const turnA = nextRSTTurn(state.rstChainA || createRSTChain(), effectiveN, MATCH_CHANCE);
+    nextRSTChainA = turnA.chain;
     resultA.stim = {
       ...resultA.stim,
       _rst: {
-        premise: turn.premise,
-        conclusion: turn.conclusion,
-        hasConclusion: turn.hasConclusion,
-        family: turn.family,
+        premise: turnA.premise,
+        conclusion: turnA.conclusion,
+        hasConclusion: turnA.hasConclusion,
+        family: turnA.family,
       },
     };
-    isRSTTargetA = !!turn.isValid;
+    isRSTTargetA = !!turnA.isValid;
+
+    (extraHistories || []).forEach((hist, i) => {
+      const currentChain = nextExtraRSTChains[i] || createRSTChain();
+      const turn = nextRSTTurn(currentChain, effectiveN, DUAL_MATCH_CHANCE);
+      nextExtraRSTChains[i] = turn.chain;
+      if (extraResults[i]) {
+        extraResults[i].stim = {
+          ...extraResults[i].stim,
+          _rst: {
+            premise: turn.premise,
+            conclusion: turn.conclusion,
+            hasConclusion: turn.hasConclusion,
+            family: turn.family,
+          },
+        };
+      }
+      extraRSTTargets.push(!!turn.isValid);
+    });
+  } else {
+    (extraHistories || []).forEach(() => {
+      extraRSTTargets.push(false);
+    });
   }
 
   // Compute next RINT states array
@@ -989,6 +1021,7 @@ export function generateNextStimulus(state) {
     isCCTTargetA,
     isRSTTargetA,
     extraCCTTargets,
+    extraRSTTargets,
     categoryA,
     isDistractor: false,
     effectiveN,
@@ -999,6 +1032,7 @@ export function generateNextStimulus(state) {
     extraPositionTargets: extraResults.map(r => r.isPositionTarget),
     nextRINTStates,
     nextRSTChainA,
+    nextExtraRSTChains,
     trialBinaryConfigs,
     audioStreamIndexes,
     // Per-stream categories for hierarchical history update
@@ -1013,7 +1047,7 @@ export function advanceRound(state, stimulus) {
     stimA, relA, extraStimuli, extraIsTargets, extraPositionTargets,
     isTargetA, isPositionTargetA, isCCTTargetA, isRSTTargetA, extraCCTTargets, categoryA, isDistractor,
     effectiveN, trialMode, extraTrialModes, nextRINTStates, allCategories, trialBinaryConfigs, audioStreamIndexes,
-    nextRSTChainA,
+    nextRSTChainA, extraRSTTargets, nextExtraRSTChains,
   } = stimulus;
   const trialIndex = state.round;
 
@@ -1046,9 +1080,11 @@ export function advanceRound(state, stimulus) {
     extraIsTargets: extraIsTargets || [],
     extraPositionTargets: extraPositionTargets || [],
     extraCCTTargets: extraCCTTargets || [],
+    extraRSTTargets: extraRSTTargets || [],
     extraResponded: Array(state.numExtraStreams).fill(false),
     extraPositionResponded: Array(state.numExtraStreams).fill(false),
     extraCCTResponded: Array(state.numExtraStreams).fill(false),
+    extraRSTResponded: Array(state.numExtraStreams).fill(false),
     extraTrialModes: extraTrialModes || Array(state.numExtraStreams).fill('normal'),
     currentRelationship: relA,
     currentStimulusA: stimA,
@@ -1063,6 +1099,7 @@ export function advanceRound(state, stimulus) {
     trialBinaryConfigs: trialBinaryConfigs ?? state.trialBinaryConfigs,
     audioStreamIndexes: audioStreamIndexes ?? [],
     rstChainA: nextRSTChainA ?? state.rstChainA,
+    extraRSTChains: nextExtraRSTChains || state.extraRSTChains || [],
     respondedA: false,
     positionRespondedA: false,
     cctRespondedA: false,
@@ -1073,7 +1110,7 @@ export function advanceRound(state, stimulus) {
 
 // ─── Process Responses ────────────────────────────────────────────────────────
 
-export function processResponses(state, { pressedA, pressedExtra = [], pressedPositionA = false, pressedPositionExtra = [], pressedCCTA = false, pressedCCTExtra = [], pressedRSTA = false }) {
+export function processResponses(state, { pressedA, pressedExtra = [], pressedPositionA = false, pressedPositionExtra = [], pressedCCTA = false, pressedCCTExtra = [], pressedRSTA = false, pressedRSTExtra = [] }) {
   const trialKey = state.round;
   if ((state.scoredTrialKeys || []).includes(trialKey)) return state;
 
@@ -1207,6 +1244,10 @@ export function processResponses(state, { pressedA, pressedExtra = [], pressedPo
   const nextExtraCCTCR = [...(state.extraCCTCorrectRejections || [])];
   const nextExtraLureFA = [...(state.extraLureFalseAlarms || [])];
   const nextExtraLureCR = [...(state.extraLureCorrectRejections || [])];
+  const nextExtraRSTHits = [...(state.extraRSTHits || [])];
+  const nextExtraRSTMisses = [...(state.extraRSTMisses || [])];
+  const nextExtraRSTFA = [...(state.extraRSTFalseAlarms || [])];
+  const nextExtraRSTCR = [...(state.extraRSTCorrectRejections || [])];
   (state.extraIsTargets || []).forEach((isTarget, i) => {
     const pressed = pressedExtra[i] || false;
     if (isTarget && pressed) nextExtraHits[i] = (nextExtraHits[i] || 0) + 1;
@@ -1283,6 +1324,29 @@ export function processResponses(state, { pressedA, pressedExtra = [], pressedPo
         nBackValue: state.currentEffectiveN ?? state.nLevel,
       });
     }
+
+    if (hasRSTOverlay && state.extraCurrentStimuli?.[i]?._rst?.hasConclusion) {
+      const rstTarget = (state.extraRSTTargets || [])[i] || false;
+      const rstPressed = pressedRSTExtra[i] || false;
+      if (rstTarget && rstPressed) nextExtraRSTHits[i] = (nextExtraRSTHits[i] || 0) + 1;
+      else if (rstTarget && !rstPressed) nextExtraRSTMisses[i] = (nextExtraRSTMisses[i] || 0) + 1;
+      else if (!rstTarget && rstPressed) nextExtraRSTFA[i] = (nextExtraRSTFA[i] || 0) + 1;
+      else nextExtraRSTCR[i] = (nextExtraRSTCR[i] || 0) + 1;
+
+      trialRecords.push({
+        trialNumber: state.round,
+        streamLabel: String.fromCharCode(66 + i),
+        relationship: state.extraCurrentRels?.[i],
+        stimulus: state.extraCurrentStimuli?.[i],
+        trialMode: state.extraTrialModes?.[i] || 'normal',
+        isTarget: rstTarget,
+        userResponded: rstPressed,
+        correct: rstTarget === rstPressed,
+        responseType: 'rst',
+        rst: state.extraCurrentStimuli?.[i]?._rst,
+        nBackValue: state.currentEffectiveN ?? state.nLevel,
+      });
+    }
   });
   next.extraHits = nextExtraHits;
   next.extraMisses = nextExtraMisses;
@@ -1298,6 +1362,10 @@ export function processResponses(state, { pressedA, pressedExtra = [], pressedPo
   next.extraCCTMisses = nextExtraCCTMisses;
   next.extraCCTFalseAlarms = nextExtraCCTFA;
   next.extraCCTCorrectRejections = nextExtraCCTCR;
+  next.extraRSTHits = nextExtraRSTHits;
+  next.extraRSTMisses = nextExtraRSTMisses;
+  next.extraRSTFalseAlarms = nextExtraRSTFA;
+  next.extraRSTCorrectRejections = nextExtraRSTCR;
   next.allTrials = [...(state.allTrials || []), ...trialRecords];
 
   return next;

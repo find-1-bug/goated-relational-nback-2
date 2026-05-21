@@ -186,7 +186,7 @@ const CAROUSEL_SPEED_OPTIONS = [
   { label: 'Turbo', ms: 1400 },
 ];
 
-function StreamRow({ label, labelColor, borderColor, keyCode, positionKeyCode, cctKeyCode, showPositionKey, showCCTKey, onKeyChange, onPositionKeyChange, onCCTKeyChange, allStreamKeys, thisKey, thisPositionKey, thisCCTKey, onRemove, streamType, onStreamTypeChange }) {
+function StreamRow({ label, labelColor, borderColor, keyCode, positionKeyCode, cctKeyCode, rstKeyCode, showPositionKey, showCCTKey, showRSTKey, onKeyChange, onPositionKeyChange, onCCTKeyChange, onRSTKeyChange, allStreamKeys, thisKey, thisPositionKey, thisCCTKey, thisRSTKey, onRemove, streamType, onStreamTypeChange }) {
   const isCCT = streamType === 'cct';
   return (
     <div className={`rounded-lg bg-secondary/50 border ${borderColor} p-2 space-y-1.5`}>
@@ -265,6 +265,21 @@ function StreamRow({ label, labelColor, borderColor, keyCode, positionKeyCode, c
           </select>
         </div>
       )}
+      {showRSTKey && !isCCT && (
+        <div className="flex items-center gap-2">
+          <span className="text-xs font-mono text-violet-400 w-8 shrink-0">RST</span>
+          <select
+            value={rstKeyCode}
+            onChange={e => onRSTKeyChange(e.target.value)}
+            className="flex-1 bg-secondary border border-violet-500/30 rounded px-2 py-1 text-xs font-mono text-violet-300">
+            {KEY_OPTIONS.map(k => (
+              <option key={k.code} value={k.code} disabled={allStreamKeys.includes(k.code) && k.code !== thisRSTKey}>
+                {k.display}
+              </option>
+            ))}
+          </select>
+        </div>
+      )}
     </div>
   );
 }
@@ -291,10 +306,15 @@ export default function StartScreen({ onStart, suggestedN, lastSettings }) {
   const [streamACCTKey, setStreamACCTKey] = React.useState(
     lastSettings?.streamA?.cctKey || 'KeyM'
   );
+  const [streamARSTKey, setStreamARSTKey] = React.useState(
+    lastSettings?.streamA?.rstKey || 'KeyR'
+  );
   const [extraStreams, setExtraStreams] = React.useState(
     (lastSettings?.extraStreams || []).map(s => ({
       ...s,
       streamType: s.streamType || (lastSettings?.modes?.includes('cct') ? 'cct' : 'relation'),
+      rstKey: s.rstKey || 'KeyR',
+      rstKeyDisplay: s.rstKeyDisplay || 'R',
     }))
   );
 
@@ -317,6 +337,7 @@ export default function StartScreen({ onStart, suggestedN, lastSettings }) {
   });
   const alienModeActive = modes.includes('alien_cube') || modes.includes('alien_tesseract') || modes.includes('alien_square');
   const cctOverlayActive = modes.includes('cct_overlay');
+  const rstOverlayActive = modes.includes('rst_overlay');
 
   // NRINT per-session config: which attribute flags are active + whether
   // the textual legend is hidden (Grapist's "disable the words" request).
@@ -351,10 +372,12 @@ export default function StartScreen({ onStart, suggestedN, lastSettings }) {
     streamAKey,
     ...(alienModeActive ? [streamAPositionKey] : []),
     ...(cctOverlayActive && streamAType !== 'cct' ? [streamACCTKey] : []),
+    ...(rstOverlayActive ? [streamARSTKey] : []),
     ...extraStreams.flatMap(s => [
       s.key,
       ...(alienModeActive ? [s.positionKey] : []),
       ...(cctOverlayActive && (s.streamType || 'relation') !== 'cct' ? [s.cctKey] : []),
+      ...(rstOverlayActive ? [s.rstKey] : []),
     ]).filter(Boolean),
   ];
   const addStream = () => {
@@ -370,12 +393,15 @@ export default function StartScreen({ onStart, suggestedN, lastSettings }) {
     if (!available) return;
     const positionAvailable = pick();
     const cctAvailable = pick();
+    const rstAvailable = pick();
     setExtraStreams(prev => [...prev, {
       key: available.code, keyDisplay: available.display,
       positionKey: positionAvailable?.code || available.code,
       positionKeyDisplay: positionAvailable?.display || available.display,
       cctKey: cctAvailable?.code || available.code,
       cctKeyDisplay: cctAvailable?.display || available.display,
+      rstKey: rstAvailable?.code || available.code,
+      rstKeyDisplay: rstAvailable?.display || available.display,
       label: nextLabel,
     }]);
   };
@@ -396,6 +422,11 @@ export default function StartScreen({ onStart, suggestedN, lastSettings }) {
     const opt = KEY_OPTIONS.find(k => k.code === code);
     if (!opt) return;
     setExtraStreams(prev => prev.map((s, i) => i === idx ? { ...s, cctKey: opt.code, cctKeyDisplay: opt.display } : s));
+  };
+  const setStreamRSTKey = (idx, code) => {
+    const opt = KEY_OPTIONS.find(k => k.code === code);
+    if (!opt) return;
+    setExtraStreams(prev => prev.map((s, i) => i === idx ? { ...s, rstKey: opt.code, rstKeyDisplay: opt.display } : s));
   };
   const setStreamType = (idx, t) => {
     setExtraStreams(prev => prev.map((s, i) => i === idx ? { ...s, streamType: t } : s));
@@ -805,10 +836,10 @@ export default function StartScreen({ onStart, suggestedN, lastSettings }) {
             {/* Stream A */}
             <StreamRow
               label="Stream A" labelColor="text-primary" borderColor="border-primary/20"
-              keyCode={streamAKey} positionKeyCode={streamAPositionKey} cctKeyCode={streamACCTKey}
-              showPositionKey={alienModeActive} showCCTKey={cctOverlayActive}
-              onKeyChange={setStreamAKey} onPositionKeyChange={setStreamAPositionKey} onCCTKeyChange={setStreamACCTKey}
-              allStreamKeys={allStreamKeys} thisKey={streamAKey} thisPositionKey={streamAPositionKey} thisCCTKey={streamACCTKey}
+              keyCode={streamAKey} positionKeyCode={streamAPositionKey} cctKeyCode={streamACCTKey} rstKeyCode={streamARSTKey}
+              showPositionKey={alienModeActive} showCCTKey={cctOverlayActive} showRSTKey={rstOverlayActive}
+              onKeyChange={setStreamAKey} onPositionKeyChange={setStreamAPositionKey} onCCTKeyChange={setStreamACCTKey} onRSTKeyChange={setStreamARSTKey}
+              allStreamKeys={allStreamKeys} thisKey={streamAKey} thisPositionKey={streamAPositionKey} thisCCTKey={streamACCTKey} thisRSTKey={streamARSTKey}
               streamType={streamAType} onStreamTypeChange={setStreamAType}
             />
             {/* Extra streams */}
@@ -819,10 +850,10 @@ export default function StartScreen({ onStart, suggestedN, lastSettings }) {
               return (
                 <StreamRow key={idx}
                   label={`Stream ${label}`} labelColor={color} borderColor={border}
-                  keyCode={stream.key} positionKeyCode={stream.positionKey || stream.key} cctKeyCode={stream.cctKey || 'KeyM'}
-                  showPositionKey={alienModeActive} showCCTKey={cctOverlayActive}
-                  onKeyChange={code => setStreamKey(idx, code)} onPositionKeyChange={code => setStreamPositionKey(idx, code)} onCCTKeyChange={code => setStreamCCTKey(idx, code)}
-                  allStreamKeys={allStreamKeys} thisKey={stream.key} thisPositionKey={stream.positionKey} thisCCTKey={stream.cctKey}
+                  keyCode={stream.key} positionKeyCode={stream.positionKey || stream.key} cctKeyCode={stream.cctKey || 'KeyM'} rstKeyCode={stream.rstKey || 'KeyR'}
+                  showPositionKey={alienModeActive} showCCTKey={cctOverlayActive} showRSTKey={rstOverlayActive}
+                  onKeyChange={code => setStreamKey(idx, code)} onPositionKeyChange={code => setStreamPositionKey(idx, code)} onCCTKeyChange={code => setStreamCCTKey(idx, code)} onRSTKeyChange={code => setStreamRSTKey(idx, code)}
+                  allStreamKeys={allStreamKeys} thisKey={stream.key} thisPositionKey={stream.positionKey} thisCCTKey={stream.cctKey} thisRSTKey={stream.rstKey}
                   onRemove={() => removeStream(idx)}
                   streamType={stream.streamType || 'relation'} onStreamTypeChange={(t) => setStreamType(idx, t)}
                 />
@@ -1070,11 +1101,12 @@ export default function StartScreen({ onStart, suggestedN, lastSettings }) {
                 {KEY_OPTIONS.find(k => k.code === streamAKey)?.display || 'SPACE'}
               </kbd> = Stream A REL
               {alienModeActive && <>{' '}<kbd className="px-1.5 py-0.5 rounded bg-muted text-amber-400 font-semibold">{KEY_OPTIONS.find(k => k.code === streamAPositionKey)?.display || 'P'}</kbd> = Stream A POS</>}
-              {modes.includes('rst_overlay') && <>{' '}<kbd className="px-1.5 py-0.5 rounded bg-muted text-violet-400 font-semibold">R</kbd> = Stream A RST</>}
+              {modes.includes('rst_overlay') && <>{' '}<kbd className="px-1.5 py-0.5 rounded bg-muted text-violet-400 font-semibold">{KEY_OPTIONS.find(k => k.code === streamARSTKey)?.display || 'R'}</kbd> = Stream A RST</>}
               {extraStreams.map((s, i) => (
                 <span key={i}>
                   {' '}&nbsp;<kbd className="px-1.5 py-0.5 rounded bg-muted text-foreground font-semibold">{s.keyDisplay}</kbd> = Stream {STREAM_LABELS[1 + i]} REL
                   {alienModeActive && <>{' '}<kbd className="px-1.5 py-0.5 rounded bg-muted text-amber-400 font-semibold">{s.positionKeyDisplay || s.keyDisplay}</kbd> = Stream {STREAM_LABELS[1 + i]} POS</>}
+                  {modes.includes('rst_overlay') && <>{' '}<kbd className="px-1.5 py-0.5 rounded bg-muted text-violet-400 font-semibold">{s.rstKeyDisplay || 'R'}</kbd> = Stream {STREAM_LABELS[1 + i]} RST</>}
                 </span>
               ))}
 
@@ -1115,6 +1147,8 @@ export default function StartScreen({ onStart, suggestedN, lastSettings }) {
                 positionKeyDisplay: KEY_OPTIONS.find(k => k.code === streamAPositionKey)?.display || 'P',
                 cctKey: streamACCTKey,
                 cctKeyDisplay: KEY_OPTIONS.find(k => k.code === streamACCTKey)?.display || 'M',
+                rstKey: streamARSTKey,
+                rstKeyDisplay: KEY_OPTIONS.find(k => k.code === streamARSTKey)?.display || 'R',
                 streamType: streamAType,
               };
               onStart(nLevel, modes, finalPool, rounds, speedMs, { catWeights, useCustomMix, rels: selectedRels, tokenWeights, streamA: streamAWithPosition, extraStreams, streams: [streamAWithPosition, ...extraStreams], alienSettings, carouselSettings, nrintEnabledFlags, nrintHideLegend }, noobMode);

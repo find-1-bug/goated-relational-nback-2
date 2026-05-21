@@ -431,89 +431,89 @@ function renderSound(ctx, canvasW, canvasH, relationship, soundA, soundB, render
 // ── Main dispatch ──────────────────────────────────────────────────────────────
 // stimulus: {rel, wordA?, wordB?, shapeA, shapeB, colorA, colorB, renderMode} — always provided
 export function renderRelationship(ctx, canvasW, canvasH, relationship, prevVisuals, stimulus) {
+  let visuals = {};
   if (isSound(relationship)) {
-    return renderSound(ctx, canvasW, canvasH, relationship, stimulus?.soundA, stimulus?.soundB, stimulus?.renderScale || 1);
-  }
-  if (isVerbal(relationship)) {
-    return renderVerbal(ctx, canvasW, canvasH, relationship, stimulus?.wordA, stimulus?.wordB, stimulus?.renderMode, stimulus?.renderScale || 1);
-  }
+    visuals = renderSound(ctx, canvasW, canvasH, relationship, stimulus?.soundA, stimulus?.soundB, stimulus?.renderScale || 1);
+  } else if (isVerbal(relationship)) {
+    visuals = renderVerbal(ctx, canvasW, canvasH, relationship, stimulus?.wordA, stimulus?.wordB, stimulus?.renderMode, stimulus?.renderScale || 1);
+  } else {
+    visuals = getVisuals(stimulus);
+    const cx = canvasW / 2;
+    const cy = canvasH / 2;
+    const scale = Math.min(1.28, Math.min(1, Math.max(canvasH / 140, 0.5)) * (stimulus?.renderScale || 1)); // Aggressive scaling for small canvases
+    ctx.clearRect(0, 0, canvasW, canvasH);
 
-  const visuals = getVisuals(stimulus);
-  const cx = canvasW / 2;
-  const cy = canvasH / 2;
-  const scale = Math.min(1.28, Math.min(1, Math.max(canvasH / 140, 0.5)) * (stimulus?.renderScale || 1)); // Aggressive scaling for small canvases
-  ctx.clearRect(0, 0, canvasW, canvasH);
-
-  switch (relationship) {
-    case 'INSIDE':             renderInside(ctx, cx, cy, visuals, scale); break;
-    case 'OVERLAPPING':        renderOverlapping(ctx, cx, cy, visuals, scale); break;
-    case 'TOUCHING':           renderTouching(ctx, cx, cy, visuals, scale); break;
-    case 'SIZE_MISMATCH':      renderSizeMismatch(ctx, cx, cy, visuals, scale); break;
-    case 'HOLLOW_VS_SOLID':    renderHollowVsSolid(ctx, cx, cy, visuals, scale); break;
-    case 'ONE_SHARED_TRAIT':   renderOneSharedTrait(ctx, cx, cy, visuals, scale); break;
-    case 'ONE_TO_MANY':        renderOneToMany(ctx, cx, cy, canvasW, canvasH, visuals, scale); break;
-    case 'ABOVE_BELOW':        renderAboveBelow(ctx, cx, cy, visuals, scale); break;
-    case 'DIAGONAL':           renderDiagonal(ctx, cx, cy, visuals, scale); break;
-    case 'ROTATED':            renderRotated(ctx, cx, cy, visuals, scale); break;
-    case 'EQUAL_COUNT':        renderEqualCount(ctx, cx, cy, visuals, scale); break;
-    case 'TWO_TO_ONE':         renderTwoToOne(ctx, cx, cy, visuals, scale); break;
-    case 'PYRAMID':            renderPyramid(ctx, cx, cy, visuals, scale); break;
-    case 'CONNECTED':          renderConnected(ctx, cx, cy, visuals, scale); break;
-    case 'SURROUNDED':         renderSurrounded(ctx, cx, cy, visuals, scale); break;
-    case 'BETWEEN':            renderBetween(ctx, cx, cy, visuals, scale); break;
-    // NEW SPATIAL
-    case 'LEFT_RIGHT':         renderLeftRight(ctx, cx, cy, visuals, scale); break;
-    case 'STACKED':            renderStacked(ctx, cx, cy, visuals, scale); break;
-    case 'NESTED_3':           renderNested3(ctx, cx, cy, visuals, scale); break;
-    case 'MIRRORED':           renderMirrored(ctx, cx, cy, visuals, scale); break;
-    case 'SCATTERED':          renderScattered(ctx, cx, cy, canvasW, canvasH, visuals, scale); break;
-    // NEW TRAIT
-    case 'SAME_COLOR':         renderSameColor(ctx, cx, cy, visuals, scale); break;
-    case 'SAME_SHAPE':         renderSameShape(ctx, cx, cy, visuals, scale); break;
-    case 'OPPOSITE_COLORS':    renderOppositeColors(ctx, cx, cy, visuals, scale); break;
-    case 'SIZE_GRADIENT':      renderSizeGradient(ctx, cx, cy, visuals, scale); break;
-    case 'BORDER_ONLY':        renderBorderOnly(ctx, cx, cy, visuals, scale); break;
-    case 'SHADOW_COPY':        renderShadowCopy(ctx, cx, cy, visuals, scale); break;
-    case 'STRIPED':            renderStriped(ctx, cx, cy, visuals, scale); break;
-    case 'DASHED_OUTLINE':     renderDashedOutline(ctx, cx, cy, visuals, scale); break;
-    // NEW QUANT
-    case 'THREE_TO_ONE':       renderThreeToOne(ctx, cx, cy, visuals, scale); break;
-    case 'ONE_TO_FIVE':        renderOneToFive(ctx, cx, cy, canvasW, canvasH, visuals, scale); break;
-    case 'DECREASING_ROW':     renderDecreasingRow(ctx, cx, cy, visuals, scale); break;
-    case 'INCREASING_ROW':     renderIncreasingRow(ctx, cx, cy, visuals, scale); break;
-    case 'BALANCED_SCALE':     renderBalancedScale(ctx, cx, cy, visuals, scale); break;
-    // 3D relations — drawn as 2D fallbacks (used inside alien-cube/square panels
-    // and on regular streams when the canvas is non-3D)
-    case 'DEPTH_LAYERED':        renderDepthLayered(ctx, cx, cy, visuals, scale); break;
-    case 'ORBITING':             renderOrbiting(ctx, cx, cy, visuals, scale); break;
-    case 'ROTATING_PAIR':        renderRotatingPair(ctx, cx, cy, visuals, scale); break;
-    case 'NESTED_VOLUME':        renderNestedVolume(ctx, cx, cy, visuals, scale); break;
-    case 'ASCENDING_SPIRAL':     renderAscendingSpiral(ctx, cx, cy, visuals, scale); break;
-    case 'COLLIDING':            renderColliding(ctx, cx, cy, visuals, scale); break;
-    case 'REPELLING':            renderRepelling(ctx, cx, cy, visuals, scale); break;
-    case 'BOUND_BY_GRAVITY':     renderBoundByGravity(ctx, cx, cy, visuals, scale); break;
-    case 'INTERSECTING_PLANES':  renderIntersectingPlanes(ctx, cx, cy, visuals, scale); break;
-    case 'IN_FRONT_OF':          renderInFrontOf(ctx, cx, cy, visuals, scale); break;
-    case 'BEHIND':               renderBehind(ctx, cx, cy, visuals, scale); break;
-    case 'STACKED_3D':           renderStacked3D(ctx, cx, cy, visuals, scale); break;
-    case 'LEANING_AGAINST':      renderLeaningAgainst(ctx, cx, cy, visuals, scale); break;
-    case 'FLOATING_ABOVE':       renderFloatingAbove(ctx, cx, cy, visuals, scale); break;
-    case 'CASTING_SHADOW':       renderCastingShadow(ctx, cx, cy, visuals, scale); break;
-    // Complex (high-complexity composite relations)
-    case 'THREE_PAIRS_ONE_DIFFERENT': renderThreePairsOneDifferent(ctx, cx, cy, canvasW, canvasH, visuals, scale); break;
-    case 'TWO_OF_THREE_HOLLOW':       renderTwoOfThreeHollow(ctx, cx, cy, visuals, scale); break;
-    case 'ODD_COLOR_OUT':             renderOddColorOut(ctx, cx, cy, visuals, scale); break;
-    case 'ODD_SHAPE_OUT':             renderOddShapeOut(ctx, cx, cy, visuals, scale); break;
-    case 'FOUR_PAIRS_GRID':           renderFourPairsGrid(ctx, cx, cy, canvasW, canvasH, visuals, scale); break;
-    // Nonverbal RINT composite stimulus (rendered from attribute set)
-    case 'NRINT_COMPOSITE':           renderNRINTComposite(ctx, cx, cy, stimulus, scale); break;
-    // Cognitive Control Training arithmetic stim
-    case 'CCT_NUMERIC':               renderCCTNumeric(ctx, cx, cy, canvasW, canvasH, stimulus); break;
-    default:
-      // Fallback for any relation without a renderer: show the name so we never
-      // ship a blank panel again.
-      renderRelationFallback(ctx, cx, cy, canvasW, canvasH, relationship, scale);
-      break;
+    switch (relationship) {
+      case 'INSIDE':             renderInside(ctx, cx, cy, visuals, scale); break;
+      case 'OVERLAPPING':        renderOverlapping(ctx, cx, cy, visuals, scale); break;
+      case 'TOUCHING':           renderTouching(ctx, cx, cy, visuals, scale); break;
+      case 'SIZE_MISMATCH':      renderSizeMismatch(ctx, cx, cy, visuals, scale); break;
+      case 'HOLLOW_VS_SOLID':    renderHollowVsSolid(ctx, cx, cy, visuals, scale); break;
+      case 'ONE_SHARED_TRAIT':   renderOneSharedTrait(ctx, cx, cy, visuals, scale); break;
+      case 'ONE_TO_MANY':        renderOneToMany(ctx, cx, cy, canvasW, canvasH, visuals, scale); break;
+      case 'ABOVE_BELOW':        renderAboveBelow(ctx, cx, cy, visuals, scale); break;
+      case 'DIAGONAL':           renderDiagonal(ctx, cx, cy, visuals, scale); break;
+      case 'ROTATED':            renderRotated(ctx, cx, cy, visuals, scale); break;
+      case 'EQUAL_COUNT':        renderEqualCount(ctx, cx, cy, visuals, scale); break;
+      case 'TWO_TO_ONE':         renderTwoToOne(ctx, cx, cy, visuals, scale); break;
+      case 'PYRAMID':            renderPyramid(ctx, cx, cy, visuals, scale); break;
+      case 'CONNECTED':          renderConnected(ctx, cx, cy, visuals, scale); break;
+      case 'SURROUNDED':         renderSurrounded(ctx, cx, cy, visuals, scale); break;
+      case 'BETWEEN':            renderBetween(ctx, cx, cy, visuals, scale); break;
+      // NEW SPATIAL
+      case 'LEFT_RIGHT':         renderLeftRight(ctx, cx, cy, visuals, scale); break;
+      case 'STACKED':            renderStacked(ctx, cx, cy, visuals, scale); break;
+      case 'NESTED_3':           renderNested3(ctx, cx, cy, visuals, scale); break;
+      case 'MIRRORED':           renderMirrored(ctx, cx, cy, visuals, scale); break;
+      case 'SCATTERED':          renderScattered(ctx, cx, cy, canvasW, canvasH, visuals, scale); break;
+      // NEW TRAIT
+      case 'SAME_COLOR':         renderSameColor(ctx, cx, cy, visuals, scale); break;
+      case 'SAME_SHAPE':         renderSameShape(ctx, cx, cy, visuals, scale); break;
+      case 'OPPOSITE_COLORS':    renderOppositeColors(ctx, cx, cy, visuals, scale); break;
+      case 'SIZE_GRADIENT':      renderSizeGradient(ctx, cx, cy, visuals, scale); break;
+      case 'BORDER_ONLY':        renderBorderOnly(ctx, cx, cy, visuals, scale); break;
+      case 'SHADOW_COPY':        renderShadowCopy(ctx, cx, cy, visuals, scale); break;
+      case 'STRIPED':            renderStriped(ctx, cx, cy, visuals, scale); break;
+      case 'DASHED_OUTLINE':     renderDashedOutline(ctx, cx, cy, visuals, scale); break;
+      // NEW QUANT
+      case 'THREE_TO_ONE':       renderThreeToOne(ctx, cx, cy, visuals, scale); break;
+      case 'ONE_TO_FIVE':        renderOneToFive(ctx, cx, cy, canvasW, canvasH, visuals, scale); break;
+      case 'DECREASING_ROW':     renderDecreasingRow(ctx, cx, cy, visuals, scale); break;
+      case 'INCREASING_ROW':     renderIncreasingRow(ctx, cx, cy, visuals, scale); break;
+      case 'BALANCED_SCALE':     renderBalancedScale(ctx, cx, cy, visuals, scale); break;
+      // 3D relations — drawn as 2D fallbacks (used inside alien-cube/square panels
+      // and on regular streams when the canvas is non-3D)
+      case 'DEPTH_LAYERED':        renderDepthLayered(ctx, cx, cy, visuals, scale); break;
+      case 'ORBITING':             renderOrbiting(ctx, cx, cy, visuals, scale); break;
+      case 'ROTATING_PAIR':        renderRotatingPair(ctx, cx, cy, visuals, scale); break;
+      case 'NESTED_VOLUME':        renderNestedVolume(ctx, cx, cy, visuals, scale); break;
+      case 'ASCENDING_SPIRAL':     renderAscendingSpiral(ctx, cx, cy, visuals, scale); break;
+      case 'COLLIDING':            renderColliding(ctx, cx, cy, visuals, scale); break;
+      case 'REPELLING':            renderRepelling(ctx, cx, cy, visuals, scale); break;
+      case 'BOUND_BY_GRAVITY':     renderBoundByGravity(ctx, cx, cy, visuals, scale); break;
+      case 'INTERSECTING_PLANES':  renderIntersectingPlanes(ctx, cx, cy, visuals, scale); break;
+      case 'IN_FRONT_OF':          renderInFrontOf(ctx, cx, cy, visuals, scale); break;
+      case 'BEHIND':               renderBehind(ctx, cx, cy, visuals, scale); break;
+      case 'STACKED_3D':           renderStacked3D(ctx, cx, cy, visuals, scale); break;
+      case 'LEANING_AGAINST':      renderLeaningAgainst(ctx, cx, cy, visuals, scale); break;
+      case 'FLOATING_ABOVE':       renderFloatingAbove(ctx, cx, cy, visuals, scale); break;
+      case 'CASTING_SHADOW':       renderCastingShadow(ctx, cx, cy, visuals, scale); break;
+      // Complex (high-complexity composite relations)
+      case 'THREE_PAIRS_ONE_DIFFERENT': renderThreePairsOneDifferent(ctx, cx, cy, canvasW, canvasH, visuals, scale); break;
+      case 'TWO_OF_THREE_HOLLOW':       renderTwoOfThreeHollow(ctx, cx, cy, visuals, scale); break;
+      case 'ODD_COLOR_OUT':             renderOddColorOut(ctx, cx, cy, visuals, scale); break;
+      case 'ODD_SHAPE_OUT':             renderOddShapeOut(ctx, cx, cy, visuals, scale); break;
+      case 'FOUR_PAIRS_GRID':           renderFourPairsGrid(ctx, cx, cy, canvasW, canvasH, visuals, scale); break;
+      // Nonverbal RINT composite stimulus (rendered from attribute set)
+      case 'NRINT_COMPOSITE':           renderNRINTComposite(ctx, cx, cy, stimulus, scale); break;
+      // Cognitive Control Training arithmetic stim
+      case 'CCT_NUMERIC':               renderCCTNumeric(ctx, cx, cy, canvasW, canvasH, stimulus); break;
+      default:
+        // Fallback for any relation without a renderer: show the name so we never
+        // ship a blank panel again.
+        renderRelationFallback(ctx, cx, cy, canvasW, canvasH, relationship, scale);
+        break;
+    }
   }
 
   // RINT entity labels — when the engine generated this stim through the

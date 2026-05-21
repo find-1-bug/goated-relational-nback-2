@@ -29,7 +29,7 @@ function lureStats(lureFA, lureCR) {
 export function calculateResults(state) {
   const A = streamStats(state.hitsA, state.missesA, state.falseAlarmsA, state.correctRejectionsA);
   const luresA = lureStats(state.lureFalseAlarmsA, state.lureCorrectRejectionsA);
-  const positionA = (state.modes?.includes('alien_cube') || state.modes?.includes('alien_square'))
+  const positionA = (state.modes?.includes('alien_cube') || state.modes?.includes('alien_square') || state.modes?.includes('alien_tesseract'))
     ? streamStats(state.positionHitsA || 0, state.positionMissesA || 0, state.positionFalseAlarmsA || 0, state.positionCorrectRejectionsA || 0)
     : null;
   const cctA = state.modes?.includes('cct_overlay')
@@ -70,16 +70,26 @@ export function calculateResults(state) {
     )
   ) : [];
 
+  const extraRST = rstA ? (state.extraRSTHits || []).map((h, i) =>
+    streamStats(
+      h || 0,
+      (state.extraRSTMisses || [])[i] || 0,
+      (state.extraRSTFalseAlarms || [])[i] || 0,
+      (state.extraRSTCorrectRejections || [])[i] || 0
+    )
+  ) : [];
+
   const allStreamsStats = [A, ...extra,
     ...(positionA ? [positionA, ...extraPosition] : []),
-    ...(cctA ? [cctA, ...extraCCT] : [])];
+    ...(cctA ? [cctA, ...extraCCT] : []),
+    ...(rstA ? [rstA, ...extraRST] : [])];
   const allHits = allStreamsStats.reduce((s, x) => s + x.hits, 0);
   const allMisses = allStreamsStats.reduce((s, x) => s + x.misses, 0);
   const allFA = allStreamsStats.reduce((s, x) => s + x.falseAlarms, 0);
   const allCR = allStreamsStats.reduce((s, x) => s + x.correctRejections, 0);
   const overall = streamStats(allHits, allMisses, allFA, allCR);
 
-  return { A, positionA, cctA, rstA, luresA, extra, extraPosition, extraCCT, extraLures, overall };
+  return { A, positionA, cctA, rstA, luresA, extra, extraPosition, extraCCT, extraRST, extraLures, overall };
 }
 
 export function computeNextNLevel(currentN, results) {

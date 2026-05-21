@@ -117,6 +117,7 @@ export default function ResultsScreen({ gameState, onRestart, onBack }) {
               <StreamResults title={`Stream ${String.fromCharCode(66 + i)} · Relation`} stats={s} color={['text-accent','text-chart-3','text-chart-4','text-chart-5'][i] || 'text-accent'} />
               {(results.extraPosition || [])[i] && <StreamResults title={`Stream ${String.fromCharCode(66 + i)} · Position`} stats={(results.extraPosition || [])[i]} color="text-amber-400" />}
               {(results.extraCCT || [])[i] && <StreamResults title={`Stream ${String.fromCharCode(66 + i)} · CCT`} stats={(results.extraCCT || [])[i]} color="text-rose-400" />}
+              {(results.extraRST || [])[i] && (results.extraRST || [])[i].total > 0 && <StreamResults title={`Stream ${String.fromCharCode(66 + i)} · RST (Reasoning)`} stats={(results.extraRST || [])[i]} color="text-violet-400" />}
               {(results.extraLures || [])[i] && <LureResults stats={(results.extraLures || [])[i]} />}
             </React.Fragment>
           ))}

@@ -155,8 +155,7 @@ export default function GameScreen({ nLevel, modes, relationshipPool, totalRound
   const respondedRefs = useRef(allStreams.map(() => false));
   const positionRespondedRefs = useRef(allStreams.map(() => false));
   const cctRespondedRefs = useRef(allStreams.map(() => false));
-  // RST lives on stream A only — single ref.
-  const rstRespondedRef = useRef(false);
+  const rstRespondedRefs = useRef(allStreams.map(() => false));
   const phaseTimerRef = useRef([]);
   const gameStateRef = useRef(gameState);
   const phaseRef = useRef(phase);
@@ -211,7 +210,7 @@ export default function GameScreen({ nLevel, modes, relationshipPool, totalRound
     respondedRefs.current = allStreams.map(() => false);
     positionRespondedRefs.current = allStreams.map(() => false);
     cctRespondedRefs.current = allStreams.map(() => false);
-    rstRespondedRef.current = false;
+    rstRespondedRefs.current = allStreams.map(() => false);
     setClearCanvas(false);
     setActiveSlide(0);
     setResponsesUnlocked(false);
@@ -270,9 +269,10 @@ export default function GameScreen({ nLevel, modes, relationshipPool, totalRound
       const pressedPositionExtra = positionRespondedRefs.current.slice(1);
       const pressedCCTA = cctRespondedRefs.current[0];
       const pressedCCTExtra = cctRespondedRefs.current.slice(1);
-      const pressedRSTA = rstRespondedRef.current;
+      const pressedRSTA = rstRespondedRefs.current[0];
+      const pressedRSTExtra = rstRespondedRefs.current.slice(1);
 
-      const updatedState = processResponses(state, { pressedA, pressedExtra, pressedPositionA, pressedPositionExtra, pressedCCTA, pressedCCTExtra, pressedRSTA });
+      const updatedState = processResponses(state, { pressedA, pressedExtra, pressedPositionA, pressedPositionExtra, pressedCCTA, pressedCCTExtra, pressedRSTA, pressedRSTExtra });
       progressStateRef.current = updatedState;
       setGameState(updatedState);
       setPhase('feedback');
@@ -304,13 +304,14 @@ export default function GameScreen({ nLevel, modes, relationshipPool, totalRound
     const pressedPositionExtra = positionRespondedRefs.current.slice(1);
     const pressedCCTA = cctRespondedRefs.current[0];
     const pressedCCTExtra = cctRespondedRefs.current.slice(1);
-    const pressedRSTA = rstRespondedRef.current;
+    const pressedRSTA = rstRespondedRefs.current[0];
+    const pressedRSTExtra = rstRespondedRefs.current.slice(1);
 
     if (noobMode) {
       const alreadyScored = (progressStateRef.current?.scoredTrialKeys || []).includes(state.round);
       const progressState = alreadyScored
         ? progressStateRef.current
-        : processResponses(state, { pressedA, pressedExtra, pressedPositionA, pressedPositionExtra, pressedCCTA, pressedCCTExtra, pressedRSTA });
+        : processResponses(state, { pressedA, pressedExtra, pressedPositionA, pressedPositionExtra, pressedCCTA, pressedCCTExtra, pressedRSTA, pressedRSTExtra });
 
       progressStateRef.current = progressState;
 
@@ -327,6 +328,7 @@ export default function GameScreen({ nLevel, modes, relationshipPool, totalRound
         respondedRefs.current = [restoredState.respondedA, ...(restoredState.extraResponded || [])];
         positionRespondedRefs.current = [restoredState.positionRespondedA, ...(restoredState.extraPositionResponded || [])];
         cctRespondedRefs.current = [restoredState.cctRespondedA, ...(restoredState.extraCCTResponded || [])];
+        rstRespondedRefs.current = [restoredState.rstRespondedA, ...(restoredState.extraRSTResponded || [])];
         setClearCanvas(false);
         setPhase('stimulus');
       } else {
@@ -336,7 +338,7 @@ export default function GameScreen({ nLevel, modes, relationshipPool, totalRound
       return;
     }
 
-    const updatedState = processResponses(state, { pressedA, pressedExtra, pressedPositionA, pressedPositionExtra, pressedCCTA, pressedCCTExtra, pressedRSTA });
+    const updatedState = processResponses(state, { pressedA, pressedExtra, pressedPositionA, pressedPositionExtra, pressedCCTA, pressedCCTExtra, pressedRSTA, pressedRSTExtra });
     progressStateRef.current = updatedState;
 
     if (updatedState.round >= updatedState.totalRounds) {
@@ -356,6 +358,8 @@ export default function GameScreen({ nLevel, modes, relationshipPool, totalRound
       setGameState(restoredState);
       respondedRefs.current = [restoredState.respondedA, ...(restoredState.extraResponded || [])];
       positionRespondedRefs.current = [restoredState.positionRespondedA, ...(restoredState.extraPositionResponded || [])];
+      cctRespondedRefs.current = [restoredState.cctRespondedA, ...(restoredState.extraCCTResponded || [])];
+      rstRespondedRefs.current = [restoredState.rstRespondedA, ...(restoredState.extraRSTResponded || [])];
       setClearCanvas(false);
       setPhase('stimulus');
     }
@@ -373,12 +377,18 @@ export default function GameScreen({ nLevel, modes, relationshipPool, totalRound
     if (!(phaseRef.current === 'stimulus')) return;
     if (!responsesUnlocked) return;
     if (noobMode && (progressStateRef.current?.scoredTrialKeys || []).includes(gameStateRef.current?.round)) return;
-    // RST is stream-A only; ignore non-A.
     if (type === 'rst') {
-      if (idx !== 0) return;
-      if (rstRespondedRef.current) return;
-      rstRespondedRef.current = true;
-      setGameState(prev => ({ ...prev, rstRespondedA: true }));
+      if (rstRespondedRefs.current[idx]) return;
+      rstRespondedRefs.current[idx] = true;
+      if (idx === 0) {
+        setGameState(prev => ({ ...prev, rstRespondedA: true }));
+      } else {
+        setGameState(prev => {
+          const next = [...(prev.extraRSTResponded || [])];
+          next[idx - 1] = true;
+          return { ...prev, extraRSTResponded: next };
+        });
+      }
       return;
     }
     const refs = type === 'position' ? positionRespondedRefs
@@ -423,10 +433,13 @@ export default function GameScreen({ nLevel, modes, relationshipPool, totalRound
           markResponse(idx, 'cct');
         }
       });
-      // RST is stream-A only.
-      if (hasRSTOverlay && e.code === (allStreams[0]?.rstKey || 'KeyR')) {
-        e.preventDefault();
-        markResponse(0, 'rst');
+      if (hasRSTOverlay) {
+        allStreams.forEach((stream, idx) => {
+          if (e.code === (stream.rstKey || 'KeyR')) {
+            e.preventDefault();
+            markResponse(idx, 'rst');
+          }
+        });
       }
     };
     window.addEventListener('keydown', handleKey);
@@ -452,6 +465,7 @@ export default function GameScreen({ nLevel, modes, relationshipPool, totalRound
       responded: (gameState.extraResponded || [])[i],
       positionResponded: (gameState.extraPositionResponded || [])[i],
       cctResponded: (gameState.extraCCTResponded || [])[i],
+      rstResponded: (gameState.extraRSTResponded || [])[i],
     })),
   ];
   const audioStreamIndexes = gameState.audioStreamIndexes || [];
@@ -612,7 +626,7 @@ export default function GameScreen({ nLevel, modes, relationshipPool, totalRound
                 {/* RST top banner — mirrors the CCT banner. Stream A only.
                     One premise per trial; from trial N onwards a candidate
                     conclusion is also shown. Player presses R if valid. */}
-                {hasRSTOverlay && idx === 0 && phase === 'stimulus' && !clearCanvas && s.stimulus?._rst && (
+                {hasRSTOverlay && phase === 'stimulus' && !clearCanvas && s.stimulus?._rst && (
                   <div className={`absolute ${hasCCTOverlay && s.stimulus?.cctNumber != null ? 'top-14' : 'top-1.5'} left-1/2 -translate-x-1/2 pointer-events-none flex items-center gap-1.5 sm:gap-2 px-2.5 sm:px-3.5 py-1 sm:py-1.5 rounded-xl bg-background/85 backdrop-blur-sm border-2 border-violet-400/70 shadow-[0_0_28px_rgba(167,139,250,0.45)] font-mono z-10 whitespace-nowrap`}>
                     <span className="text-[10px] sm:text-xs text-violet-300 uppercase tracking-widest font-bold">RST</span>
                     {s.stimulus._rst.premise?.b ? (
@@ -660,10 +674,10 @@ export default function GameScreen({ nLevel, modes, relationshipPool, totalRound
                         <span className="text-rose-300">{STREAM_LABELS[idx]} CCT</span>
                       </div>
                     )}
-                    {s.rstResponded && idx === 0 && (
+                    {s.rstResponded && (
                       <div className="px-2.5 py-1 rounded-md text-xs font-mono font-semibold tracking-wider bg-violet-500/25 border border-violet-400 shadow-[0_0_22px_rgba(167,139,250,0.55)] flex items-center gap-1">
                         <span className="text-violet-300">✓</span>
-                        <span className="text-violet-300">A RST</span>
+                        <span className="text-violet-300">{STREAM_LABELS[idx]} RST</span>
                       </div>
                     )}
                   </div>

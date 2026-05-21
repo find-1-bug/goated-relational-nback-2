@@ -22,6 +22,8 @@ const MODE_CASES = [
   { label: 'Alien Cube + Binary', modes: ['alien_cube', 'binary_logic'], minN: 2, needsRintPool: true },
   { label: 'Alien Square', modes: ['alien_square'] },
   { label: 'Alien Square + Type', modes: ['alien_square', 'type_nback'] },
+  { label: 'Alien Tesseract', modes: ['alien_tesseract'] },
+  { label: 'Alien Tesseract + Type', modes: ['alien_tesseract', 'type_nback'] },
   { label: 'Type N-Back', modes: ['type_nback'] },
   { label: 'RINT', modes: ['rint'], minN: 2, needsRintPool: true },
   { label: 'Mixed N-Back', modes: ['mixed_nback'] },
@@ -145,12 +147,23 @@ function assertSquarePosition(position, label) {
   });
 }
 
+function assertTesseractPosition(position, label) {
+  assertCondition(!!position, `${label} tesseract position missing`);
+  ['x', 'y', 'z', 'w'].forEach(axis => {
+    assertCondition(Number.isInteger(position[axis]), `${label} tesseract ${axis} coordinate must be an integer`);
+    assertCondition(position[axis] >= -1 && position[axis] <= 1, `${label} tesseract ${axis} coordinate out of range`);
+  });
+}
+
 function assertAlienState(state) {
   const isSquare = state.modes?.includes('alien_square');
+  const isTesseract = state.modes?.includes('alien_tesseract');
   if (isSquare) assertSquarePosition(state.currentStimulusA?.squarePosition, 'Stream A');
+  else if (isTesseract) assertTesseractPosition(state.currentStimulusA?.tesseractPosition, 'Stream A');
   else assertCubePosition(state.currentStimulusA?.cubePosition, 'Stream A');
   (state.extraCurrentStimuli || []).forEach((stimulus, index) => {
     if (isSquare) assertSquarePosition(stimulus?.squarePosition, `Stream ${String.fromCharCode(66 + index)}`);
+    else if (isTesseract) assertTesseractPosition(stimulus?.tesseractPosition, `Stream ${String.fromCharCode(66 + index)}`);
     else assertCubePosition(stimulus?.cubePosition, `Stream ${String.fromCharCode(66 + index)}`);
   });
 }
@@ -166,7 +179,7 @@ function assertTrialShape(trial) {
 }
 
 function assertScoredInvariants(state, expectedStreams, expectedRound) {
-  const recordMultiplier = state.modes?.includes('alien_cube') || state.modes?.includes('alien_square') ? 2 : 1;
+  const recordMultiplier = state.modes?.includes('alien_cube') || state.modes?.includes('alien_square') || state.modes?.includes('alien_tesseract') ? 2 : 1;
   const expectedTrialRecords = expectedRound * expectedStreams * recordMultiplier;
   const scoredKeys = state.scoredTrialKeys || [];
   const uniqueKeys = new Set(scoredKeys);
@@ -224,7 +237,7 @@ function simulateTimedCase(testCase) {
 
     state = advanceRound(state, stimulus);
     assertStateInvariants(state, streamCount, i + 1);
-    if (modes.includes('alien_cube') || modes.includes('alien_square')) assertAlienState(state);
+    if (modes.includes('alien_cube') || modes.includes('alien_square') || modes.includes('alien_tesseract')) assertAlienState(state);
 
     const responses = makeResponses(i, streamCount);
     state = processResponses(state, responses);
@@ -233,7 +246,7 @@ function simulateTimedCase(testCase) {
   }
 
   const results = calculateResults(state);
-  const multiplier = modes.includes('alien_cube') || modes.includes('alien_square') ? 2 : 1;
+  const multiplier = modes.includes('alien_cube') || modes.includes('alien_square') || modes.includes('alien_tesseract') ? 2 : 1;
   assertCondition(results.overall.total === totalRounds * streamCount * multiplier, 'final result total mismatch');
   return results;
 }
@@ -263,7 +276,7 @@ function simulateNoobCase(testCase) {
     if (i >= 1) {
       const historical = cloneState(trialStates[i]);
       assertStateInvariants(historical, streamCount, i);
-      if (modes.includes('alien_cube') || modes.includes('alien_square')) assertAlienState(historical);
+      if (modes.includes('alien_cube') || modes.includes('alien_square') || modes.includes('alien_tesseract')) assertAlienState(historical);
       const editedHistorical = processResponses(historical, {
         pressedA: !responses.pressedA,
         pressedExtra: responses.pressedExtra.map(v => !v),
@@ -276,7 +289,7 @@ function simulateNoobCase(testCase) {
   }
 
   const results = calculateResults(progressState);
-  const multiplier = modes.includes('alien_cube') || modes.includes('alien_square') ? 2 : 1;
+  const multiplier = modes.includes('alien_cube') || modes.includes('alien_square') || modes.includes('alien_tesseract') ? 2 : 1;
   assertCondition(results.overall.total === totalRounds * streamCount * multiplier, 'Noob final result total mismatch');
   return results;
 }
