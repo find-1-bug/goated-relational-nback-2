@@ -676,16 +676,31 @@ export default function StartScreen({ onStart, suggestedN, lastSettings }) {
             onClick={() => {
               const p = COACH_PHASES[coachState.phaseIndex || 0] || COACH_PHASES[0];
               setNLevel(p.nLevel);
-              setRounds(Math.max(25, p.rounds));
+              setRounds(p.rounds);
               setSpeedMs(p.speedMs);
-              setModes(['adaptive_closed_loop', 'timer_panic', 'lures', 'negation', 'rst_overlay']);
+              setModes(p.modes);
+              if (p.streamsCount === 2) {
+                setExtraStreams([{
+                  key: 'KeyF',
+                  keyDisplay: 'F',
+                  positionKey: 'KeyK',
+                  positionKeyDisplay: 'K',
+                  cctKey: 'KeyC',
+                  cctKeyDisplay: 'C',
+                  rstKey: 'KeyR',
+                  rstKeyDisplay: 'R',
+                  streamType: 'relation'
+                }]);
+              } else {
+                setExtraStreams([]);
+              }
               setEnabledCats(prev => {
                 const copy = new Set(prev);
                 copy.add('VERBAL');
                 copy.add('SOUND');
                 return copy;
               });
-              alert(`🚀 PERSONALIZED WARM-UP LOADED!\n\nParameters customized to your current ability:\nN=${p.nLevel} (Base), ${Math.max(25, p.rounds)} Rounds, ${p.speedMs}ms\n\nModes: Closed-Loop Adaptivity, Timer Panic, Lures, Negation, RST reasoning.\nCategories: Verbal & Sound enabled.\n\nPress 'Manual Mode' or 'Coach Autopilot' below to begin!`);
+              alert(`🚀 PERSONALIZED WARM-UP LOADED!\n\nParameters customized to your current Coach Level (Level ${(coachState.phaseIndex || 0) + 1}):\nN=${p.nLevel} (Base), ${p.rounds} Rounds, ${p.speedMs}ms\n\nModes: ${p.modes.length > 0 ? p.modes.map(m => m.replace(/_/g, ' ')).join(', ') : 'normal relation matching'}.\nCategories: Verbal & Sound enabled.\n\nPress 'Manual Mode' or 'Coach Autopilot' below to begin!`);
             }}
             className="flex-1 h-9 bg-gradient-to-r from-amber-600 to-fuchsia-600 hover:from-amber-500 hover:to-fuchsia-500 text-white font-mono text-xs gap-1.5 shadow-lg shadow-fuchsia-600/20"
           >
