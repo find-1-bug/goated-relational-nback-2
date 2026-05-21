@@ -445,7 +445,7 @@ export default function StartScreen({ onStart, suggestedN, lastSettings }) {
 
   const loadLedgerEntries = () => {
     try {
-      const ledger = JSON.parse(localStorage.getItem('goated_mindware_ledger') || '[]');
+      const ledger = JSON.parse(localStorage.getItem('goated_transfer_ledger') || '[]');
       setLedgerEntries(ledger.reverse());
     } catch (e) {
       console.error(e);
@@ -650,7 +650,7 @@ export default function StartScreen({ onStart, suggestedN, lastSettings }) {
             onClick={() => setShowLedger(true)}
             className="flex-1 h-9 border-primary/30 text-primary hover:bg-primary/5 font-mono text-xs gap-1.5"
           >
-            <TrendingUp className="w-3.5 h-3.5" /> Mindware Ledger
+            <TrendingUp className="w-3.5 h-3.5" /> Transfer Ledger
           </Button>
         </div>
 
@@ -1209,7 +1209,7 @@ export default function StartScreen({ onStart, suggestedN, lastSettings }) {
           </Button>
         </div>
 
-        {/* Mindware Ledger Drawer */}
+        {/* Transfer Ledger Drawer */}
         <AnimatePresence>
           {showLedger && (
             <motion.div
@@ -1222,7 +1222,7 @@ export default function StartScreen({ onStart, suggestedN, lastSettings }) {
                 <div className="flex items-center justify-between border-b border-border pb-3">
                   <div className="flex items-center gap-2">
                     <TrendingUp className="w-5 h-5 text-fuchsia-400 animate-pulse" />
-                    <h3 className="font-mono font-bold text-lg text-foreground">Mindware Ledger</h3>
+                    <h3 className="font-mono font-bold text-lg text-foreground">Transfer Ledger</h3>
                   </div>
                   <button 
                     onClick={() => setShowLedger(false)}
@@ -1239,7 +1239,7 @@ export default function StartScreen({ onStart, suggestedN, lastSettings }) {
                 <div className="space-y-3">
                   {ledgerEntries.length === 0 ? (
                     <div className="text-center py-12 border border-dashed border-border rounded-xl text-muted-foreground font-mono text-xs">
-                      No mindware logged yet. Finish a training session to write your first entry!
+                      No transfer operators logged yet. Finish a training session to write your first entry!
                     </div>
                   ) : (
                     ledgerEntries.map(entry => (
@@ -1258,9 +1258,9 @@ export default function StartScreen({ onStart, suggestedN, lastSettings }) {
                           <button
                             onClick={() => {
                               try {
-                                const currentLedger = JSON.parse(localStorage.getItem('goated_mindware_ledger') || '[]');
+                                const currentLedger = JSON.parse(localStorage.getItem('goated_transfer_ledger') || '[]');
                                 const filtered = currentLedger.filter(item => item.id !== entry.id);
-                                localStorage.setItem('goated_mindware_ledger', JSON.stringify(filtered));
+                                localStorage.setItem('goated_transfer_ledger', JSON.stringify(filtered));
                                 loadLedgerEntries();
                               } catch (e) {
                                 console.error(e);

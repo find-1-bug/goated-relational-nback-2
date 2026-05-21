@@ -579,7 +579,7 @@ export default function GameScreen({ nLevel, modes, relationshipPool, totalRound
 
       {/* Dynamic Closed Loop Alert */}
       {modes.includes('adaptive_closed_loop') && gameState.adaptiveMessage && (
-        <div className="absolute top-16 left-1/2 -translate-x-1/2 z-50 pointer-events-none">
+        <div className="absolute bottom-24 left-1/2 -translate-x-1/2 z-50 pointer-events-none">
           <div className="px-4 py-2 rounded-full border border-primary/30 bg-background/90 backdrop-blur-md shadow-lg shadow-primary/20 text-primary font-mono text-xs font-semibold animate-pulse flex items-center gap-2">
             <span className="w-2 h-2 rounded-full bg-primary animate-ping" />
             {gameState.adaptiveMessage}

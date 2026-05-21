@@ -59,8 +59,8 @@ export default function ResultsScreen({ gameState, onRestart, onBack }) {
   const nChanged = nextN !== gameState.nLevel;
 
   const [selectedZone, setSelectedZone] = React.useState(null);
-  const [mindwareText, setMindwareText] = React.useState('');
-  const [savedMindware, setSavedMindware] = React.useState(false);
+  const [transferText, setTransferText] = React.useState('');
+  const [savedTransfer, setSavedTransfer] = React.useState(false);
 
   const saveZoneCheckIn = (zone, accuracy, nLevel) => {
     try {
@@ -77,9 +77,9 @@ export default function ResultsScreen({ gameState, onRestart, onBack }) {
     }
   };
 
-  const saveMindwareCard = (text, zone, accuracy, nLevel) => {
+  const saveTransferCard = (text, zone, accuracy, nLevel) => {
     try {
-      const ledger = JSON.parse(localStorage.getItem('goated_mindware_ledger') || '[]');
+      const ledger = JSON.parse(localStorage.getItem('goated_transfer_ledger') || '[]');
       ledger.push({
         id: Math.random().toString(36).substring(2, 9),
         timestamp: new Date().toISOString(),
@@ -88,7 +88,7 @@ export default function ResultsScreen({ gameState, onRestart, onBack }) {
         accuracy,
         nLevel,
       });
-      localStorage.setItem('goated_mindware_ledger', JSON.stringify(ledger));
+      localStorage.setItem('goated_transfer_ledger', JSON.stringify(ledger));
     } catch (e) {
       console.error(e);
     }
@@ -175,36 +175,36 @@ export default function ResultsScreen({ gameState, onRestart, onBack }) {
           </div>
         </div>
 
-        {/* Mindware Operator Far-Transfer Prompt */}
+        {/* Transfer Operator Far-Transfer Prompt */}
         <div className="bg-secondary/20 rounded-xl p-4 border border-border/60 space-y-3">
           <div className="text-xs font-mono uppercase tracking-widest font-semibold text-fuchsia-400 flex items-center gap-1.5">
-            <TrendingUp className="w-3.5 h-3.5" /> Mindware Operator Card
+            <TrendingUp className="w-3.5 h-3.5" /> Transfer Operator Card
           </div>
           <p className="text-[11px] font-mono text-muted-foreground leading-normal">
-            Crystallize this raw relational focus ($G_f$) into portable real-world mindware ($G_c$):
+            Crystallize this raw relational focus ($G_f$) into portable real-world cognitive transfer ($G_c$):
           </p>
           
-          {savedMindware ? (
+          {savedTransfer ? (
             <div className="p-3 rounded-lg border border-emerald-500/30 bg-emerald-500/10 text-emerald-400 font-mono text-xs text-center animate-pulse">
-              ✓ Mindware operator logged in your Ledger!
+              ✓ Transfer operator logged in your Ledger!
             </div>
           ) : (
             <div className="space-y-2">
               <textarea
-                value={mindwareText}
-                onChange={e => setMindwareText(e.target.value)}
+                value={transferText}
+                onChange={e => setTransferText(e.target.value)}
                 placeholder="E.g., I will apply this deep auditory relational tracking to isolate key requirements in my upcoming client sync today."
                 className="w-full h-20 bg-background/50 border border-border rounded-lg p-2 font-mono text-xs text-foreground placeholder:text-muted-foreground/50 focus:outline-none focus:ring-1 focus:ring-primary focus:border-primary resize-none"
               />
               <Button
-                disabled={!mindwareText.trim()}
+                disabled={!transferText.trim()}
                 onClick={() => {
-                  saveMindwareCard(mindwareText, selectedZone, results.overall.accuracy, gameState.nLevel);
-                  setSavedMindware(true);
+                  saveTransferCard(transferText, selectedZone, results.overall.accuracy, gameState.nLevel);
+                  setSavedTransfer(true);
                 }}
                 className="w-full font-mono text-xs py-1 h-8 bg-fuchsia-600 hover:bg-fuchsia-500 text-white disabled:opacity-50"
               >
-                Log to Mindware Ledger
+                Log to Transfer Ledger
               </Button>
             </div>
           )}

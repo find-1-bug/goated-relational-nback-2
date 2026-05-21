@@ -273,6 +273,32 @@ export default function Tutorial() {
           </div>
         </div>
 
+        {/* Cognitive Forge v2.0 Upgrades */}
+        <div className="rounded-lg bg-gradient-to-r from-fuchsia-500/10 to-amber-500/10 border border-fuchsia-500/30 p-6 mb-8">
+          <h2 className="text-lg font-mono font-semibold text-fuchsia-400 mb-3 flex items-center gap-2">
+            <Zap className="w-5 h-5 text-fuchsia-400 animate-pulse" /> Cognitive Forge Upgrade Features
+          </h2>
+          <div className="space-y-4 text-sm font-mono text-foreground/90">
+            <div>
+              <span className="text-fuchsia-300 font-semibold">Closed-Loop Adaptivity:</span> 
+              Dynamically scales speeds, lure rates, and negation levels continuously inside a single session based on your real-time accuracy over a 4-trial sliding window. Relational accuracy &ge; 80% speeds up stimulus duration and spikes lure/negation difficulty; drop below 60% accuracy and the speed relaxes, easing complexity.
+            </div>
+            <div>
+              <span className="text-fuchsia-300 font-semibold">Stress &amp; Arousal Distractors:</span>
+              Engage high-intensity stressors to build cognitive stress resilience:
+              <ul className="list-disc pl-5 mt-1 space-y-1 text-muted-foreground">
+                <li><strong className="text-foreground">Visual Glitch Engine:</strong> Injects random GPU-accelerated visual distortions and skewing into cards to test focal isolation.</li>
+                <li><strong className="text-foreground">Screen Shake Distractor:</strong> Shakes the structural canvas at random points to challenge focus.</li>
+                <li><strong className="text-foreground">Timer Panic Heatbar:</strong> Displays a countdown bar corresponding to the active trial duration, shifting colors from emerald to red as time expires to create visual urgency.</li>
+              </ul>
+            </div>
+            <div>
+              <span className="text-fuchsia-300 font-semibold">Transfer Ledger &amp; Daily Warm-up:</span>
+              Use the <strong className="text-foreground">Daily Warm-up</strong> preset for an instantaneous peak challenge (N=3, 30 rounds, ultra-fast 2000ms speed, with Closed-Loop, Lures, Negation, Timer Panic, and RST reasoning all active). At session completion, record your subjective metacognitive arousal state (Too Hot, In Band, Too Cold, or Shaky) and log real-world cognitive transfer operators directly to your persistent <strong className="text-foreground">Transfer Ledger</strong>.
+            </div>
+          </div>
+        </div>
+
         {/* Accuracy Tips */}
         <div className="rounded-lg bg-accent/10 border border-accent/30 p-6 mb-8">
           <h2 className="text-lg font-mono font-semibold text-accent mb-3">Tips for Better Accuracy</h2>
