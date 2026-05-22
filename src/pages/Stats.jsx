@@ -95,6 +95,13 @@ export default function Stats() {
   });
   modeStats.sort((a, b) => b.avgAccuracy - a.avgAccuracy);
 
+  // Synaesthesia analytics
+  const synaesthesiaSessions = sessions.filter(s => s.synaesthesia);
+  const synaesthesiaCount = synaesthesiaSessions.length;
+  const synaesthesiaAvgAccuracy = synaesthesiaCount > 0
+    ? Math.round(synaesthesiaSessions.reduce((s, x) => s + (x.accuracy || 0), 0) / synaesthesiaCount)
+    : 0;
+
   // SVG Trend Line Chart Configuration
   const trendSessions = [...sessions]
     .sort((a, b) => new Date(a.created_date) - new Date(b.created_date))
@@ -445,6 +452,54 @@ export default function Stats() {
                       </div>
                     </div>
                   ))}
+                </div>
+              )}
+            </div>
+
+            {/* Synaesthesia Training Performance Card */}
+            <div className="rounded-xl bg-gradient-to-br from-indigo-900/10 to-indigo-950/20 border border-indigo-500/20 p-4 shadow-lg space-y-4">
+              <div className="flex items-center justify-between">
+                <div>
+                  <h3 className="text-xs font-mono font-bold uppercase tracking-widest text-indigo-400 flex items-center gap-1.5">
+                    <Eye className="w-3.5 h-3.5 animate-pulse" /> Synaesthesia training metrics
+                  </h3>
+                  <p className="text-[10px] font-mono text-muted-foreground">Progression trends using custom grapheme-color mappings</p>
+                </div>
+                {synaesthesiaCount > 0 && (
+                  <span className="text-[10px] font-mono font-bold bg-indigo-500/10 text-indigo-300 border border-indigo-500/20 px-2 py-0.5 rounded">
+                    ACTIVE SESSIONS: {synaesthesiaCount}
+                  </span>
+                )}
+              </div>
+
+              {synaesthesiaCount === 0 ? (
+                <div className="h-24 rounded-lg border border-dashed border-indigo-500/20 flex items-center justify-center font-mono text-xs text-muted-foreground/60 text-center px-4">
+                  Launch a session with Synaesthesia Mode toggled on to capture your character-color associative working memory charts here!
+                </div>
+              ) : (
+                <div className="grid grid-cols-1 sm:grid-cols-2 gap-3 shrink-0 font-mono text-xs">
+                  <div className="p-3 bg-indigo-950/20 border border-indigo-500/20 rounded-lg flex items-center justify-between">
+                    <div>
+                      <span className="font-bold text-indigo-300">Synaesthesia Memory Accuracy</span>
+                      <span className="block text-[9px] text-muted-foreground font-medium">Mean target detection correctness</span>
+                    </div>
+                    <div className="text-right">
+                      <span className={`text-sm font-bold ${synaesthesiaAvgAccuracy >= 75 ? 'text-emerald-400' : synaesthesiaAvgAccuracy >= 55 ? 'text-cyan-400' : 'text-red-400'}`}>
+                        {synaesthesiaAvgAccuracy}%
+                      </span>
+                      <span className="block text-[8px] text-muted-foreground font-semibold uppercase tracking-wider">Avg Acc</span>
+                    </div>
+                  </div>
+
+                  <div className="p-3 bg-indigo-950/20 border border-indigo-500/20 rounded-lg flex items-center justify-between">
+                    <div>
+                      <span className="font-bold text-indigo-300">Associated Grapheme Capacity</span>
+                      <span className="block text-[9px] text-muted-foreground font-medium">Derived fluid retention rating</span>
+                    </div>
+                    <div className="text-right font-mono font-bold text-indigo-300 text-sm">
+                      {synaesthesiaAvgAccuracy >= 85 ? 'ELITE' : synaesthesiaAvgAccuracy >= 70 ? 'ADVANCED' : 'BUILDING'}
+                    </div>
+                  </div>
                 </div>
               )}
             </div>

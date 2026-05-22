@@ -1,5 +1,5 @@
 import { drawShape } from './shapeRenderer';
-import { SHAPES, COLORS, pickRandom, pickRandomExcluding, randomBetween, isVerbal, isSound, getVerbalPair, buildVerbalDisplay, buildSoundDisplay, VORONOI_TOKEN_PREFIX, RELATIONSHIP_CATEGORIES } from './gameConstants';
+import { SHAPES, COLORS, pickRandom, pickRandomExcluding, randomBetween, isVerbal, isSound, getVerbalPair, buildVerbalDisplay, buildSoundDisplay, VORONOI_TOKEN_PREFIX, SCRAP_TOKEN_PREFIX, RELATIONSHIP_CATEGORIES } from './gameConstants';
 
 // Check if a relationship is 3D
 export function is3D(relationship) {
@@ -258,24 +258,188 @@ function isSymbol(tok) {
 function isVoronoi(tok) { return typeof tok === 'string' && tok.startsWith(VORONOI_TOKEN_PREFIX); }
 function voronoiSeed(tok) { return tok.slice(VORONOI_TOKEN_PREFIX.length); }
 
+// Scrap token detection
+function isScrap(tok) { return typeof tok === 'string' && tok.startsWith(SCRAP_TOKEN_PREFIX); }
+function scrapSeed(tok) { return Number(tok.slice(SCRAP_TOKEN_PREFIX.length)) || 0; }
+
+function makeSeededPRNG(seed) {
+  let s = seed || 1;
+  return function() {
+    s = (s * 9301 + 49297) % 233280;
+    return s / 233280;
+  };
+}
+
+function drawScrapToken(ctx, seed, cx, cy, size, baseColor) {
+  const rand = makeSeededPRNG(seed);
+  
+  ctx.save();
+  
+  // 1. Generate hand-torn polygon vertices
+  const numPoints = 8 + Math.floor(rand() * 5); // 8 to 12 points
+  const points = [];
+  for (let i = 0; i < numPoints; i++) {
+    const angle = (i / numPoints) * Math.PI * 2;
+    const jaggedRadius = size * 0.44 + (rand() * 0.14 - 0.07) * size;
+    points.push({
+      x: cx + Math.cos(angle) * jaggedRadius,
+      y: cy + Math.sin(angle) * jaggedRadius
+    });
+  }
+  
+  // 2. Render shadow for depth
+  ctx.shadowColor = 'rgba(0, 0, 0, 0.55)';
+  ctx.shadowBlur = 10;
+  ctx.shadowOffsetX = 3;
+  ctx.shadowOffsetY = 5;
+  
+  // 3. Draw standard backdrop (cream card backing)
+  ctx.beginPath();
+  ctx.moveTo(points[0].x, points[0].y);
+  for (let i = 1; i < points.length; i++) {
+    ctx.lineTo(points[i].x, points[i].y);
+  }
+  ctx.closePath();
+  ctx.fillStyle = '#f8f5eb'; // Authentic aged cream paper backing
+  ctx.fill();
+  
+  // Disable shadow for internal artwork
+  ctx.shadowColor = 'transparent';
+  ctx.shadowBlur = 0;
+  ctx.shadowOffsetX = 0;
+  ctx.shadowOffsetY = 0;
+  
+  // 4. Clip to the torn polygon to draw the layered photo inside!
+  ctx.save();
+  ctx.clip();
+  
+  // 5. Draw photo background (rich neon double gradients or analog sunset vibe)
+  const gradType = rand();
+  if (gradType < 0.33) {
+    const grad = ctx.createLinearGradient(cx - size * 0.5, cy - size * 0.5, cx + size * 0.5, cy + size * 0.5);
+    grad.addColorStop(0, '#f43f5e'); // Sunset rose
+    grad.addColorStop(0.5, '#d946ef'); // Synthwave violet
+    grad.addColorStop(1, '#6366f1'); // Electric indigo
+    ctx.fillStyle = grad;
+  } else if (gradType < 0.66) {
+    const grad = ctx.createRadialGradient(cx, cy, size * 0.1, cx, cy, size * 0.5);
+    grad.addColorStop(0, '#10b981'); // Emerald glow
+    grad.addColorStop(1, '#06b6d4'); // Cyber cyan
+    ctx.fillStyle = grad;
+  } else {
+    const grad = ctx.createLinearGradient(cx - size * 0.5, cy + size * 0.5, cx + size * 0.5, cy - size * 0.5);
+    grad.addColorStop(0, '#f97316'); // Tangerine
+    grad.addColorStop(1, '#e11d48'); // Coral ruby
+    ctx.fillStyle = grad;
+  }
+  ctx.fillRect(cx - size, cy - size, size * 2, size * 2);
+  
+  // 6. Draw dynamic retro photographic grid or lines
+  ctx.strokeStyle = 'rgba(255, 255, 255, 0.2)';
+  ctx.lineWidth = 1.5;
+  const numGridLines = 4 + Math.floor(rand() * 4);
+  for (let i = 0; i < numGridLines; i++) {
+    const lineX = cx - size * 0.5 + (i / numGridLines) * size;
+    ctx.beginPath();
+    ctx.moveTo(lineX, cy - size);
+    ctx.lineTo(lineX, cy + size);
+    ctx.stroke();
+  }
+  
+  // 7. Draw geometric camera subject inside the photo (e.g. abstract neon circle, sun, cross, or triangle)
+  const subjectType = rand();
+  ctx.fillStyle = 'rgba(255, 255, 255, 0.95)';
+  ctx.strokeStyle = '#090d16';
+  ctx.lineWidth = 2.5;
+  if (subjectType < 0.25) {
+    // Glowing golden sun/orb
+    ctx.beginPath();
+    ctx.arc(cx + (rand() * 10 - 5), cy + (rand() * 10 - 5), size * 0.14, 0, Math.PI * 2);
+    ctx.fillStyle = '#facc15';
+    ctx.fill();
+    ctx.stroke();
+  } else if (subjectType < 0.5) {
+    // Abstract neon triangle
+    ctx.beginPath();
+    const triS = size * 0.15;
+    ctx.moveTo(cx, cy - triS);
+    ctx.lineTo(cx - triS, cy + triS * 0.8);
+    ctx.lineTo(cx + triS, cy + triS * 0.8);
+    ctx.closePath();
+    ctx.fillStyle = '#38bdf8';
+    ctx.fill();
+    ctx.stroke();
+  } else if (subjectType < 0.75) {
+    // Twin orbiting rings
+    ctx.beginPath();
+    ctx.arc(cx, cy, size * 0.16, 0, Math.PI * 2);
+    ctx.strokeStyle = '#f472b6';
+    ctx.stroke();
+    ctx.beginPath();
+    ctx.arc(cx, cy, size * 0.08, 0, Math.PI * 2);
+    ctx.fillStyle = '#a78bfa';
+    ctx.fill();
+    ctx.stroke();
+  } else {
+    // Dynamic retro cross hairs
+    ctx.strokeStyle = '#22d3ee';
+    ctx.beginPath();
+    ctx.moveTo(cx - 10, cy); ctx.lineTo(cx + 10, cy);
+    ctx.moveTo(cx, cy - 10); ctx.lineTo(cx, cy + 10);
+    ctx.stroke();
+  }
+  
+  // 8. Dynamic visual overlays (film scratches, burn mark or grunge texture)
+  ctx.fillStyle = 'rgba(0, 0, 0, 0.15)';
+  for (let i = 0; i < 3; i++) {
+    ctx.beginPath();
+    ctx.arc(cx + (rand() * size * 0.4 - size * 0.2), cy + (rand() * size * 0.4 - size * 0.2), rand() * 12, 0, Math.PI * 2);
+    ctx.fill();
+  }
+  
+  // Restore from clipping
+  ctx.restore();
+  
+  // 9. Draw the sketchy cream border to look like physically torn, hand-crafted borders
+  ctx.strokeStyle = '#fffdfc'; // White torn paper edge outline
+  ctx.lineWidth = 2.5;
+  ctx.beginPath();
+  ctx.moveTo(points[0].x, points[0].y);
+  for (let i = 1; i < points.length; i++) {
+    ctx.lineTo(points[i].x, points[i].y);
+  }
+  ctx.closePath();
+  ctx.stroke();
+  
+  // 10. Scribbled pencil contour to complete the beautiful collage journal aesthetic!
+  ctx.strokeStyle = 'rgba(9, 13, 22, 0.45)'; // Faint pencil sketch
+  ctx.lineWidth = 1;
+  ctx.beginPath();
+  ctx.moveTo(points[0].x + (rand() * 2 - 1), points[0].y + (rand() * 2 - 1));
+  for (let i = 1; i < points.length; i++) {
+    ctx.lineTo(points[i].x + (rand() * 2 - 1), points[i].y + (rand() * 2 - 1));
+  }
+  ctx.closePath();
+  ctx.stroke();
+  
+  ctx.restore();
+}
+
 // Draw a single token (word, nonsense, emoji, symbol, or voronoi) centered at (x,y)
 function drawToken(ctx, token, x, y, canvasW, color, renderScale = 1) {
+  if (isScrap(token)) {
+    const size = Math.min(canvasW * 0.26, 96) * renderScale;
+    drawScrapToken(ctx, scrapSeed(token), x, y, size, color);
+    return;
+  }
   if (isVoronoi(token)) {
     const size = Math.min(canvasW * 0.22, 72) * renderScale;
     drawVoronoiToken(ctx, voronoiSeed(token), x, y, size, color);
     return;
   }
   const sym = isSymbol(token);
-  const fontSize = (sym ? Math.min(canvasW * 0.12, 48) : Math.min(canvasW * 0.082, 34)) * renderScale;
-  ctx.save();
-  ctx.textAlign = 'center';
-  ctx.textBaseline = 'middle';
-  ctx.font = sym
-    ? `${fontSize}px serif`
-    : `bold ${fontSize}px 'JetBrains Mono', monospace`;
-  ctx.fillStyle = color;
-  ctx.fillText(token, x, y);
-  ctx.restore();
+  const size = (sym ? Math.min(canvasW * 0.22, 90) : Math.min(canvasW * 0.18, 76)) * renderScale;
+  drawShape(ctx, token, x, y, size, color, true);
 }
 
 function relationTextScale(renderScale = 1) {
@@ -288,14 +452,14 @@ function renderVerbalText(ctx, cx, cy, canvasW, canvasH, tokenA, verb, tokenB, r
   drawToken(ctx, tokenA, cx, cy - canvasH * 0.15, canvasW, '#22d3ee', renderScale);
   ctx.save();
   ctx.textAlign = 'center'; ctx.textBaseline = 'middle';
-  ctx.font = `${Math.min(canvasW * 0.052, 20) * relationTextScale(renderScale)}px 'JetBrains Mono', monospace`;
+  ctx.font = `${Math.min(canvasW * 0.07, 26) * relationTextScale(renderScale)}px 'JetBrains Mono', monospace`;
   ctx.fillStyle = 'hsla(210,20%,65%,0.9)';
   ctx.fillText(verb, cx, cy);
   ctx.restore();
   drawToken(ctx, tokenB, cx, cy + canvasH * 0.15, canvasW, '#a78bfa', renderScale);
   ctx.save();
   ctx.textAlign = 'center'; ctx.textBaseline = 'middle';
-  ctx.font = `${Math.min(canvasW * 0.034, 12) * renderScale}px 'JetBrains Mono', monospace`;
+  ctx.font = `${Math.min(canvasW * 0.046, 16) * renderScale}px 'JetBrains Mono', monospace`;
   ctx.fillStyle = 'hsla(210,10%,40%,0.65)';
   ctx.fillText(relationship.replace(/_/g, ' '), cx, cy + pillH / 2 - 14);
   ctx.restore();
@@ -313,10 +477,10 @@ function renderVerbalShapes(ctx, cx, cy, canvasW, canvasH, verb, relationship, r
   drawShape(ctx, shapeB, cx + canvasW * 0.28, cy, shapeSize, colorB, true);
   ctx.save();
   ctx.textAlign = 'center'; ctx.textBaseline = 'middle';
-  ctx.font = `${Math.min(canvasW * 0.052, 19) * relationTextScale(renderScale)}px 'JetBrains Mono', monospace`;
+  ctx.font = `${Math.min(canvasW * 0.07, 25) * relationTextScale(renderScale)}px 'JetBrains Mono', monospace`;
   ctx.fillStyle = 'hsla(210,20%,70%,0.9)';
   ctx.fillText(verb, cx, cy);
-  ctx.font = `${Math.min(canvasW * 0.034, 12) * renderScale}px 'JetBrains Mono', monospace`;
+  ctx.font = `${Math.min(canvasW * 0.046, 16) * renderScale}px 'JetBrains Mono', monospace`;
   ctx.fillStyle = 'hsla(210,10%,40%,0.65)';
   ctx.fillText(relationship.replace(/_/g, ' '), cx, cy + canvasH * 0.24);
   ctx.restore();
@@ -347,10 +511,10 @@ function renderVerbalBlended(ctx, cx, cy, canvasW, canvasH, tokenA, verb, tokenB
 
   ctx.save();
   ctx.textAlign = 'center'; ctx.textBaseline = 'middle';
-  ctx.font = `${Math.min(canvasW * 0.046, 17) * relationTextScale(renderScale)}px 'JetBrains Mono', monospace`;
+  ctx.font = `${Math.min(canvasW * 0.06, 22) * relationTextScale(renderScale)}px 'JetBrains Mono', monospace`;
   ctx.fillStyle = 'hsla(210,20%,65%,0.9)';
   ctx.fillText(verb, cx, cy);
-  ctx.font = `${Math.min(canvasW * 0.034, 12) * renderScale}px 'JetBrains Mono', monospace`;
+  ctx.font = `${Math.min(canvasW * 0.046, 16) * renderScale}px 'JetBrains Mono', monospace`;
   ctx.fillStyle = 'hsla(210,10%,40%,0.65)';
   ctx.fillText(relationship.replace(/_/g, ' '), cx, cy + canvasH * 0.27);
   ctx.restore();
@@ -363,31 +527,31 @@ function renderVerbalSymbolVerb(ctx, cx, cy, canvasW, canvasH, tokenA, verb, tok
   // Verb as styled badge in center
   ctx.save();
   ctx.textAlign = 'center'; ctx.textBaseline = 'middle';
-  const verbSize = Math.min(canvasW * 0.044, 16) * relationTextScale(renderScale);
+  const verbSize = Math.min(canvasW * 0.06, 22) * relationTextScale(renderScale);
   ctx.font = `${verbSize}px 'JetBrains Mono', monospace`;
   // badge bg
-  const tw = ctx.measureText(verb).width + 16;
+  const tw = ctx.measureText(verb).width + 20;
   ctx.fillStyle = 'hsla(168,80%,50%,0.12)';
   ctx.beginPath(); ctx.roundRect(cx - tw/2, cy - verbSize - 4, tw, verbSize*2 + 8, 8); ctx.fill();
   ctx.strokeStyle = 'hsla(168,80%,50%,0.3)';
-  ctx.lineWidth = 1; ctx.stroke();
+  ctx.lineWidth = 1.5; ctx.stroke();
   ctx.fillStyle = 'hsl(168,80%,60%)';
   ctx.fillText(verb, cx, cy);
   ctx.restore();
   drawToken(ctx, tokenB, cx + canvasW * 0.28, cy, canvasW, '#a78bfa', renderScale);
   ctx.save();
   ctx.textAlign = 'center'; ctx.textBaseline = 'middle';
-  ctx.font = `${Math.min(canvasW * 0.034, 12) * renderScale}px 'JetBrains Mono', monospace`;
+  ctx.font = `${Math.min(canvasW * 0.046, 16) * renderScale}px 'JetBrains Mono', monospace`;
   ctx.fillStyle = 'hsla(210,10%,40%,0.65)';
   ctx.fillText(relationship.replace(/_/g, ' '), cx, cy + canvasH * 0.27);
   ctx.restore();
 }
 
-function renderVerbal(ctx, canvasW, canvasH, relationship, fixedWordA, fixedWordB, renderMode, renderScale = 1) {
+function renderVerbal(ctx, canvasW, canvasH, relationship, fixedWordA, fixedWordB, renderMode, renderScale = 1, relationSymbolMode = 'normal') {
   // Tokens are always pre-generated by the engine; fall back to semantic pair only if missing
   const tokenA = fixedWordA || getVerbalPair(relationship)[0];
   const tokenB = fixedWordB || getVerbalPair(relationship)[1];
-  const [wordA, verb, wordB] = buildVerbalDisplay(relationship, [tokenA, tokenB]);
+  const [wordA, verb, wordB] = buildVerbalDisplay(relationship, [tokenA, tokenB], relationSymbolMode);
   const cx = canvasW / 2;
   const cy = canvasH / 2;
   ctx.clearRect(0, 0, canvasW, canvasH);
@@ -411,16 +575,16 @@ function renderSound(ctx, canvasW, canvasH, relationship, soundA, soundB, render
   ctx.save();
   ctx.textAlign = 'center';
   ctx.textBaseline = 'middle';
-  ctx.font = `bold ${Math.min(canvasW * 0.08, 32)}px 'JetBrains Mono', monospace`;
+  ctx.font = `bold ${Math.min(canvasW * 0.11, 42)}px 'JetBrains Mono', monospace`;
   ctx.fillStyle = '#fb7185';
   ctx.fillText(String(left), cx, cy - canvasH * 0.16);
-  ctx.font = `${Math.min(canvasW * 0.048, 18) * relationTextScale(renderScale)}px 'JetBrains Mono', monospace`;
+  ctx.font = `${Math.min(canvasW * 0.065, 24) * relationTextScale(renderScale)}px 'JetBrains Mono', monospace`;
   ctx.fillStyle = 'hsla(210,20%,70%,0.9)';
   ctx.fillText(relation, cx, cy);
-  ctx.font = `bold ${Math.min(canvasW * 0.08, 32)}px 'JetBrains Mono', monospace`;
+  ctx.font = `bold ${Math.min(canvasW * 0.11, 42)}px 'JetBrains Mono', monospace`;
   ctx.fillStyle = '#38bdf8';
   ctx.fillText(String(right), cx, cy + canvasH * 0.16);
-  ctx.font = `${Math.min(canvasW * 0.034, 12) * renderScale}px 'JetBrains Mono', monospace`;
+  ctx.font = `${Math.min(canvasW * 0.046, 16) * renderScale}px 'JetBrains Mono', monospace`;
   ctx.fillStyle = 'hsla(210,10%,45%,0.7)';
   ctx.fillText('audio + visual', cx, cy + canvasH * 0.31);
   ctx.restore();
@@ -435,7 +599,7 @@ export function renderRelationship(ctx, canvasW, canvasH, relationship, prevVisu
   if (isSound(relationship)) {
     visuals = renderSound(ctx, canvasW, canvasH, relationship, stimulus?.soundA, stimulus?.soundB, stimulus?.renderScale || 1);
   } else if (isVerbal(relationship)) {
-    visuals = renderVerbal(ctx, canvasW, canvasH, relationship, stimulus?.wordA, stimulus?.wordB, stimulus?.renderMode, stimulus?.renderScale || 1);
+    visuals = renderVerbal(ctx, canvasW, canvasH, relationship, stimulus?.wordA, stimulus?.wordB, stimulus?.renderMode, stimulus?.renderScale || 1, stimulus?.relationSymbolMode || 'normal');
   } else {
     visuals = getVisuals(stimulus);
     const cx = canvasW / 2;
@@ -1021,14 +1185,14 @@ function renderCCTNumeric(ctx, cx, cy, canvasW, canvasH, stim) {
   ctx.stroke();
 
   // Memo bar (top)
-  ctx.font = `${Math.min(canvasW * 0.04, 16)}px 'JetBrains Mono', monospace`;
+  ctx.font = `${Math.min(canvasW * 0.055, 20)}px 'JetBrains Mono', monospace`;
   ctx.textAlign = 'center';
   ctx.textBaseline = 'middle';
   ctx.fillStyle = 'hsla(168,80%,70%,0.85)';
   ctx.fillText('CCT · current + N-back =', cx, cy - frameH * 0.36);
 
   // Big digit
-  const digitSize = Math.min(canvasW * 0.28, canvasH * 0.40, 150);
+  const digitSize = Math.min(canvasW * 0.35, canvasH * 0.50, 185);
   ctx.font = `bold ${digitSize}px 'JetBrains Mono', monospace`;
   ctx.fillStyle = '#22d3ee';
   ctx.shadowColor = 'rgba(34, 211, 238, 0.45)';
@@ -1038,8 +1202,8 @@ function renderCCTNumeric(ctx, cx, cy, canvasW, canvasH, stim) {
 
   if (showResult) {
     // Result candidate pill (the value to compare against)
-    const pillW = Math.min(canvasW * 0.5, 260);
-    const pillH = Math.min(canvasH * 0.22, 70);
+    const pillW = Math.min(canvasW * 0.52, 280);
+    const pillH = Math.min(canvasH * 0.24, 80);
     const pillY = cy + canvasH * 0.22;
     ctx.fillStyle = 'rgba(251, 191, 36, 0.18)';
     ctx.strokeStyle = 'rgba(251, 191, 36, 0.75)';
@@ -1048,14 +1212,14 @@ function renderCCTNumeric(ctx, cx, cy, canvasW, canvasH, stim) {
     ctx.roundRect(cx - pillW / 2, pillY - pillH / 2, pillW, pillH, 14);
     ctx.fill();
     ctx.stroke();
-    ctx.font = `${Math.min(canvasW * 0.04, 16)}px 'JetBrains Mono', monospace`;
+    ctx.font = `${Math.min(canvasW * 0.055, 20)}px 'JetBrains Mono', monospace`;
     ctx.fillStyle = 'rgba(251, 191, 36, 0.65)';
     ctx.fillText('≟', cx - pillW * 0.32, pillY);
-    ctx.font = `bold ${Math.min(canvasW * 0.10, 44)}px 'JetBrains Mono', monospace`;
+    ctx.font = `bold ${Math.min(canvasW * 0.14, 60)}px 'JetBrains Mono', monospace`;
     ctx.fillStyle = '#fbbf24';
     ctx.fillText(String(result), cx + pillW * 0.05, pillY);
   } else {
-    ctx.font = `${Math.min(canvasW * 0.034, 13)}px 'JetBrains Mono', monospace`;
+    ctx.font = `${Math.min(canvasW * 0.046, 17)}px 'JetBrains Mono', monospace`;
     ctx.fillStyle = 'hsla(210,15%,55%,0.7)';
     ctx.fillText('observe — result appears once N trials are stored', cx, cy + canvasH * 0.27);
   }
@@ -1072,7 +1236,7 @@ function renderRelationFallback(ctx, cx, cy, canvasW, canvasH, relationship, sca
   ctx.strokeStyle = 'hsla(168,80%,60%,0.35)';
   ctx.stroke();
   ctx.fillStyle = 'hsl(168,80%,60%)';
-  ctx.font = `bold ${Math.min(canvasW * 0.06, 22) * scale}px 'JetBrains Mono', monospace`;
+  ctx.font = `bold ${Math.min(canvasW * 0.082, 30) * scale}px 'JetBrains Mono', monospace`;
   ctx.textAlign = 'center';
   ctx.textBaseline = 'middle';
   ctx.fillText((relationship || '?').replace(/_/g, ' '), cx, cy);

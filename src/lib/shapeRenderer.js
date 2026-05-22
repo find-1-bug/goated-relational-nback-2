@@ -1,9 +1,110 @@
 // Draws a shape at (cx, cy) with given size, color, filled or outline
+
+export function getSynaesthesiaColor(char, defaultColor = '#ffd700') {
+  try {
+    const enabled = localStorage.getItem('goated_synaesthesia_enabled') === 'true';
+    if (!enabled) return defaultColor;
+    
+    const saved = localStorage.getItem('goated_synaesthesia_map');
+    const map = saved ? JSON.parse(saved) : null;
+    const cleanChar = char.toUpperCase();
+    if (map && map[cleanChar]) {
+      return map[cleanChar];
+    }
+  } catch (e) {
+    console.error(e);
+  }
+  
+  // Fallback to deterministic hash if map is not customized or storage fails
+  const SYNAESTHESIA_COLORS = [
+    '#ff007f', // hot pink
+    '#ff3b3f', // neon orange/red
+    '#ff8c00', // vibrant orange
+    '#ffd700', // gold
+    '#39ff14', // neon green
+    '#00f5ff', // bright cyan
+    '#1f75fe', // blue
+    '#8a2be2', // neon violet
+    '#ff00ff', // magenta
+    '#00ffcc', // electric teal
+  ];
+  const charCode = char.charCodeAt(0);
+  const colorIdx = (charCode + 17) % SYNAESTHESIA_COLORS.length;
+  return SYNAESTHESIA_COLORS[colorIdx];
+}
+
 export function drawShape(ctx, shape, cx, cy, size, color, filled = true) {
   ctx.save();
   ctx.lineWidth = 3;
   ctx.strokeStyle = color;
   ctx.fillStyle = color;
+
+  const standardShapes = [
+    'circle', 'square', 'triangle', 'hexagon', 'pentagon',
+    'star', 'diamond', 'cross', 'arrow', 'heart', 'crescent', 'parallelogram'
+  ];
+
+  if (typeof shape === 'string' && shape && !standardShapes.includes(shape)) {
+    // Render text/emoji/verbal token
+    ctx.textAlign = 'center';
+    ctx.textBaseline = 'middle';
+    
+    const isEmoji = /\p{Emoji}/u.test(shape);
+    // Magnified font size to prevent squinting!
+    let fontSize = isEmoji ? size * 1.15 : size * 0.65;
+    
+    if (!isEmoji) {
+      // Dynamic constraint based on length
+      const aspectEstimate = 0.6;
+      const maxLengthFontSize = (size * 1.05) / (shape.length * aspectEstimate);
+      fontSize = Math.min(fontSize, maxLengthFontSize);
+      fontSize = Math.max(fontSize, size * 0.28);
+    }
+    
+    ctx.font = isEmoji
+      ? `bold ${fontSize}px serif`
+      : `bold ${fontSize}px 'JetBrains Mono', monospace`;
+
+    if (isEmoji) {
+      ctx.fillStyle = color;
+      ctx.fillText(shape, cx, cy);
+    } else {
+      const synaesthesiaEnabled = localStorage.getItem('goated_synaesthesia_enabled') === 'true';
+      
+      if (synaesthesiaEnabled) {
+        const charWidth = ctx.measureText('M').width;
+        const totalWidth = shape.length * charWidth;
+        const startX = cx - totalWidth / 2 + charWidth / 2;
+        
+        for (let i = 0; i < shape.length; i++) {
+          const char = shape[i];
+          const x = startX + i * charWidth;
+          const charColor = getSynaesthesiaColor(char, color);
+          
+          ctx.save();
+          ctx.fillStyle = charColor;
+          // Heavy outline to contrast against any shape background
+          ctx.strokeStyle = '#090d16'; 
+          ctx.lineWidth = Math.max(3.5, fontSize * 0.16);
+          ctx.lineJoin = 'round';
+          ctx.strokeText(char, x, cy);
+          ctx.fillText(char, x, cy);
+          ctx.restore();
+        }
+      } else {
+        // Standard clean display
+        ctx.fillStyle = color;
+        ctx.strokeStyle = '#090d16'; 
+        ctx.lineWidth = Math.max(3.5, fontSize * 0.16);
+        ctx.lineJoin = 'round';
+        ctx.strokeText(shape, cx, cy);
+        ctx.fillText(shape, cx, cy);
+      }
+    }
+    
+    ctx.restore();
+    return;
+  }
 
   ctx.beginPath();
 

@@ -120,7 +120,7 @@ export function getCategory(relationship) {
 
 // ─── Token Type System ─────────────────────────────────────────────────────────
 // Token types for words in verbal stimuli
-export const TOKEN_TYPES = ['meaningful', 'nonsense', 'garbage', 'emoji', 'voronoi_emoji', 'random_string', 'voronoi'];
+export const TOKEN_TYPES = ['meaningful', 'nonsense', 'garbage', 'emoji', 'voronoi_emoji', 'random_string', 'voronoi', 'scrap'];
 
 // Meaningful words grouped by semantic field
 const MEANINGFUL_POOLS = {
@@ -180,6 +180,11 @@ export function encodeVoronoiToken() {
   return VORONOI_TOKEN_PREFIX + Math.floor(Math.random() * 99991);
 }
 
+export const SCRAP_TOKEN_PREFIX = '\x00S:';
+export function encodeScrapToken() {
+  return SCRAP_TOKEN_PREFIX + Math.floor(Math.random() * 99991);
+}
+
 export function pickTokenWord(type, garbageLen = 3) {
   switch (type) {
     case 'meaningful':    return pickMeaningful();
@@ -189,19 +194,21 @@ export function pickTokenWord(type, garbageLen = 3) {
     case 'voronoi_emoji': return VORONOI_EMOJI_POOL[Math.floor(Math.random() * VORONOI_EMOJI_POOL.length)];
     case 'random_string': return makeRandomString();
     case 'voronoi':       return encodeVoronoiToken();
+    case 'scrap':         return encodeScrapToken();
     default:              return pickMeaningful();
   }
 }
 
 // Token type weights — can be overridden from the UI
 let _tokenWeights = {
-  meaningful:    25,
+  meaningful:    20,
   emoji:         15,
   voronoi_emoji: 10,
   nonsense:      15,
   garbage:       15,
   random_string: 10,
   voronoi:       10,
+  scrap:         15,
 };
 
 export function setTokenWeights(weights) {
@@ -376,9 +383,9 @@ export function makeInverseStimulus(stimulus) {
 }
 
 // ─── Template phrases for verbal display ──────────────────────────────────────
-const VERBAL_TEMPLATES = {
+export const VERBAL_TEMPLATES_NORMAL = {
   // Semantic
-  SAME_AS:          ([a, b]) => [a, `is the same as`, b],
+  SAME_AS:          ([a, b]) => [a, `is same as`, b],
   OPPOSITE_OF:      ([a, b]) => [a, `is opposite to`, b],
   PART_OF:          ([a, b]) => [a, `is part of`, b],
   CAUSES:           ([a, b]) => [a, `causes`, b],
@@ -388,32 +395,32 @@ const VERBAL_TEMPLATES = {
   REPLACES:         ([a, b]) => [a, `replaces`, b],
   NEGATES:          ([a, b]) => [a, `negates`, b],
   MATCHES:          ([a, b]) => [a, `matches`, b],
-  TRANSFORMS_INTO:  ([a, b]) => [a, `→`, b],
+  TRANSFORMS_INTO:  ([a, b]) => [a, `transforms into`, b],
   DEPENDS_ON:       ([a, b]) => [a, `depends on`, b],
   // Comparison
-  BIGGER_THAN:      ([a, b]) => [a, `>`, b],
-  SMALLER_THAN:     ([a, b]) => [a, `<`, b],
-  MORE_THAN:        ([a, b]) => [a, `more than`, b],
-  LESS_THAN:        ([a, b]) => [a, `less than`, b],
-  FASTER_THAN:      ([a, b]) => [a, `faster than`, b],
-  SLOWER_THAN:      ([a, b]) => [a, `slower than`, b],
-  HEAVIER_THAN:     ([a, b]) => [a, `heavier than`, b],
-  LIGHTER_THAN:     ([a, b]) => [a, `lighter than`, b],
-  HOTTER_THAN:      ([a, b]) => [a, `hotter than`, b],
-  COLDER_THAN:      ([a, b]) => [a, `colder than`, b],
-  LOUDER_THAN:      ([a, b]) => [a, `louder than`, b],
-  SOFTER_THAN:      ([a, b]) => [a, `softer than`, b],
-  STRONGER_THAN:    ([a, b]) => [a, `stronger than`, b],
-  WEAKER_THAN:      ([a, b]) => [a, `weaker than`, b],
-  OLDER_THAN:       ([a, b]) => [a, `older than`, b],
-  NEWER_THAN:       ([a, b]) => [a, `newer than`, b],
-  HIGHER_THAN:      ([a, b]) => [a, `higher than`, b],
-  LOWER_THAN:       ([a, b]) => [a, `lower than`, b],
-  CLOSER_THAN:      ([a, b]) => [a, `closer than`, b],
-  FURTHER_THAN:     ([a, b]) => [a, `further than`, b],
+  BIGGER_THAN:      ([a, b]) => [a, `is bigger than`, b],
+  SMALLER_THAN:     ([a, b]) => [a, `is smaller than`, b],
+  MORE_THAN:        ([a, b]) => [a, `has more than`, b],
+  LESS_THAN:        ([a, b]) => [a, `has less than`, b],
+  FASTER_THAN:      ([a, b]) => [a, `is faster than`, b],
+  SLOWER_THAN:      ([a, b]) => [a, `is slower than`, b],
+  HEAVIER_THAN:     ([a, b]) => [a, `is heavier than`, b],
+  LIGHTER_THAN:     ([a, b]) => [a, `is lighter than`, b],
+  HOTTER_THAN:      ([a, b]) => [a, `is hotter than`, b],
+  COLDER_THAN:      ([a, b]) => [a, `is colder than`, b],
+  LOUDER_THAN:      ([a, b]) => [a, `is louder than`, b],
+  SOFTER_THAN:      ([a, b]) => [a, `is softer than`, b],
+  STRONGER_THAN:    ([a, b]) => [a, `is stronger than`, b],
+  WEAKER_THAN:      ([a, b]) => [a, `is weaker than`, b],
+  OLDER_THAN:       ([a, b]) => [a, `is older than`, b],
+  NEWER_THAN:       ([a, b]) => [a, `is newer than`, b],
+  HIGHER_THAN:      ([a, b]) => [a, `is higher than`, b],
+  LOWER_THAN:       ([a, b]) => [a, `is lower than`, b],
+  CLOSER_THAN:      ([a, b]) => [a, `is closer than`, b],
+  FURTHER_THAN:     ([a, b]) => [a, `is further than`, b],
   // Temporal
-  BEFORE:           ([a, b]) => [a, `before`, b],
-  AFTER:            ([a, b]) => [a, `after`, b],
+  BEFORE:           ([a, b]) => [a, `occurs before`, b],
+  AFTER:            ([a, b]) => [a, `occurs after`, b],
   FOLLOWS:          ([a, b]) => [a, `follows`, b],
   PRECEDES:         ([a, b]) => [a, `precedes`, b],
   EXCEEDS:          ([a, b]) => [a, `exceeds`, b],
@@ -427,18 +434,80 @@ const VERBAL_TEMPLATES = {
   SOUTH_OF:         ([a, b]) => [a, `is south of`, b],
   EAST_OF:          ([a, b]) => [a, `is east of`, b],
   WEST_OF:          ([a, b]) => [a, `is west of`, b],
-  NORTH_EAST_OF:    ([a, b]) => [a, `is NE of`, b],
-  NORTH_WEST_OF:    ([a, b]) => [a, `is NW of`, b],
-  SOUTH_EAST_OF:    ([a, b]) => [a, `is SE of`, b],
-  SOUTH_WEST_OF:    ([a, b]) => [a, `is SW of`, b],
+  NORTH_EAST_OF:    ([a, b]) => [a, `is northeast of`, b],
+  NORTH_WEST_OF:    ([a, b]) => [a, `is northwest of`, b],
+  SOUTH_EAST_OF:    ([a, b]) => [a, `is southeast of`, b],
+  SOUTH_WEST_OF:    ([a, b]) => [a, `is southwest of`, b],
   INSIDE_OF:        ([a, b]) => [a, `is inside`, b],
   OUTSIDE_OF:       ([a, b]) => [a, `is outside`, b],
   NEXT_TO:          ([a, b]) => [a, `is next to`, b],
   FAR_FROM:         ([a, b]) => [a, `is far from`, b],
 };
 
-export function buildVerbalDisplay(relationship, pair) {
-  const fn = VERBAL_TEMPLATES[relationship];
+export const VERBAL_TEMPLATES_MINIMAL = {
+  // Semantic
+  SAME_AS:          ([a, b]) => [a, `=`, b],
+  OPPOSITE_OF:      ([a, b]) => [a, `≠`, b],
+  PART_OF:          ([a, b]) => [a, `⊂`, b],
+  CAUSES:           ([a, b]) => [a, `⇒`, b],
+  CONTAINS:         ([a, b]) => [a, `⊃`, b],
+  BELONGS_TO:       ([a, b]) => [a, `∈`, b],
+  DEFINES:          ([a, b]) => [a, `≡`, b],
+  REPLACES:         ([a, b]) => [a, `⇌`, b],
+  NEGATES:          ([a, b]) => [a, `¬`, b],
+  MATCHES:          ([a, b]) => [a, `≈`, b],
+  TRANSFORMS_INTO:  ([a, b]) => [a, `→`, b],
+  DEPENDS_ON:       ([a, b]) => [a, `∝`, b],
+  // Comparison
+  BIGGER_THAN:      ([a, b]) => [a, `>`, b],
+  SMALLER_THAN:     ([a, b]) => [a, `<`, b],
+  MORE_THAN:        ([a, b]) => [a, `+`, b],
+  LESS_THAN:        ([a, b]) => [a, `-`, b],
+  FASTER_THAN:      ([a, b]) => [a, `»`, b],
+  SLOWER_THAN:      ([a, b]) => [a, `«`, b],
+  HEAVIER_THAN:     ([a, b]) => [a, `▲`, b],
+  LIGHTER_THAN:     ([a, b]) => [a, `▼`, b],
+  HOTTER_THAN:      ([a, b]) => [a, `🔥`, b],
+  COLDER_THAN:      ([a, b]) => [a, `❄`, b],
+  LOUDER_THAN:      ([a, b]) => [a, `🔊`, b],
+  SOFTER_THAN:      ([a, b]) => [a, `🔈`, b],
+  STRONGER_THAN:    ([a, b]) => [a, `💪`, b],
+  WEAKER_THAN:      ([a, b]) => [a, `🩹`, b],
+  OLDER_THAN:       ([a, b]) => [a, `⏳`, b],
+  NEWER_THAN:       ([a, b]) => [a, `✨`, b],
+  HIGHER_THAN:      ([a, b]) => [a, `↑`, b],
+  LOWER_THAN:       ([a, b]) => [a, `↓`, b],
+  CLOSER_THAN:      ([a, b]) => [a, `•·•`, b],
+  FURTHER_THAN:     ([a, b]) => [a, `•   •`, b],
+  // Temporal
+  BEFORE:           ([a, b]) => [a, `t <`, b],
+  AFTER:            ([a, b]) => [a, `t >`, b],
+  FOLLOWS:          ([a, b]) => [a, `⊏`, b],
+  PRECEDES:         ([a, b]) => [a, `⊐`, b],
+  EXCEEDS:          ([a, b]) => [a, `>`, b],
+  MIRRORS:          ([a, b]) => [a, `⧓`, b],
+  // Directional
+  LEFT_OF:          ([a, b]) => [a, `←`, b],
+  RIGHT_OF:         ([a, b]) => [a, `→`, b],
+  ABOVE:            ([a, b]) => [a, `↑`, b],
+  BELOW:            ([a, b]) => [a, `↓`, b],
+  NORTH_OF:         ([a, b]) => [a, `↑`, b],
+  SOUTH_OF:         ([a, b]) => [a, `↓`, b],
+  EAST_OF:          ([a, b]) => [a, `→`, b],
+  WEST_OF:          ([a, b]) => [a, `←`, b],
+  NORTH_EAST_OF:    ([a, b]) => [a, `↗`, b],
+  NORTH_WEST_OF:    ([a, b]) => [a, `↖`, b],
+  SOUTH_EAST_OF:    ([a, b]) => [a, `↘`, b],
+  SOUTH_WEST_OF:    ([a, b]) => [a, `↙`, b],
+  INSIDE_OF:        ([a, b]) => [a, `⊚`, b],
+  OUTSIDE_OF:       ([a, b]) => [a, `⊙`, b],
+  NEXT_TO:          ([a, b]) => [a, `‖`, b],
+  FAR_FROM:         ([a, b]) => [a, `↔`, b],
+};
+
+export function buildVerbalDisplay(relationship, pair, relationSymbolMode = 'normal') {
+  const templates = relationSymbolMode === 'minimal' ? VERBAL_TEMPLATES_MINIMAL : VERBAL_TEMPLATES_NORMAL;
+  const fn = templates[relationship];
   if (!fn) return [pair[0], relationship.replace(/_/g,' '), pair[1]];
   return fn(pair);
 }
@@ -564,7 +633,7 @@ export const COACH_PHASES = [
     speedMs: 3300,
     rounds: 20,
     modes: ['feedback_per_trial'],
-    desc: "Step up to N=2 at a slow pace. Establishes the foundations of relational capacity mapping without stressors.",
+    desc: "Step up to N=2 at a slow pace. Establishes the foundations of relational capacity capacity mapping without stressors.",
     streamsCount: 1
   },
   {
@@ -676,75 +745,127 @@ export const COACH_PHASES = [
     streamsCount: 1
   },
   {
-    title: "Phase 13: Boolean Operations",
+    title: "Phase 13: Cognitive Set-Shifting",
     nLevel: 2,
     speedMs: 1800,
     rounds: 30,
-    modes: ['distractors', 'lures', 'negation', 'adaptive_closed_loop', 'binary_logic'],
-    desc: "Demands composite logical evaluations (AND / OR / NOT) per trial.",
+    modes: ['distractors', 'lures', 'negation', 'adaptive_closed_loop', 'wrapper_morph'],
+    desc: "Shifts visual card themes and stimulus category pools in coherent blocks of 5 trials.",
     streamsCount: 1
   },
   {
-    title: "Phase 14: 2D Spatial Rotations",
+    title: "Phase 14: Sensorimotor Chaos",
     nLevel: 2,
-    speedMs: 1800,
+    speedMs: 1700,
     rounds: 30,
-    modes: ['distractors', 'lures', 'negation', 'adaptive_closed_loop', 'alien_square'],
-    desc: "Forces tracking of a 2D rotating spatial matrix position axis.",
+    modes: ['distractors', 'lures', 'negation', 'adaptive_closed_loop', 'wrapper_morph'],
+    desc: "Flashes visual styles and logical category pools on every single trial.",
     streamsCount: 1
   },
   {
-    title: "Phase 15: 3D Transparent Rotations",
-    nLevel: 2,
-    speedMs: 1800,
-    rounds: 32,
-    modes: ['distractors', 'lures', 'negation', 'adaptive_closed_loop', 'alien_cube'],
-    desc: "Forces tracking of a transparent rotating 3D spatial matrix cube.",
-    streamsCount: 1
-  },
-  {
-    title: "Phase 16: 4D Hyperspace Projection",
-    nLevel: 2,
-    speedMs: 1800,
-    rounds: 32,
-    modes: ['distractors', 'lures', 'negation', 'adaptive_closed_loop', 'alien_tesseract'],
-    desc: "Tests tracking of a projected 4D tesseract hyperspace layer.",
-    streamsCount: 1
-  },
-  {
-    title: "Phase 17: Stress Inoculation",
-    nLevel: 2,
-    speedMs: 1800,
-    rounds: 35,
-    modes: ['distractors', 'lures', 'negation', 'adaptive_closed_loop', 'alien_cube', 'stress_glitch', 'timer_panic'],
-    desc: "Overloads focal processing using GPU-accelerated glitch skews and time countdown panic.",
-    streamsCount: 1
-  },
-  {
-    title: "Phase 18: Structural Disruption",
+    title: "Phase 15: Episodic Buffer Binding",
     nLevel: 2,
     speedMs: 1600,
-    rounds: 35,
-    modes: ['distractors', 'lures', 'negation', 'adaptive_closed_loop', 'alien_cube', 'stress_glitch', 'stress_shake', 'timer_panic'],
-    desc: "Injects physical structural screen shakes at high stress moments.",
+    rounds: 30,
+    modes: ['distractors', 'lures', 'negation', 'adaptive_closed_loop', 'token_blending'],
+    desc: "Blends alphanumeric code letters and emoji tokens directly inside spatial and trait relationships.",
     streamsCount: 1
   },
   {
-    title: "Phase 19: Dual Stream Multitasking",
+    title: "Phase 16: 2D Spatial Rotations",
     nLevel: 2,
     speedMs: 1600,
-    rounds: 35,
-    modes: ['distractors', 'lures', 'negation', 'adaptive_closed_loop', 'stress_glitch', 'stress_shake', 'timer_panic'],
-    desc: "Expands the challenge to tracking two parallel stimulus streams simultaneously.",
-    streamsCount: 2
+    rounds: 30,
+    modes: ['distractors', 'lures', 'negation', 'adaptive_closed_loop', 'alien_square', 'token_blending'],
+    desc: "Forces tracking of a 2D rotating spatial matrix with cross-modal token blending.",
+    streamsCount: 1
   },
   {
-    title: "Phase 20: Quantum Focus",
-    nLevel: 3,
+    title: "Phase 17: 3D Transparent Rotations",
+    nLevel: 2,
+    speedMs: 1600,
+    rounds: 32,
+    modes: ['distractors', 'lures', 'negation', 'adaptive_closed_loop', 'alien_cube', 'wrapper_morph', 'token_blending'],
+    desc: "Tracks transparent 3D rotating cubes containing morphing visual styles and cross-modal tokens.",
+    streamsCount: 1
+  },
+  {
+    title: "Phase 18: Stress Inoculation",
+    nLevel: 2,
+    speedMs: 1500,
+    rounds: 32,
+    modes: ['distractors', 'lures', 'negation', 'adaptive_closed_loop', 'alien_cube', 'stress_glitch', 'timer_panic', 'wrapper_morph'],
+    desc: "Overloads focal processing using visual glitches, shrinking countdown bars, and chaotic card shifting.",
+    streamsCount: 1
+  },
+  {
+    title: "Phase 19: Structural Disruption",
+    nLevel: 2,
     speedMs: 1500,
     rounds: 35,
-    modes: ['distractors', 'lures', 'negation', 'adaptive_closed_loop', 'stress_glitch', 'stress_shake', 'timer_panic', 'impossible'],
-    desc: "The peak challenge: 2 streams at N=3 with random multi-rules and full stressors active.",
+    modes: ['distractors', 'lures', 'negation', 'adaptive_closed_loop', 'alien_cube', 'stress_glitch', 'stress_shake', 'timer_panic', 'wrapper_morph', 'token_blending'],
+    desc: "Injects physical screen shakes and chaotic set shifts alongside cross-modal token binding.",
+    streamsCount: 1
+  },
+  {
+    title: "Phase 20: Dual Stream Multitasking",
+    nLevel: 2,
+    speedMs: 1400,
+    rounds: 35,
+    modes: ['distractors', 'lures', 'negation', 'adaptive_closed_loop', 'wrapper_morph', 'token_blending'],
+    desc: "Expands the challenge to tracking two parallel stimulus streams with visual wrapper morphs and blended tokens.",
     streamsCount: 2
+  },
+  {
+    title: "Phase 21: Quantum Focus",
+    nLevel: 3,
+    speedMs: 1300,
+    rounds: 35,
+    modes: ['distractors', 'lures', 'negation', 'adaptive_closed_loop', 'stress_glitch', 'stress_shake', 'timer_panic', 'impossible', 'wrapper_morph', 'token_blending'],
+    desc: "The absolute peak: 2 streams at N=3 with random multi-rules, full chaos morphs, and cross-modal token blending active.",
+    streamsCount: 2
+  }
+];
+
+export const AVAILABLE_THEMES = [
+  {
+    id: 'cyberpunk',
+    name: 'Cyberpunk Neon',
+    className: 'bg-black/90 border-cyan-500/90 shadow-[0_0_32px_rgba(34,211,238,0.45)] text-cyan-400 border-2',
+    canvasBg: '#05070c',
+    primaryColor: '#22d3ee',
+    secondaryColor: '#f43f5e'
+  },
+  {
+    id: 'minimal',
+    name: 'Minimal Stark',
+    className: 'bg-zinc-950 border-zinc-700 shadow-none text-zinc-100 border-2',
+    canvasBg: '#09090b',
+    primaryColor: '#fafafa',
+    secondaryColor: '#71717a'
+  },
+  {
+    id: 'glass',
+    name: 'Glassmorphic Frost',
+    className: 'bg-slate-900/40 backdrop-blur-md border-white/20 shadow-[0_0_24px_rgba(255,255,255,0.05)] text-white border-2',
+    canvasBg: 'rgba(15, 23, 42, 0.3)',
+    primaryColor: '#f1f5f9',
+    secondaryColor: '#94a3b8'
+  },
+  {
+    id: 'sunset',
+    name: 'Sunset Glow',
+    className: 'bg-stone-950 border-orange-500/90 shadow-[0_0_32px_rgba(249,115,22,0.4)] text-orange-400 border-2',
+    canvasBg: '#0c0a09',
+    primaryColor: '#f97316',
+    secondaryColor: '#ec4899'
+  },
+  {
+    id: 'terminal',
+    name: 'Matrix Terminal',
+    className: 'bg-black border-emerald-500/90 shadow-[0_0_28px_rgba(16,185,129,0.35)] text-emerald-400 border-2',
+    canvasBg: '#000000',
+    primaryColor: '#10b981',
+    secondaryColor: '#3b82f6'
   }
 ];

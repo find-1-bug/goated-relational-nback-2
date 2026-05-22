@@ -23,6 +23,7 @@ import {
   makeInverseStimulus,
   INVERSE_RELATIONSHIP,
   filterTransitiveRelationships,
+  AVAILABLE_THEMES,
 } from './gameConstants';
 import { createRSTChain, nextRSTTurn } from './syllogimousAdapter.js';
 
@@ -32,19 +33,21 @@ export { calculateResults, computeNextNLevel } from './gameStats.js';
 
 // ─── Helpers ──────────────────────────────────────────────────────────────────
 
-function makeStimulusEntry(rel) {
-  const shapeA = pickRandom(SHAPES);
-  const shapeB = pickRandomExcluding(SHAPES, shapeA);
+function makeStimulusEntry(rel, modes = []) {
+  const isBlending = (modes || []).includes('token_blending');
+  const shapeA = isBlending ? pickTokenWord(pickTokenType()) : pickRandom(SHAPES);
+  const shapeB = isBlending ? pickTokenWord(pickTokenType()) : pickRandomExcluding(SHAPES, shapeA);
   const colorA = pickRandom(COLORS);
   const colorB = pickRandomExcluding(COLORS, colorA);
   const renderMode = Math.floor(Math.random() * 3);
-  const shape3DA = pickRandom(['cube', 'sphere', 'pyramid', 'cone', 'torus', 'octahedron']);
-  const shape3DB = pickRandomExcluding(['cube', 'sphere', 'pyramid', 'cone', 'torus', 'octahedron'], shape3DA);
+  const shape3DA = isBlending ? pickTokenWord(pickTokenType()) : pickRandom(['cube', 'sphere', 'pyramid', 'cone', 'torus', 'octahedron']);
+  const shape3DB = isBlending ? pickTokenWord(pickTokenType()) : pickRandomExcluding(['cube', 'sphere', 'pyramid', 'cone', 'torus', 'octahedron'], shape3DA);
   const size3DA = 2 + Math.random() * 1.5;
   const size3DB = 2 + Math.random() * 1.5;
+  const relationSymbolMode = Math.random() < 0.5 ? 'minimal' : 'normal';
   if (isSound(rel)) {
     const [soundA, soundB] = getSoundPair(rel);
-    return { rel, soundA, soundB, wordA: soundA, wordB: soundB, shapeA, shapeB, colorA, colorB, renderMode, shape3DA, shape3DB, size3DA, size3DB };
+    return { rel, soundA, soundB, wordA: soundA, wordB: soundB, shapeA, shapeB, colorA, colorB, renderMode, relationSymbolMode, shape3DA, shape3DB, size3DA, size3DB };
   }
   if (isVerbal(rel)) {
     let wordA, wordB;
@@ -54,7 +57,7 @@ function makeStimulusEntry(rel) {
       wordA = pickTokenWord(pickTokenType());
       wordB = pickTokenWord(pickTokenType());
     }
-    return { rel, wordA, wordB, shapeA, shapeB, colorA, colorB, renderMode, shape3DA, shape3DB, size3DA, size3DB };
+    return { rel, wordA, wordB, shapeA, shapeB, colorA, colorB, renderMode, relationSymbolMode, shape3DA, shape3DB, size3DA, size3DB };
   }
   return { rel, shapeA, shapeB, colorA, colorB, renderMode, shape3DA, shape3DB, size3DA, size3DB };
 }
@@ -471,7 +474,7 @@ function makeNRINTStim(attrs) {
 
 // Generate stimulus for a single stream, given its own history/typeHistory/rintState
 // streamConfig: { trialMode, binaryMode, binaryOp, hierHistory } for Hierarchical and Binary Logic
-function generateOneStreamStimulus({ history, typeHistory, rintState, pool, effectiveN, trialMode, matchChance, hasDistractors, hasLures = false, negationMode = false, trialIndex, hierHistory, binaryMode, binaryOp, signalOnly = false, baseStim = null, alienCube = false, alienSquare = false, alienTesseract = false, alienSettings = {}, nrintEnabledFlags = NRINT_DEFAULT_FLAGS, nrintHideLegend = false, customLureRate = null, customNegationRate = null }) {
+function generateOneStreamStimulus({ history, typeHistory, rintState, pool, effectiveN, trialMode, matchChance, hasDistractors, hasLures = false, negationMode = false, trialIndex, hierHistory, binaryMode, binaryOp, signalOnly = false, baseStim = null, alienCube = false, alienSquare = false, alienTesseract = false, alienSettings = {}, nrintEnabledFlags = NRINT_DEFAULT_FLAGS, nrintHideLegend = false, customLureRate = null, customNegationRate = null, modes = [] }) {
    let stim, isPrimaryTarget = false, isPositionTarget = false, nextRINTState = rintState;
    const canTarget = history.length >= effectiveN;
 
@@ -532,13 +535,13 @@ function generateOneStreamStimulus({ history, typeHistory, rintState, pool, effe
       const entries = getTypeHistory(typeHistory, forcedRel);
       const targetEntry = entries[entries.length - effectiveN];
       stim = isVerbal(forcedRel)
-        ? (Math.random() < 0.35 ? makeInverseStimulus(targetEntry) : null) || makeStimulusEntry(forcedRel)
-        : maybeInvertVisual(makeStimulusEntry(forcedRel));
+        ? (Math.random() < 0.35 ? makeInverseStimulus(targetEntry) : null) || makeStimulusEntry(forcedRel, modes)
+        : maybeInvertVisual(makeStimulusEntry(forcedRel, modes));
       // When negation mode is on, match the past entry's _negated to keep
       // the target intact (since type-match now requires both rel & negation).
       stim._negated = !!targetEntry?._negated;
     } else {
-      stim = makeStimulusEntry(makeNonTargetRelationship(finalPool, rel => isTypeNbackMatch(typeHistory, rel, effectiveN)));
+      stim = makeStimulusEntry(makeNonTargetRelationship(finalPool, rel => isTypeNbackMatch(typeHistory, rel, effectiveN)), modes);
       stim._negated = pickNegationFlag(negationMode);
     }
     // Negation lure: if we made a rel-match but flipped negation, it becomes a
@@ -556,7 +559,7 @@ function generateOneStreamStimulus({ history, typeHistory, rintState, pool, effe
     const rel = canHier && Math.random() < matchChance
       ? pickRandom(finalPool.filter(r => getCategory(r) === nBackCat))
       : makeNonTargetRelationship(finalPool, r => canHier && getCategory(r) === nBackCat);
-    stim = makeStimulusEntry(rel);
+    stim = makeStimulusEntry(rel, modes);
     isPrimaryTarget = canHier && getCategory(stim.rel) === nBackCat;
   } else {
     let isLure = false;
@@ -564,7 +567,7 @@ function generateOneStreamStimulus({ history, typeHistory, rintState, pool, effe
     if (canTarget && nBackEntry && finalPool.includes(nBackEntry.rel) && Math.random() < matchChance) {
       stim = isVerbal(nBackEntry.rel)
         ? (Math.random() < 0.35 ? makeInverseStimulus(nBackEntry) : null) || { ...nBackEntry }
-        : maybeInvertVisual(makeStimulusEntry(nBackEntry.rel));
+        : maybeInvertVisual(makeStimulusEntry(nBackEntry.rel, modes));
       // Keep _negated consistent with the past so the rel-match becomes a real
       // target under negation mode. Negation lures are rolled below.
       stim._negated = !!nBackEntry?._negated;
@@ -579,19 +582,19 @@ function generateOneStreamStimulus({ history, typeHistory, rintState, pool, effe
       if (lureEntry && finalPool.includes(lureEntry.rel) && !relationshipMatches(lureEntry.rel, nBackEntry?.rel)) {
         stim = isVerbal(lureEntry.rel)
           ? (Math.random() < 0.35 ? makeInverseStimulus(lureEntry) : null) || { ...lureEntry }
-          : maybeInvertVisual(makeStimulusEntry(lureEntry.rel));
+          : maybeInvertVisual(makeStimulusEntry(lureEntry.rel, modes));
         stim._negated = !!lureEntry._negated;
         isLure = true;
         lureOffset = lureN - effectiveN;
       } else {
-        stim = makeStimulusEntry(makeNonTargetRelationship(finalPool, rel => canTarget && relationshipMatches(rel, nBackEntry?.rel)));
+        stim = makeStimulusEntry(makeNonTargetRelationship(finalPool, rel => canTarget && relationshipMatches(rel, nBackEntry?.rel)), modes);
         stim._negated = pickNegationFlag(negationMode, customNegationRate !== null ? customNegationRate : NEGATION_RATE);
       }
     } else if (hasDistractors && canTarget && nBackEntry && Math.random() < DISTRACTOR_CHANCE) {
-      stim = makeStimulusEntry(makeDistractor(nBackEntry.rel, pool));
+      stim = makeStimulusEntry(makeDistractor(nBackEntry.rel, pool), modes);
       stim._negated = pickNegationFlag(negationMode, customNegationRate !== null ? customNegationRate : NEGATION_RATE);
     } else {
-      stim = makeStimulusEntry(makeNonTargetRelationship(finalPool, rel => canTarget && relationshipMatches(rel, nBackEntry?.rel)));
+      stim = makeStimulusEntry(makeNonTargetRelationship(finalPool, rel => canTarget && relationshipMatches(rel, nBackEntry?.rel)), modes);
       stim._negated = pickNegationFlag(negationMode, customNegationRate !== null ? customNegationRate : NEGATION_RATE);
     }
     // Negation lure on a would-be target: flip negation so the rel matches but
@@ -676,7 +679,7 @@ function randomBinaryConfig(effectiveN) {
 
 // ─── State Creation ──────────────────────────────────────────────────────────
 
-export function createGameState({ nLevel, modes, relationshipPool, totalRounds, extraStreams = [], alienSettings = {}, streamA = null, nrintEnabledFlags = null, nrintHideLegend = false, initialSpeedMs = 2800 }) {
+export function createGameState({ nLevel, modes, relationshipPool, totalRounds, extraStreams = [], alienSettings = {}, streamA = null, nrintEnabledFlags = null, nrintHideLegend = false, initialSpeedMs = 2800, wrapperMorphStyle = 'shift' }) {
   const numExtra = extraStreams.length;
   const totalStreams = 1 + numExtra;
   // Per-stream type: 'relation' (default) or 'cct'. Falls back to global 'cct'
@@ -692,6 +695,7 @@ export function createGameState({ nLevel, modes, relationshipPool, totalRounds, 
     nLevel,
     modes,
     alienSettings,
+    wrapperMorphStyle,
     relationshipPool: relationshipPool || ALL_RELATIONSHIPS,
     round: 0,
     totalRounds: totalRounds || TOTAL_ROUNDS,
@@ -803,23 +807,50 @@ export function generateNextStimulus(state) {
   const {
     nLevel, round, historyA, typeHistoryA, modes, relationshipPool,
     extraHistories, extraTypeHistories, rintStates, hierHistories, alienSettings,
-    streamTypes, extraRSTChains,
+    streamTypes, extraRSTChains, wrapperMorphStyle
   } = state;
 
   const isNRINT = modes.includes('nonverbal_rint');
-  // CCT lives per-stream now (see streamTypes). The global pool for relation
-  // streams ignores CCT entirely. NRINT still owns the global pool when on.
-  const pool = isNRINT
-    ? ['NRINT_COMPOSITE']
-    : ((relationshipPool && relationshipPool.length > 0) ? relationshipPool : ALL_RELATIONSHIPS);
   const hasDistractors = modes.includes('distractors');
   const hasLures = modes.includes('lures');
   const negationMode = modes.includes('negation');
   const isImpossible = modes.includes('impossible');
-  // Modes without 'cct' — used for rollTrialMode on relation streams so a
-  // global cct toggle doesn't drag relation streams into cct mode.
   const relationModes = (modes || []).filter(m => m !== 'cct');
   const stypeOf = (idx) => (streamTypes && streamTypes[idx]) || 'relation';
+
+  // ── Wrapper Morphing Integration ──
+  const isMorph = modes.includes('wrapper_morph');
+  const morphStyle = wrapperMorphStyle || state.wrapperMorphStyle || 'shift';
+  let morphActiveCategory = null;
+
+  // Baseline pool
+  const basePool = isNRINT
+    ? ['NRINT_COMPOSITE']
+    : ((relationshipPool && relationshipPool.length > 0) ? relationshipPool : ALL_RELATIONSHIPS);
+
+  let morphedPool = basePool;
+  if (isMorph && !isNRINT) {
+    // Dynamically identify which categories are actually enabled in the current active pool
+    const activeCategories = Object.keys(RELATIONSHIP_CATEGORIES).filter(cat => 
+      basePool.some(rel => RELATIONSHIP_CATEGORIES[cat].includes(rel))
+    );
+    if (activeCategories.length > 0) {
+      const catIdx = morphStyle === 'shift' ? Math.floor(round / 5) % activeCategories.length : round % activeCategories.length;
+      morphActiveCategory = activeCategories[catIdx];
+      const categoryRels = RELATIONSHIP_CATEGORIES[morphActiveCategory] || [];
+      // Restrict morphing to the user's chosen relations inside this active category
+      const intersection = basePool.filter(rel => categoryRels.includes(rel));
+      morphedPool = intersection.length > 0 ? intersection : basePool;
+    }
+  }
+
+  // Visual theme matching
+  const themeIndex = isMorph
+    ? (morphStyle === 'shift' ? Math.floor(round / 5) % AVAILABLE_THEMES.length : round % AVAILABLE_THEMES.length)
+    : 0;
+  const activeTheme = isMorph ? AVAILABLE_THEMES[themeIndex] : null;
+
+  const pool = morphedPool;
 
   // Variable N
   const isVariableN = modes.includes('variable_n');
@@ -839,8 +870,6 @@ export function generateNextStimulus(state) {
   const soundPool = pool.filter(isSound);
   const nonSoundPool = pool.filter(rel => !isSound(rel));
   const allNonSoundPool = ALL_RELATIONSHIPS.filter(rel => !isSound(rel));
-  // Only relation streams compete for the (limited) audio assignment — CCT
-  // streams ignore the pool entirely.
   const relationStreamIndexes = Array.from({ length: totalStreams }, (_, i) => i).filter(i => stypeOf(i) === 'relation');
   const audioStreamIndexes = relationStreamIndexes.length >= 2 && soundPool.length > 0 ? pickSoundStreamIndexes(relationStreamIndexes) : [];
   const streamPoolFor = (index) => {
@@ -856,10 +885,6 @@ export function generateNextStimulus(state) {
     : Array(totalStreams).fill({ primaryMode: 'normal', binaryMode: null, binaryOp: 'AND' });
 
   // ── Stream A ──
-  // Per-stream streamType wins over global modes. A CCT stream always uses
-  // cct trialMode; a relation stream uses binary_logic / rollTrialMode based
-  // on the relation-only modes (so a stream typed "relation" isn't dragged
-  // into cct just because the legacy global cct flag is set).
   const baseTrialModeA = isBinaryLogic
     ? (trialBinaryConfigs[0].primaryMode === 'rint' && effectiveN >= RINT_MIN_N ? 'rint'
         : trialBinaryConfigs[0].primaryMode === 'type' ? 'type'
@@ -895,9 +920,13 @@ export function generateNextStimulus(state) {
     nrintHideLegend,
     customLureRate,
     customNegationRate,
+    modes,
   });
 
   const stimA = resultA.stim;
+  if (activeTheme) {
+    stimA._activeTheme = activeTheme;
+  }
   const categoryA = getCategory(stimA.rel);
 
   // ── Extra streams ──
@@ -914,7 +943,7 @@ export function generateNextStimulus(state) {
   const extraResults = (extraHistories || []).map((hist, i) => {
     const streamRINTState = (rintStates && rintStates[1 + i]) ? rintStates[1 + i] : createRINTState();
     const cfg = trialBinaryConfigs[1 + i] || { primaryMode: 'normal', binaryMode: null, binaryOp: 'AND' };
-    return generateOneStreamStimulus({
+    const res = generateOneStreamStimulus({
       history: hist,
       typeHistory: extraTypeHistories[i] || new Map(),
       rintState: streamRINTState,
@@ -933,7 +962,12 @@ export function generateNextStimulus(state) {
       nrintHideLegend,
       customLureRate,
       customNegationRate,
+      modes,
     });
+    if (activeTheme && res.stim) {
+      res.stim._activeTheme = activeTheme;
+    }
+    return res;
   });
 
   // ── CCT side-task layer ──

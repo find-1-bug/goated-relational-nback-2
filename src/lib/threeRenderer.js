@@ -1,10 +1,73 @@
 import * as THREE from 'three';
 import { renderRelationship, is3D } from './relationshipRenderer';
+import { getSynaesthesiaColor } from './shapeRenderer';
 
 // 3D shapes using Three.js
 const SHAPES_3D = ['cube', 'sphere', 'pyramid', 'cone', 'torus', 'octahedron'];
 
+function createThreeTextSprite(text, colorHex) {
+  const canvas = document.createElement('canvas');
+  canvas.width = 512; // double size for high-DPI crisp rendering of text sprites
+  canvas.height = 512;
+  const ctx = canvas.getContext('2d');
+  
+  const isEmoji = /\p{Emoji}/u.test(text);
+  
+  ctx.textAlign = 'center';
+  ctx.textBaseline = 'middle';
+  
+  if (isEmoji) {
+    const size = 420; // scaled up from 320 to prevent squinting!
+    ctx.font = `bold ${size}px serif`;
+    ctx.fillStyle = colorHex;
+    ctx.shadowColor = colorHex;
+    ctx.shadowBlur = 20;
+    ctx.fillText(text, 256, 256);
+  } else {
+    // Determine responsive font size based on text length to fit perfectly in 512x512 canvas
+    let size = 175; // scaled up from 130 to prevent squinting!
+    const aspectEstimate = 0.6;
+    const maxLengthSize = (512 * 0.95) / (text.length * aspectEstimate);
+    size = Math.min(size, maxLengthSize);
+    size = Math.max(size, 60);
+
+    ctx.font = `bold ${size}px 'JetBrains Mono', monospace`;
+    const charWidth = ctx.measureText('M').width;
+    const totalWidth = text.length * charWidth;
+    const startX = 256 - totalWidth / 2 + charWidth / 2;
+    
+    const synaesthesiaEnabled = localStorage.getItem('goated_synaesthesia_enabled') === 'true';
+
+    for (let i = 0; i < text.length; i++) {
+      const char = text[i];
+      const x = startX + i * charWidth;
+      const charColor = synaesthesiaEnabled ? getSynaesthesiaColor(char, colorHex) : colorHex;
+      
+      ctx.save();
+      ctx.fillStyle = charColor;
+      ctx.strokeStyle = '#020617';
+      ctx.lineWidth = Math.max(5.5, size * 0.16);
+      ctx.lineJoin = 'round';
+      ctx.strokeText(char, x, 256);
+      ctx.fillText(char, x, 256);
+      ctx.restore();
+    }
+  }
+  
+  const texture = new THREE.CanvasTexture(canvas);
+  texture.colorSpace = THREE.SRGBColorSpace;
+  const material = new THREE.SpriteMaterial({ map: texture, transparent: true });
+  const sprite = new THREE.Sprite(material);
+  sprite.scale.set(3, 3, 1);
+  return sprite;
+}
+
 function createShape3D(shapeType, size, color) {
+  if (typeof shapeType === 'string' && shapeType && !SHAPES_3D.includes(shapeType)) {
+    const colorHex = '#' + (typeof color === 'number' ? color.toString(16).padStart(6, '0') : String(color).replace('#',''));
+    return createThreeTextSprite(shapeType, colorHex);
+  }
+
   let geometry;
   switch (shapeType) {
     case 'cube':
@@ -332,7 +395,7 @@ let _stillRendererSize = { w: 0, h: 0 };
 function getStillRenderer(width, height) {
   if (!_stillRenderer) {
     const canvas = document.createElement('canvas');
-    _stillRenderer = new THREE.WebGLRenderer({ canvas, antialias: true, preserveDrawingBuffer: true });
+    _stillRenderer = new THREE.WebGLRenderer({ canvas, antialias: true, preserveDrawingBuffer: true, alpha: true });
     _stillRenderer.setPixelRatio(1);
   }
   if (_stillRendererSize.w !== width || _stillRendererSize.h !== height) {
@@ -510,7 +573,7 @@ function createRelationPanelTexture(relationship, stimulus, alienCubeScale = 1) 
 
 function setupScene(canvas) {
   const scene = new THREE.Scene();
-  scene.background = new THREE.Color(0x020617);
+  // Keep background transparent so custom wrapper visual themes show through cleanly
 
   const starGeometry = new THREE.BufferGeometry();
   const starPositions = [];
@@ -525,7 +588,7 @@ function setupScene(canvas) {
   camera.position.set(0, 0.85, 3.15);
   camera.lookAt(0, 0, 0);
 
-  const renderer = new THREE.WebGLRenderer({ canvas, antialias: false, powerPreference: 'high-performance' });
+  const renderer = new THREE.WebGLRenderer({ canvas, antialias: false, powerPreference: 'high-performance', alpha: true });
   const pixelRatio = Math.min(window.devicePixelRatio || 1, 1.5);
   renderer.setPixelRatio(pixelRatio);
   renderer.setSize(canvas.clientWidth, canvas.clientHeight, false);

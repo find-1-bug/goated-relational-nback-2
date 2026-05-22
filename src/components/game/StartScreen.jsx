@@ -1,6 +1,6 @@
 import React from 'react';
 import { Button } from '@/components/ui/button';
-import { Brain, Zap, TrendingUp, Layers, GitBranch, Shuffle, ChevronDown, ChevronUp, Plus, Minus } from 'lucide-react';
+import { Brain, Zap, TrendingUp, Layers, GitBranch, Shuffle, ChevronDown, ChevronUp, Plus, Minus, Eye } from 'lucide-react';
 import { motion, AnimatePresence } from 'framer-motion';
 import { RELATIONSHIP_CATEGORIES, setTokenWeights, getTokenWeights, filterTransitiveRelationships, COACH_PHASES } from '@/lib/gameConstants';
 import { NRINT_FLAGS, NRINT_FLAG_META } from '@/lib/gameEngine';
@@ -45,6 +45,8 @@ const MODE_OPTIONS = [
   { id: 'nonverbal_rint',icon: GitBranch,  label: 'Nonverbal RINT',    desc: 'Each stimulus carries up to 4 independent attributes — touching · hollow · size-mismatch · audio. A target fires when the union of the last N stimuli\'s attributes exactly equals the current stimulus. Genuinely cross-modal (visual + auditory). Requires N≥2.', minN: 2, phase: "Phase C: Memory Integration & Dynamic Rules" },
   { id: 'mixed_nback',   icon: Shuffle,    label: 'Mixed N-Back',      desc: 'Randomly switches between Normal and Type N-back each trial. You never know which rule applies.', phase: "Phase C: Memory Integration & Dynamic Rules" },
   { id: 'mixed_rint',    icon: Shuffle,    label: 'Mixed RINT',        desc: 'Three-way random per trial: Normal / Type / RINT. Maximum flexibility demand. Requires N≥2.', minN: 2, phase: "Phase C: Memory Integration & Dynamic Rules" },
+  { id: 'wrapper_morph', icon: Shuffle,    label: 'Wrapper Morphing Mode', desc: 'Combines dynamic visual theme morphing (Cyberpunk, Stark, Glass, Sunset, Matrix) with logical token category morphing mid-session (blocks of 5 or trial-by-trial). Challenges cognitive set-shifting.', phase: "Phase C: Memory Integration & Dynamic Rules" },
+  { id: 'token_blending',icon: Brain,      label: 'Cross-Modal Token Blending', desc: 'Blends verbal words, alphanumeric code letters, and emoji tokens directly inside spatial, trait, and quantitative relationships. Overloads the Episodic Buffer.', phase: "Phase C: Memory Integration & Dynamic Rules" },
   { id: 'binary_logic',  icon: GitBranch,  label: 'Binary Logic',      desc: 'Each trial, each stream is assigned a random pair: <NBack type> <OP> <NBack type> (e.g. NRM AND NOT RINT). A match fires only when the combined boolean condition is true. Shown as live badges on each stream. Requires N≥2.', minN: 2, phase: "Phase C: Memory Integration & Dynamic Rules" },
 
   // Spatial & Stress Overloads (Alien Dimensions & Distractors)
@@ -295,6 +297,16 @@ function StreamRow({ label, labelColor, borderColor, keyCode, positionKeyCode, c
   );
 }
 
+const DEFAULT_COLOR_MAP = {
+  A: '#ff007f', B: '#ff3b3f', C: '#ff8c00', D: '#ffd700', E: '#39ff14',
+  F: '#00f5ff', G: '#1f75fe', H: '#8a2be2', I: '#ff00ff', J: '#00ffcc',
+  K: '#ff007f', L: '#ff3b3f', M: '#ff8c00', N: '#ffd700', O: '#39ff14',
+  P: '#00f5ff', Q: '#1f75fe', R: '#8a2be2', S: '#ff00ff', T: '#00ffcc',
+  U: '#ff007f', V: '#ff3b3f', W: '#ff8c00', X: '#ffd700', Y: '#39ff14', Z: '#00f5ff',
+  '0': '#ff007f', '1': '#ff3b3f', '2': '#ff8c00', '3': '#ffd700', '4': '#39ff14',
+  '5': '#00f5ff', '6': '#1f75fe', '7': '#8a2be2', '8': '#ff00ff', '9': '#00ffcc'
+};
+
 export default function StartScreen({ onStart, suggestedN, lastSettings }) {
   const allCats = Object.keys(RELATIONSHIP_CATEGORIES);
   const allRels = Object.values(RELATIONSHIP_CATEGORIES).flat();
@@ -368,6 +380,9 @@ export default function StartScreen({ onStart, suggestedN, lastSettings }) {
     slideMs: 2800,
     ...(lastSettings?.carouselSettings || {}),
   });
+  const [wrapperMorphStyle, setWrapperMorphStyle] = React.useState(
+    lastSettings?.wrapperMorphStyle || 'shift'
+  );
   const alienModeActive = modes.includes('alien_cube') || modes.includes('alien_tesseract') || modes.includes('alien_square');
   const cctOverlayActive = modes.includes('cct_overlay');
   const rstOverlayActive = modes.includes('rst_overlay');
@@ -468,6 +483,34 @@ export default function StartScreen({ onStart, suggestedN, lastSettings }) {
   const [showRelTypes, setShowRelTypes] = React.useState(false);
   const [rounds, setRounds] = React.useState(lastSettings?.rounds || coachState.rounds);
   const [speedMs, setSpeedMs] = React.useState(lastSettings?.speedMs || coachState.speedMs);
+  
+  const [synaesthesiaEnabled, setSynaesthesiaEnabled] = React.useState(() => {
+    return localStorage.getItem('goated_synaesthesia_enabled') === 'true';
+  });
+  
+  const [synaesthesiaMap, setSynaesthesiaMap] = React.useState(() => {
+    try {
+      const saved = localStorage.getItem('goated_synaesthesia_map');
+      const parsed = saved ? JSON.parse(saved) : null;
+      if (parsed && typeof parsed === 'object' && !Array.isArray(parsed)) {
+        return { ...DEFAULT_COLOR_MAP, ...parsed };
+      }
+      return DEFAULT_COLOR_MAP;
+    } catch (e) {
+      return DEFAULT_COLOR_MAP;
+    }
+  });
+  
+  const [showSynaesthesiaEditor, setShowSynaesthesiaEditor] = React.useState(false);
+
+  React.useEffect(() => {
+    localStorage.setItem('goated_synaesthesia_enabled', String(synaesthesiaEnabled));
+  }, [synaesthesiaEnabled]);
+
+  React.useEffect(() => {
+    localStorage.setItem('goated_synaesthesia_map', JSON.stringify(synaesthesiaMap));
+  }, [synaesthesiaMap]);
+
   const [noobMode, setNoobMode] = React.useState(lastSettings?.noobMode || false);
   const [showLedger, setShowLedger] = React.useState(false);
   const [ledgerEntries, setLedgerEntries] = React.useState([]);
@@ -511,6 +554,7 @@ export default function StartScreen({ onStart, suggestedN, lastSettings }) {
     { id: 'voronoi_emoji', label: 'Abstract',    color: '#34d399', desc: 'Geometric unicode symbols (◈, ⬡, ⟐…)' },
     { id: 'random_string', label: 'Random Str',  color: '#fb923c', desc: 'Alphanumeric codes (Xk3F, aB9z…)' },
     { id: 'voronoi',       label: 'Voronoi',     color: '#f472b6', desc: 'Mini Voronoi cell diagrams as tokens' },
+    { id: 'scrap',         label: 'Photo Scrap', color: '#818cf8', desc: 'Hand-torn physical photo collage pieces' },
   ];
 
   const setTokenWeight = (id, val) => setTokenWeightsState(prev => ({ ...prev, [id]: Number(val) }));
@@ -942,6 +986,86 @@ export default function StartScreen({ onStart, suggestedN, lastSettings }) {
           </AnimatePresence>
         </div>
 
+        {/* Synaesthesia Settings */}
+        <div className="space-y-2 rounded-lg bg-secondary/35 border border-border/80 p-3.5">
+          <div className="flex items-center justify-between">
+            <div className="flex items-center gap-2">
+              <Eye className="w-4 h-4 text-primary animate-pulse" />
+              <div>
+                <span className="block text-xs font-mono font-bold text-foreground uppercase tracking-wider">Synaesthesia Mode</span>
+                <span className="block text-[10px] font-mono text-muted-foreground">Vibrant custom character-color mappings</span>
+              </div>
+            </div>
+            <button
+              onClick={() => setSynaesthesiaEnabled(!synaesthesiaEnabled)}
+              className={`relative w-12 h-6 rounded-full transition-colors shrink-0 ${synaesthesiaEnabled ? 'bg-primary' : 'bg-secondary border border-border'}`}
+            >
+              <div
+                className={`absolute w-5 h-5 rounded-full bg-foreground transition-transform duration-200 ${synaesthesiaEnabled ? 'translate-x-6' : 'translate-x-0.5'}`}
+                style={{ top: '1px' }}
+              />
+            </button>
+          </div>
+
+          {synaesthesiaEnabled && (
+            <div className="pt-2.5 border-t border-border/40 space-y-2">
+              <button
+                onClick={() => setShowSynaesthesiaEditor(!showSynaesthesiaEditor)}
+                className="w-full flex items-center justify-between px-2.5 py-1.5 rounded bg-background border border-border text-[11px] font-mono text-muted-foreground hover:text-foreground hover:border-muted-foreground/30 transition-all"
+              >
+                <span>Customize Grapheme Colors</span>
+                <span className="text-[9px] px-1.5 py-0.5 rounded bg-secondary text-primary font-bold">
+                  {showSynaesthesiaEditor ? 'Collapse' : 'Expand Editor'}
+                </span>
+              </button>
+
+              {showSynaesthesiaEditor && (
+                <div className="p-3 rounded bg-background/80 border border-border/60 space-y-3">
+                  <div className="flex items-center justify-between gap-2 border-b border-border/40 pb-1.5">
+                    <span className="text-[10px] font-mono text-muted-foreground uppercase tracking-widest">Grapheme-Color Map</span>
+                    <button
+                      onClick={() => {
+                        if (confirm('Reset custom colors to default presets?')) {
+                          setSynaesthesiaMap(DEFAULT_COLOR_MAP);
+                        }
+                      }}
+                      className="text-[9px] font-mono text-rose-400 hover:text-rose-300 font-semibold"
+                    >
+                      Reset Defaults
+                    </button>
+                  </div>
+                  
+                  {/* Grid for alphabet and digits */}
+                  <div className="grid grid-cols-6 gap-2 max-h-[180px] overflow-y-auto pr-1 scrollbar-thin">
+                    {Object.keys(synaesthesiaMap).sort().map(char => {
+                      const color = synaesthesiaMap[char];
+                      return (
+                        <div key={char} className="flex flex-col items-center gap-1 p-1 bg-secondary/50 border border-border rounded">
+                          <span className="text-xs font-mono font-bold text-foreground">{char}</span>
+                          <div className="relative w-6 h-6 rounded overflow-hidden border border-border/80 cursor-pointer hover:scale-105 transition-all">
+                            <input
+                              type="color"
+                              value={color}
+                              onChange={(e) => {
+                                setSynaesthesiaMap(prev => ({
+                                  ...prev,
+                                  [char]: e.target.value
+                                }));
+                              }}
+                              className="absolute inset-0 w-full h-full p-0 border-0 cursor-pointer bg-transparent"
+                              style={{ width: '150%', height: '150%', transform: 'translate(-15%, -15%)' }}
+                            />
+                          </div>
+                        </div>
+                      );
+                    })}
+                  </div>
+                </div>
+              )}
+            </div>
+          )}
+        </div>
+
         {/* Streams */}
         <div className="space-y-2">
           <label className="block text-xs font-mono text-muted-foreground uppercase tracking-widest">Streams</label>
@@ -1147,6 +1271,8 @@ export default function StartScreen({ onStart, suggestedN, lastSettings }) {
           </div>
         </div>
 
+
+
         {/* Enhancement Modes */}
         <div className="space-y-2">
           <button
@@ -1204,6 +1330,22 @@ export default function StartScreen({ onStart, suggestedN, lastSettings }) {
                         {active && needsHigherN && <div className="text-xs font-mono text-amber-400 mt-1">↑ N bumped to {minN}</div>}
                         {active && needsMoreStreams && <div className="text-xs font-mono text-amber-400 mt-1">↑ Stream added automatically</div>}
                         {blockedBy && <div className="text-xs font-mono text-muted-foreground/40 mt-1">conflicts with {blockedBy.replace(/_/g,' ')}</div>}
+                        {active && id === 'wrapper_morph' && (
+                          <div className="mt-2.5 space-y-1.5 p-2 rounded bg-background/50 border border-border/80" onClick={e => e.stopPropagation()}>
+                            <span className="block text-[10px] font-mono text-muted-foreground uppercase tracking-widest">Morphing Style</span>
+                            <div className="grid grid-cols-2 gap-1 overflow-hidden rounded border border-border bg-background">
+                              {[
+                                { id: 'shift', label: 'Shift Mode (Block of 5)' },
+                                { id: 'chaos', label: 'Chaos Mode (Trial-by-Trial)' }
+                              ].map(style => (
+                                <button key={style.id} onClick={() => setWrapperMorphStyle(style.id)}
+                                  className={`px-2 py-1 text-xs font-mono transition-all ${wrapperMorphStyle === style.id ? 'bg-primary/20 text-primary font-semibold' : 'text-muted-foreground hover:text-foreground'}`}>
+                                  {style.label}
+                                </button>
+                              ))}
+                            </div>
+                          </div>
+                        )}
                       </div>
                     </button>
                   </React.Fragment>
@@ -1324,6 +1466,7 @@ export default function StartScreen({ onStart, suggestedN, lastSettings }) {
                   carouselSettings, 
                   nrintEnabledFlags, 
                   nrintHideLegend,
+                  wrapperMorphStyle,
                   autopilot: true,
                   phaseTitle: currentPhase.title
                 }, 
@@ -1351,7 +1494,7 @@ export default function StartScreen({ onStart, suggestedN, lastSettings }) {
                 rstKeyDisplay: KEY_OPTIONS.find(k => k.code === streamARSTKey)?.display || 'R',
                 streamType: streamAType,
               };
-              onStart(nLevel, modes, finalPool, rounds, speedMs, { catWeights, useCustomMix, rels: selectedRels, tokenWeights, streamA: streamAWithPosition, extraStreams, streams: [streamAWithPosition, ...extraStreams], alienSettings, carouselSettings, nrintEnabledFlags, nrintHideLegend, autopilot: false }, noobMode);
+              onStart(nLevel, modes, finalPool, rounds, speedMs, { catWeights, useCustomMix, rels: selectedRels, tokenWeights, streamA: streamAWithPosition, extraStreams, streams: [streamAWithPosition, ...extraStreams], alienSettings, carouselSettings, nrintEnabledFlags, nrintHideLegend, wrapperMorphStyle, autopilot: false }, noobMode);
             }}
             className="flex-1 h-12 px-6 font-mono font-semibold text-xs sm:text-sm tracking-wide bg-secondary hover:bg-secondary/85 text-foreground border border-border"
           >

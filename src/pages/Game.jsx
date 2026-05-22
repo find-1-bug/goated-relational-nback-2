@@ -88,10 +88,13 @@ export default function Game() {
     const results = calculateResults(state);
     const durationSeconds = startTime ? Math.round((Date.now() - startTime) / 1000) : 0;
     
+    const synaesthesia = localStorage.getItem('goated_synaesthesia_enabled') === 'true';
+    
     // Save session to localStorage
     const sessionData = {
       nLevel: state.nLevel,
       modes: state.modes,
+      synaesthesia,
       totalTrials: state.round,
       accuracy: results.overall.accuracy,
       hitRate: results.overall.hitRate,
