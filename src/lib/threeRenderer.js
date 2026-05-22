@@ -1,6 +1,7 @@
 import * as THREE from 'three';
-import { renderRelationship, is3D } from './relationshipRenderer';
+import { renderRelationship, is3D, drawScrapToken, drawVoronoiToken } from './relationshipRenderer';
 import { getSynaesthesiaColor } from './shapeRenderer';
+import { SCRAP_TOKEN_PREFIX, VORONOI_TOKEN_PREFIX } from './gameConstants';
 
 // 3D shapes using Three.js
 const SHAPES_3D = ['cube', 'sphere', 'pyramid', 'cone', 'torus', 'octahedron'];
@@ -10,6 +11,35 @@ function createThreeTextSprite(text, colorHex) {
   canvas.width = 512; // double size for high-DPI crisp rendering of text sprites
   canvas.height = 512;
   const ctx = canvas.getContext('2d');
+
+  // If this is a procedural clipart token (Junk-Journal or Voronoi), render it as gorgeous clipart!
+  if (typeof text === 'string' && text.startsWith(SCRAP_TOKEN_PREFIX)) {
+    const seed = Number(text.slice(SCRAP_TOKEN_PREFIX.length)) || 0;
+    ctx.clearRect(0, 0, 512, 512);
+    // Draw the procedural hand-torn paper scrap collage clipping!
+    drawScrapToken(ctx, seed, 256, 256, 420, colorHex);
+    
+    const texture = new THREE.CanvasTexture(canvas);
+    texture.colorSpace = THREE.SRGBColorSpace;
+    const material = new THREE.SpriteMaterial({ map: texture, transparent: true });
+    const sprite = new THREE.Sprite(material);
+    sprite.scale.set(3, 3, 1);
+    return sprite;
+  }
+  
+  if (typeof text === 'string' && text.startsWith(VORONOI_TOKEN_PREFIX)) {
+    const seed = text.slice(VORONOI_TOKEN_PREFIX.length);
+    ctx.clearRect(0, 0, 512, 512);
+    // Draw the procedural organic Voronoi diagram!
+    drawVoronoiToken(ctx, seed, 256, 256, 420, colorHex);
+    
+    const texture = new THREE.CanvasTexture(canvas);
+    texture.colorSpace = THREE.SRGBColorSpace;
+    const material = new THREE.SpriteMaterial({ map: texture, transparent: true });
+    const sprite = new THREE.Sprite(material);
+    sprite.scale.set(3, 3, 1);
+    return sprite;
+  }
   
   const isEmoji = /\p{Emoji}/u.test(text);
   

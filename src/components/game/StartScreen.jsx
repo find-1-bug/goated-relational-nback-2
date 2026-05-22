@@ -554,7 +554,7 @@ export default function StartScreen({ onStart, suggestedN, lastSettings }) {
     { id: 'voronoi_emoji', label: 'Abstract',    color: '#34d399', desc: 'Geometric unicode symbols (◈, ⬡, ⟐…)' },
     { id: 'random_string', label: 'Random Str',  color: '#fb923c', desc: 'Alphanumeric codes (Xk3F, aB9z…)' },
     { id: 'voronoi',       label: 'Voronoi',     color: '#f472b6', desc: 'Mini Voronoi cell diagrams as tokens' },
-    { id: 'scrap',         label: 'Photo Scrap', color: '#818cf8', desc: 'Hand-torn physical photo collage pieces' },
+    { id: 'scrap',         label: 'Junk-Journal / Scrap', color: '#818cf8', desc: 'Procedural collage of hand-torn physical photos (junk journaling)' },
   ];
 
   const setTokenWeight = (id, val) => setTokenWeightsState(prev => ({ ...prev, [id]: Number(val) }));

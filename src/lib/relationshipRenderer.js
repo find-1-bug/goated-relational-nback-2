@@ -222,7 +222,7 @@ function clipPolygonByHalfPlane(poly, mx, my, nx, ny) {
 }
 
 // ── Small Voronoi token renderer (for verbal stimuli tokens) ──────────────────
-function drawVoronoiToken(ctx, seed, cx, cy, size, color) {
+export function drawVoronoiToken(ctx, seed, cx, cy, size, color) {
   const N = 6;
   let h = 0;
   for (let i = 0; i < seed.length; i++) h = (h * 31 + seed.charCodeAt(i)) & 0xffff;
@@ -270,7 +270,7 @@ function makeSeededPRNG(seed) {
   };
 }
 
-function drawScrapToken(ctx, seed, cx, cy, size, baseColor) {
+export function drawScrapToken(ctx, seed, cx, cy, size, baseColor) {
   const rand = makeSeededPRNG(seed);
   
   ctx.save();

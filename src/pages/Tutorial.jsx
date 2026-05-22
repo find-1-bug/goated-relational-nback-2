@@ -237,8 +237,8 @@ export default function Tutorial() {
                         <span>Stimuli toggle per-trial between <strong>normal</strong> written descriptions (e.g. "occurs before", "is heavier than") and <strong>minimal</strong> mathematical/directional symbols (e.g. "t &lt;", "▲"). Randomization blocks visual rote-verbalization and forces abstract cognitive parsing!</span>
                       </div>
                       <div>
-                        <strong className="text-cyan-400 block font-mono">Physical Photo Scrap Collages:</strong>
-                        <span>A custom procedurally-drawn token style modeling hand-torn physical scrap collage clippings, complete with jagged edges, exposures, shadow drops, and carbon outlines for maximum high-contrast character reading.</span>
+                        <strong className="text-cyan-400 block font-mono">Junk-Journal / Scrap Collages:</strong>
+                        <span>A custom procedurally-drawn token style modeling hand-torn physical scrap collage clippings (junk journaling), complete with jagged edges, exposures, shadow drops, and carbon outlines for maximum high-contrast character reading. Each scrap token carries a unique serialized code starting with <strong>S:</strong> (e.g. <span className="text-cyan-300 font-bold">S:13231</span>) which acts as a seed for the canvas rendering generator to draw the identical collage clipping every time that trial is shown again.</span>
                       </div>
                       <div>
                         <strong className="text-amber-400 block font-mono">Automated Carousel:</strong>
@@ -275,6 +275,14 @@ export default function Tutorial() {
                       <div>
                         <strong className="text-accent block font-mono uppercase tracking-wider">Binary Logic</strong>
                         <span>Combines dual conditions per trial using boolean algebra gates (AND, OR, XOR, AND_NOT). Relational encoding requires both to resolve to true.</span>
+                      </div>
+                      <div>
+                        <strong className="text-primary block font-mono uppercase tracking-wider">Wrapper Morphing Mode</strong>
+                        <span>A premium visual and logical set-shifting distractor. Mid-session, the interface dynamically morphs both visually (shifting between Cyberpunk, Stark, Glassmorphic Frost, Sunset, and Matrix themes) and logically (rotating the active relationship categories either trial-by-trial or in blocks of 5). Tests rapid mental flexibility!</span>
+                      </div>
+                      <div>
+                        <strong className="text-fuchsia-400 block font-mono uppercase tracking-wider">Cross-Modal Token Blending</strong>
+                        <span>Blends verbal text, alphanumeric characters, and graphic emojis directly inside other relationship grids (like Spatial matrices, Orbiting 3D shapes, or Trait pairings). Blocks superficial shortcuts and overloads the episodic buffer.</span>
                       </div>
                     </div>
                   </div>
