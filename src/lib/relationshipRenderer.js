@@ -246,13 +246,22 @@ function clipPolygonByHalfPlane(poly, mx, my, nx, ny) {
 export function drawVoronoiToken(ctx, seed, cx, cy, size, color) {
   const N = 6;
   let h = 0;
-  for (let i = 0; i < seed.length; i++) h = (h * 31 + seed.charCodeAt(i)) & 0xffff;
+  const safeSeed = typeof seed === 'string' ? seed : String(seed || '');
+  for (let i = 0; i < safeSeed.length; i++) h = (h * 31 + safeSeed.charCodeAt(i)) & 0xffff;
   const rng = (offset) => { let x = Math.sin(h + offset) * 43758.5453123; return x - Math.floor(x); };
   const pts = [];
   for (let i = 0; i < N; i++) {
     pts.push({ x: cx + (rng(i * 2) - 0.5) * size, y: cy + (rng(i * 2 + 1) - 0.5) * size });
   }
-  const ri = parseInt(color.slice(1,3),16), gi = parseInt(color.slice(3,5),16), bi = parseInt(color.slice(5,7),16);
+  
+  let hex = '#22d3ee';
+  if (typeof color === 'string' && color.startsWith('#') && color.length >= 7) {
+    hex = color;
+  }
+  const ri = parseInt(hex.slice(1,3), 16) || 34,
+        gi = parseInt(hex.slice(3,5), 16) || 211,
+        bi = parseInt(hex.slice(5,7), 16) || 238;
+        
   ctx.save();
   ctx.beginPath(); ctx.arc(cx, cy, size/2, 0, Math.PI*2); ctx.clip();
   for (let pi = 0; pi < N; pi++) {
@@ -272,6 +281,7 @@ export function drawVoronoiToken(ctx, seed, cx, cy, size, color) {
 
 // Determine if a token is an emoji/symbol (render larger, no quotes)
 function isSymbol(tok) {
+  if (typeof tok !== 'string') return false;
   return /\p{Emoji}/u.test(tok) || /^[◈◉◊◌◍◎●○◐◑◒◓▲△▴▵▶▷▸▹►▻▼▽◆◇❋✦✧✩✪✫✬✭✮⬡⬢⬣⬟⬠⬤⭕🔷🔶🔹🔸🔺🔻💠🔘🔳🔲⌬⎔⏣⟁⟐⟡]/.test(tok);
 }
 
@@ -337,9 +347,10 @@ export function drawScrapToken(ctx, seed, cx, cy, size, baseColor) {
   // 5. Draw photo background (crop from random landscape image or use gradient fallback)
   let drewImage = false;
   
-  if (loadedLandscapes.length > 0) {
-    const imgIndex = Math.floor(rand() * loadedLandscapes.length);
-    const img = loadedLandscapes[imgIndex];
+  const activeImages = loadedLandscapes.filter(Boolean);
+  if (activeImages.length > 0) {
+    const imgIndex = Math.floor(rand() * activeImages.length);
+    const img = activeImages[imgIndex];
     if (img && img.complete && img.naturalWidth > 0) {
       const cropW = img.naturalWidth * (0.35 + rand() * 0.35);
       const cropH = img.naturalHeight * (0.35 + rand() * 0.35);
