@@ -39,18 +39,19 @@ export function createRSTChain(family = 'distinction') {
 }
 
 export const RST_FAMILIES = ['distinction', 'comparison', 'analogy'];
-export const RST_DIFFICULTY_POOLS = {
-  easy:   ['distinction'],
-  medium: ['distinction', 'comparison'],
-  hard:   ['distinction', 'comparison', 'analogy'],
+
+// Difficulty → family is a hard 1:1 map. Earlier this was a random pool
+// (e.g. Hard could pick any of three) but that made "Hard" sometimes feel
+// like Easy — bad UX. The user picks a difficulty to get THAT difficulty,
+// every time. Variety lives in stim content, not in dice rolls over rung.
+export const RST_DIFFICULTY_FAMILY = {
+  easy:   'distinction',
+  medium: 'comparison',
+  hard:   'analogy',
 };
 
-// Pick a family for the session given a difficulty level. The chain stays in
-// one family for a whole session — switching families mid-session would break
-// the chain logic (different state shapes) and confuse the player.
 export function pickRSTFamily(difficulty = 'easy') {
-  const pool = RST_DIFFICULTY_POOLS[difficulty] || RST_DIFFICULTY_POOLS.easy;
-  return pool[Math.floor(Math.random() * pool.length)];
+  return RST_DIFFICULTY_FAMILY[difficulty] || 'distinction';
 }
 
 // Hard difficulty = the analogy family. SOA extension is the engine's call;

@@ -1170,13 +1170,13 @@ export default function StartScreen({ onStart, suggestedN, lastSettings }) {
               <span className="text-[10px] font-mono text-violet-400/70">family pool</span>
             </div>
             <p className="text-xs font-mono text-muted-foreground/70 leading-relaxed">
-              Each session picks one family from the pool. Easy = parity (XOR over same/opposite). Medium adds transitive order (more/less). Hard adds <span className="text-violet-300 font-semibold">4-place analogy</span> — the canonical Gf-loading operation. Hard auto-extends SOA on analogy trials.
+              Each difficulty locks the session to exactly one family. Easy = parity (XOR over same/opposite). Medium = transitive order (more/less). Hard = <span className="text-violet-300 font-semibold">4-place analogy</span> — the canonical Gf-loading operation. Hard auto-extends SOA by 60% on analogy trials so the role-binding read is sustainable.
             </p>
             <div className="grid grid-cols-3 gap-1.5">
               {[
                 { id: 'easy',   label: 'Easy',   sub: 'Distinction' },
-                { id: 'medium', label: 'Medium', sub: '+ Comparison' },
-                { id: 'hard',   label: 'Hard',   sub: '+ Analogy (4-place)' },
+                { id: 'medium', label: 'Medium', sub: 'Comparison' },
+                { id: 'hard',   label: 'Hard',   sub: 'Analogy (4-place)' },
               ].map(({ id, label, sub }) => {
                 const on = rstDifficulty === id;
                 return (
