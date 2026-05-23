@@ -4,7 +4,7 @@ import { motion, AnimatePresence } from 'framer-motion';
 import { Button } from '@/components/ui/button';
 import { 
   ChevronLeft, Brain, Zap, Layers, Gamepad2, 
-  GitBranch, Hash, Eye, Volume2, ShieldAlert, 
+  GitBranch, Eye, Volume2, ShieldAlert, 
   Sparkles, Menu, X, Play, Settings2 
 } from 'lucide-react';
 import { COACH_PHASES } from '@/lib/gameConstants';
@@ -430,6 +430,25 @@ export default function Tutorial() {
                         <div>Trial 2: <span className="text-primary font-bold">Above</span> (no ¬)</div>
                         <div>Trial 3: <span className="text-primary font-bold">Inside</span> with <span className="text-rose-400 font-bold">¬</span> &rarr; <span className="text-rose-400 font-bold">NOT A MATCH</span> (negation mismatch)</div>
                       </div>
+                    </div>
+
+                    {/* Ex 4 — RST Side-Task */}
+                    <div className="rounded-lg bg-secondary/20 border border-violet-500/40 p-5 space-y-2">
+                      <strong className="text-violet-300 block font-mono">RST Side-Task (Reasoning) — 3 families × 3 difficulties</strong>
+                      <p className="text-muted-foreground leading-relaxed">
+                        Layered on stream A like CCT, but tests deductive inference. One <em>premise</em> per trial; from trial N onwards a candidate <em>conclusion</em> also appears. Press <kbd className="px-1 py-0.5 rounded bg-muted text-violet-300 font-semibold">R</kbd> if the conclusion is logically valid.
+                      </p>
+                      <div className="rounded bg-background/50 border border-border p-3 space-y-2 font-mono text-[11px]">
+                        <div className="text-violet-300 font-bold">Easy · Distinction (XOR over same/opposite)</div>
+                        <div className="pl-3">T1: <span className="text-cyan-300">α</span> · T2: <span className="text-cyan-300">β same as α</span> · T3: <span className="text-cyan-300">γ opposite of β</span> + claim <span className="text-amber-300">∴≟ γ opposite of α</span> &rarr; α≡β, β≠γ → γ≠α → <span className="text-emerald-400 font-bold">VALID</span></div>
+                        <div className="text-violet-300 font-bold pt-1">Medium · Comparison (transitive order)</div>
+                        <div className="pl-3">T1: <span className="text-cyan-300">α</span> · T2: <span className="text-cyan-300">β more than α</span> · T3: <span className="text-cyan-300">γ less than β</span> + claim <span className="text-amber-300">∴≟ γ more than α</span> &rarr; depends on actual values (engine derives truth)</div>
+                        <div className="text-violet-300 font-bold pt-1">Hard · Analogy (4-place — Halford / Raven's rung)</div>
+                        <div className="pl-3">T1: <span className="text-cyan-300">α more than β</span> · T3 (N=2): <span className="text-cyan-300">γ heavier than δ</span> :: <span className="text-amber-300">α … β</span> <span className="text-violet-300">analogous?</span> &rarr; both have <em>first is dominant</em> form → <span className="text-emerald-400 font-bold">VALID</span></div>
+                      </div>
+                      <p className="text-muted-foreground/70 text-[11px] leading-relaxed pt-1">
+                        Hard auto-extends SOA by 60% on analogy trials so the role-binding read is sustainable. Family generators ported from <a href="https://github.com/4skinskywalker/Syllogimous-v3" target="_blank" rel="noreferrer" className="underline text-violet-300">Syllogimous v3</a> (CC BY-NC 3.0).
+                      </p>
                     </div>
                   </div>
                 </div>

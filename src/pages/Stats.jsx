@@ -2,8 +2,7 @@ import React, { useState, useEffect } from 'react';
 import { motion, AnimatePresence } from 'framer-motion';
 import { Button } from '@/components/ui/button';
 import { 
-  BarChart3, Download, Upload, Trash2, Eye, TrendingUp, Zap, 
-  ChevronRight, Activity, Award, ShieldAlert, BookOpen, Layers
+  BarChart3, Download, Upload, Trash2, Eye, TrendingUp, Zap, Activity, Award, Layers
 } from 'lucide-react';
 import { Link } from 'react-router-dom';
 import { getSessions, deleteSession, exportData, importData } from '@/lib/localStorageManager';
@@ -574,6 +573,39 @@ export default function Stats() {
                           </>
                         )}
                       </div>
+                      {/* RST family micro-row — only if this session had any
+                          RST trials with a recorded family. Each chip shows
+                          accuracy% on that family. Helps spot whether Hard
+                          (Analogy) accuracy lags Easy (Distinction). */}
+                      {(() => {
+                        const trials = session.trials || [];
+                        const rstTrials = trials.filter(t => t.responseType === 'rst');
+                        if (rstTrials.length === 0) return null;
+                        const families = { distinction: { c: 0, t: 0 }, comparison: { c: 0, t: 0 }, analogy: { c: 0, t: 0 } };
+                        rstTrials.forEach(t => {
+                          const fam = t.rst?.family || 'distinction';
+                          if (!families[fam]) return;
+                          families[fam].t++;
+                          if (t.correct) families[fam].c++;
+                        });
+                        const chips = Object.entries(families).filter(([, v]) => v.t > 0);
+                        if (chips.length === 0) return null;
+                        const famLabel = { distinction: 'DIST', comparison: 'COMP', analogy: 'ANLG' };
+                        return (
+                          <div className="text-[10px] font-mono text-violet-300/80 flex items-center gap-1.5 flex-wrap mt-0.5">
+                            <span className="text-violet-400/60 uppercase">RST</span>
+                            {chips.map(([fam, v]) => {
+                              const acc = Math.round((v.c / v.t) * 100);
+                              const cls = acc >= 75 ? 'text-emerald-400' : acc >= 50 ? 'text-amber-400' : 'text-red-400';
+                              return (
+                                <span key={fam} className="px-1.5 py-0.5 rounded bg-violet-500/10 border border-violet-500/30">
+                                  {famLabel[fam]}: <span className={cls + ' font-bold'}>{acc}%</span> <span className="text-muted-foreground/60">({v.t})</span>
+                                </span>
+                              );
+                            })}
+                          </div>
+                        );
+                      })()}
                     </div>
                     <div className="text-right shrink-0">
                       <div className={`text-base font-mono font-bold ${session.accuracy >= 75 ? 'text-emerald-400' : session.accuracy >= 55 ? 'text-cyan-400' : 'text-red-400'}`}>

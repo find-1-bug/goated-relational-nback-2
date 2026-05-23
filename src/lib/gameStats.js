@@ -89,7 +89,39 @@ export function calculateResults(state) {
   const allCR = allStreamsStats.reduce((s, x) => s + x.correctRejections, 0);
   const overall = streamStats(allHits, allMisses, allFA, allCR);
 
-  return { A, positionA, cctA, rstA, luresA, extra, extraPosition, extraCCT, extraRST, extraLures, overall };
+  // RST family breakdown — per-trial records carry the family that fired
+  // (Distinction / Comparison / Analogy). Bucket accuracy by family so the
+  // results screen and stats dashboard can show "you're 78% on Distinction
+  // but 41% on Analogy" — useful for picking the right difficulty next time.
+  const rstByFamily = (() => {
+    if (!rstA) return null;
+    const buckets = { distinction: { hits: 0, misses: 0, fa: 0, cr: 0 },
+                      comparison:  { hits: 0, misses: 0, fa: 0, cr: 0 },
+                      analogy:     { hits: 0, misses: 0, fa: 0, cr: 0 } };
+    (state.allTrials || []).forEach(t => {
+      if (t.responseType !== 'rst') return;
+      const fam = t.rst?.family || 'distinction';
+      const b = buckets[fam];
+      if (!b) return;
+      if (t.isTarget && t.userResponded) b.hits++;
+      else if (t.isTarget && !t.userResponded) b.misses++;
+      else if (!t.isTarget && t.userResponded) b.fa++;
+      else b.cr++;
+    });
+    const out = {};
+    Object.entries(buckets).forEach(([fam, b]) => {
+      const s = streamStats(b.hits, b.misses, b.fa, b.cr);
+      if (s.total > 0) out[fam] = s;
+    });
+    return Object.keys(out).length ? out : null;
+  })();
+
+  return {
+    A, positionA, cctA, rstA, rstByFamily, luresA,
+    extra, extraPosition, extraCCT, extraRST, extraLures,
+    rstDifficulty: state.rstDifficulty || 'easy',
+    overall,
+  };
 }
 
 export function computeNextNLevel(currentN, results) {

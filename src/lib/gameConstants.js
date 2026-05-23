@@ -696,7 +696,8 @@ export const COACH_PHASES = [
     speedMs: 2400,
     rounds: 25,
     modes: ['distractors', 'lures', 'negation', 'rst_overlay'],
-    desc: "Layers Syllogistic Deductive Reasoning (RST) premises and conclusions.",
+    rstDifficulty: 'easy',
+    desc: "Layers Syllogistic Deductive Reasoning (RST) premises and conclusions. Easy difficulty: same/opposite parity chain.",
     streamsCount: 1
   },
   {
@@ -705,6 +706,7 @@ export const COACH_PHASES = [
     speedMs: 2400,
     rounds: 26,
     modes: ['distractors', 'lures', 'negation', 'rst_overlay', 'adaptive_closed_loop'],
+    rstDifficulty: 'easy',
     desc: "Engages closed-loop adaptivity that speeds up or slows down per-trial.",
     streamsCount: 1
   },
@@ -714,7 +716,8 @@ export const COACH_PHASES = [
     speedMs: 2200,
     rounds: 26,
     modes: ['distractors', 'lures', 'negation', 'rst_overlay', 'adaptive_closed_loop', 'type_nback'],
-    desc: "Matches stimuli by relationship category history instead of distance.",
+    rstDifficulty: 'medium',
+    desc: "Matches stimuli by relationship category history instead of distance. RST now draws from Comparison family too (transitive order).",
     streamsCount: 1
   },
   {
@@ -723,6 +726,7 @@ export const COACH_PHASES = [
     speedMs: 2200,
     rounds: 28,
     modes: ['distractors', 'lures', 'negation', 'rst_overlay', 'adaptive_closed_loop', 'rint'],
+    rstDifficulty: 'medium',
     desc: "Uses Relational Integration to logically chain comparisons over N trials.",
     streamsCount: 1
   },
@@ -840,7 +844,8 @@ export const COACH_PHASES = [
     speedMs: 1300,
     rounds: 40,
     modes: ['distractors', 'lures', 'negation', 'adaptive_closed_loop', 'rint', 'rst_overlay', 'cct_overlay', 'wrapper_morph'],
-    desc: "Unifies transitive chaining (RINT), syllogistic premise deductions (RST), and arithmetic CCT updating in N=3 streams.",
+    rstDifficulty: 'hard',
+    desc: "Unifies transitive chaining (RINT), syllogistic premise deductions (RST at Hard / 4-place analogy), and arithmetic CCT updating in N=3 streams.",
     streamsCount: 1
   },
   {

@@ -27,7 +27,7 @@ import {
   getTokenWeights,
   LANDSCAPE_PATHS,
 } from './gameConstants';
-import { createRSTChain, nextRSTTurn } from './syllogimousAdapter.js';
+import { createRSTChain, nextRSTTurn, pickRSTFamily, isHeavyFamily } from './syllogimousAdapter.js';
 
 import { createRINTState, createRINTStates, generateRINTStimulus, isRINTConclusion, RINT_MIN_N } from './relationalIntegration.js';
 export { calculateResults, computeNextNLevel } from './gameStats.js';
@@ -683,7 +683,7 @@ function randomBinaryConfig(effectiveN) {
 
 // ─── State Creation ──────────────────────────────────────────────────────────
 
-export function createGameState({ nLevel, modes, relationshipPool, totalRounds, extraStreams = [], alienSettings = {}, streamA = null, nrintEnabledFlags = null, nrintHideLegend = false, initialSpeedMs = 2800, wrapperMorphStyle = 'shift' }) {
+export function createGameState({ nLevel, modes, relationshipPool, totalRounds, extraStreams = [], alienSettings = {}, streamA = null, nrintEnabledFlags = null, nrintHideLegend = false, initialSpeedMs = 2800, wrapperMorphStyle = 'shift', rstDifficulty = 'easy' }) {
   const numExtra = extraStreams.length;
   const totalStreams = 1 + numExtra;
   // Per-stream type: 'relation' (default) or 'cct'. Falls back to global 'cct'
@@ -786,8 +786,11 @@ export function createGameState({ nLevel, modes, relationshipPool, totalRounds, 
     rstMissesA: 0,
     rstFalseAlarmsA: 0,
     rstCorrectRejectionsA: 0,
-    rstChainA: createRSTChain(),
-    extraRSTChains: Array.from({ length: numExtra }, () => createRSTChain()),
+    // RST family is picked per-session per-stream from the difficulty pool.
+    // Easy → distinction only; Medium → +comparison; Hard → +analogy.
+    rstDifficulty,
+    rstChainA: createRSTChain(pickRSTFamily(rstDifficulty)),
+    extraRSTChains: Array.from({ length: numExtra }, () => createRSTChain(pickRSTFamily(rstDifficulty))),
     extraCCTHits: Array(numExtra).fill(0),
     extraCCTMisses: Array(numExtra).fill(0),
     extraCCTFalseAlarms: Array(numExtra).fill(0),
@@ -1028,7 +1031,8 @@ export function generateNextStimulus(state) {
   const nextExtraRSTChains = [...(extraRSTChains || [])];
 
   if (modes.includes('rst_overlay')) {
-    const turnA = nextRSTTurn(state.rstChainA || createRSTChain(), effectiveN, MATCH_CHANCE);
+    const difficultyA = state.rstDifficulty || 'easy';
+    const turnA = nextRSTTurn(state.rstChainA || createRSTChain(pickRSTFamily(difficultyA)), effectiveN, MATCH_CHANCE);
     nextRSTChainA = turnA.chain;
     resultA.stim = {
       ...resultA.stim,
@@ -1037,12 +1041,15 @@ export function generateNextStimulus(state) {
         conclusion: turnA.conclusion,
         hasConclusion: turnA.hasConclusion,
         family: turnA.family,
+        // SOA hint — engine consumer (GameScreen) extends stimulus duration
+        // when a heavy-family trial fires so the reading load is sustainable.
+        heavy: isHeavyFamily(turnA.family),
       },
     };
     isRSTTargetA = !!turnA.isValid;
 
     (extraHistories || []).forEach((hist, i) => {
-      const currentChain = nextExtraRSTChains[i] || createRSTChain();
+      const currentChain = nextExtraRSTChains[i] || createRSTChain(pickRSTFamily(difficultyA));
       const turn = nextRSTTurn(currentChain, effectiveN, DUAL_MATCH_CHANCE);
       nextExtraRSTChains[i] = turn.chain;
       if (extraResults[i]) {
@@ -1053,6 +1060,7 @@ export function generateNextStimulus(state) {
             conclusion: turn.conclusion,
             hasConclusion: turn.hasConclusion,
             family: turn.family,
+            heavy: isHeavyFamily(turn.family),
           },
         };
       }

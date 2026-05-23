@@ -34,6 +34,38 @@ function StreamResults({ title, stats, color = 'text-primary' }) {
   );
 }
 
+// RST family breakdown — only meaningful when RST overlay ran AND the
+// session pool included more than one family. Shows accuracy by family
+// (Distinction / Comparison / Analogy) so the player can decide whether
+// to bump difficulty or stay.
+function RSTFamilyResults({ byFamily, difficulty }) {
+  if (!byFamily) return null;
+  const families = Object.keys(byFamily);
+  if (families.length === 0) return null;
+  const labels = { distinction: 'Distinction (XOR)', comparison: 'Comparison (order)', analogy: 'Analogy (4-place)' };
+  return (
+    <div className="space-y-2">
+      <div className="flex items-center justify-between">
+        <div className="text-xs font-mono uppercase tracking-widest font-semibold text-violet-400">RST by Family</div>
+        <span className="text-[10px] font-mono text-violet-300/70 uppercase">{difficulty}</span>
+      </div>
+      <div className="space-y-1.5">
+        {families.map(fam => {
+          const s = byFamily[fam];
+          const accColor = s.accuracy >= 75 ? 'text-emerald-400' : s.accuracy >= 50 ? 'text-amber-400' : 'text-red-400';
+          return (
+            <div key={fam} className="flex items-center gap-3 bg-secondary/40 rounded p-2 border border-border">
+              <div className="text-xs font-mono text-foreground/85 flex-1">{labels[fam] || fam}</div>
+              <div className={`text-sm font-mono font-bold ${accColor}`}>{s.accuracy}%</div>
+              <div className="text-[10px] font-mono text-muted-foreground/70">{s.total} trials</div>
+            </div>
+          );
+        })}
+      </div>
+    </div>
+  );
+}
+
 // Lure-trial readout — only meaningful when there were any lure trials this
 // session. Surfaces "lure resistance" (= 1 - FA rate on lures), the cleanest
 // summary of how well the player isolated N from N-1/N+1.
@@ -321,6 +353,7 @@ export default function ResultsScreen({ gameState, onRestart, onBack }) {
           {results.positionA && <StreamResults title="Stream A · Position" stats={results.positionA} color="text-amber-400" />}
           {results.cctA && <StreamResults title="Stream A · CCT" stats={results.cctA} color="text-rose-400" />}
           {results.rstA && results.rstA.total > 0 && <StreamResults title="Stream A · RST (Reasoning)" stats={results.rstA} color="text-violet-400" />}
+          {results.rstByFamily && <RSTFamilyResults byFamily={results.rstByFamily} difficulty={results.rstDifficulty} />}
           {results.luresA && <LureResults stats={results.luresA} />}
           {(results.extra || []).map((s, i) => (
             <React.Fragment key={i}>

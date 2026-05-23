@@ -396,6 +396,10 @@ export default function StartScreen({ onStart, suggestedN, lastSettings }) {
       : NRINT_DEFAULT_FLAGS_LOCAL
   );
   const [nrintHideLegend, setNrintHideLegend] = React.useState(!!lastSettings?.nrintHideLegend);
+  // RST family difficulty (Easy / Medium / Hard). Easy = Distinction only,
+  // Medium = +Comparison, Hard = +Analogy (true 4-place). Family is picked
+  // at session start from the difficulty pool and stays fixed for the run.
+  const [rstDifficulty, setRstDifficulty] = React.useState(lastSettings?.rstDifficulty || 'easy');
   const toggleNrintFlag = (flag) => {
     setNrintEnabledFlags(prev => {
       if (prev.includes(flag)) {
@@ -1158,6 +1162,38 @@ export default function StartScreen({ onStart, suggestedN, lastSettings }) {
           </div>
         )}
 
+        {/* RST Settings (only when RST Side-Task is enabled) */}
+        {rstOverlayActive && (
+          <div className="space-y-3 rounded-lg bg-violet-500/5 border border-violet-500/30 p-3">
+            <div className="flex items-center justify-between flex-wrap gap-2">
+              <label className="text-xs font-mono text-violet-300 uppercase tracking-widest">RST Side-Task · Difficulty</label>
+              <span className="text-[10px] font-mono text-violet-400/70">family pool</span>
+            </div>
+            <p className="text-xs font-mono text-muted-foreground/70 leading-relaxed">
+              Each session picks one family from the pool. Easy = parity (XOR over same/opposite). Medium adds transitive order (more/less). Hard adds <span className="text-violet-300 font-semibold">4-place analogy</span> — the canonical Gf-loading operation. Hard auto-extends SOA on analogy trials.
+            </p>
+            <div className="grid grid-cols-3 gap-1.5">
+              {[
+                { id: 'easy',   label: 'Easy',   sub: 'Distinction' },
+                { id: 'medium', label: 'Medium', sub: '+ Comparison' },
+                { id: 'hard',   label: 'Hard',   sub: '+ Analogy (4-place)' },
+              ].map(({ id, label, sub }) => {
+                const on = rstDifficulty === id;
+                return (
+                  <button key={id}
+                    onClick={() => setRstDifficulty(id)}
+                    className={`flex flex-col items-start gap-0.5 px-2.5 py-2 rounded text-left border transition-colors ${on
+                      ? 'bg-violet-500/20 border-violet-400 text-violet-100 font-semibold'
+                      : 'bg-secondary/40 border-border text-muted-foreground hover:border-muted-foreground/50'}`}>
+                    <span className="text-xs font-mono uppercase tracking-wide">{label}</span>
+                    <span className="text-[10px] font-mono text-muted-foreground/80">{sub}</span>
+                  </button>
+                );
+              })}
+            </div>
+          </div>
+        )}
+
         {/* Alien Settings */}
         {alienModeActive && (
           <div className="space-y-3 rounded-lg bg-secondary/30 border border-border p-3">
@@ -1464,12 +1500,13 @@ export default function StartScreen({ onStart, suggestedN, lastSettings }) {
                   streams: [streamAWithPosition, ...autopilotExtraStreams], 
                   alienSettings, 
                   carouselSettings, 
-                  nrintEnabledFlags, 
+                  nrintEnabledFlags,
                   nrintHideLegend,
+                  rstDifficulty: currentPhase.rstDifficulty || rstDifficulty,
                   wrapperMorphStyle,
                   autopilot: true,
                   phaseTitle: currentPhase.title
-                }, 
+                },
                 false
               );
             }}
@@ -1494,7 +1531,7 @@ export default function StartScreen({ onStart, suggestedN, lastSettings }) {
                 rstKeyDisplay: KEY_OPTIONS.find(k => k.code === streamARSTKey)?.display || 'R',
                 streamType: streamAType,
               };
-              onStart(nLevel, modes, finalPool, rounds, speedMs, { catWeights, useCustomMix, rels: selectedRels, tokenWeights, streamA: streamAWithPosition, extraStreams, streams: [streamAWithPosition, ...extraStreams], alienSettings, carouselSettings, nrintEnabledFlags, nrintHideLegend, wrapperMorphStyle, autopilot: false }, noobMode);
+              onStart(nLevel, modes, finalPool, rounds, speedMs, { catWeights, useCustomMix, rels: selectedRels, tokenWeights, streamA: streamAWithPosition, extraStreams, streams: [streamAWithPosition, ...extraStreams], alienSettings, carouselSettings, nrintEnabledFlags, nrintHideLegend, rstDifficulty, wrapperMorphStyle, autopilot: false }, noobMode);
             }}
             className="flex-1 h-12 px-6 font-mono font-semibold text-xs sm:text-sm tracking-wide bg-secondary hover:bg-secondary/85 text-foreground border border-border"
           >

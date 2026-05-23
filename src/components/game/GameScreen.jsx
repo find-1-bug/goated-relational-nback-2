@@ -114,14 +114,21 @@ function mergeHistoricalWithProgress(historicalState, progressState, streamCount
   };
 }
 
-export default function GameScreen({ nLevel, modes, relationshipPool, totalRounds, stimulusDuration, extraStreams, streamA, alienSettings, carouselSettings, nrintEnabledFlags, nrintHideLegend, noobMode, autopilot, phaseTitle, onFinish, onExit }) {
+export default function GameScreen({ nLevel, modes, relationshipPool, totalRounds, stimulusDuration, extraStreams, streamA, alienSettings, carouselSettings, nrintEnabledFlags, nrintHideLegend, rstDifficulty = 'easy', noobMode, autopilot, phaseTitle, onFinish, onExit }) {
   // extraStreams: [{ key, label, keyDisplay, positionKey, positionKeyDisplay }]
   const getStimulusDuration = useCallback(() => {
     if (modes.includes('adaptive_closed_loop') && gameStateRef.current?.adaptiveSpeedMs) {
       return gameStateRef.current.adaptiveSpeedMs;
     }
     const duration = stimulusDuration === 'random' ? 1000 + Math.random() * 3000 : stimulusDuration || 2800;
-    return modes.includes('alien_cube') || modes.includes('alien_tesseract') ? Math.max(1400, duration) : duration;
+    let d = modes.includes('alien_cube') || modes.includes('alien_tesseract') ? Math.max(1400, duration) : duration;
+    // Heavy RST trial (Hard / analogy): extend SOA by 60% so the player can
+    // actually read the pair-vs-pair claim. Reading load on analogy is ~2x
+    // distinction; SOA bump keeps adherence sustainable.
+    if (gameStateRef.current?.currentStimulusA?._rst?.heavy) {
+      d = Math.round(d * 1.6);
+    }
+    return d;
   }, [stimulusDuration, modes]);
   const hasAlienPosition = modes.includes('alien_cube') || modes.includes('alien_tesseract') || modes.includes('alien_square');
   const hasCCTOverlay = modes.includes('cct_overlay');
@@ -148,7 +155,7 @@ export default function GameScreen({ nLevel, modes, relationshipPool, totalRound
   const numExtra = (extraStreams || []).length;
 
   const [gameState, setGameState] = useState(() => {
-    const state = createGameState({ nLevel, modes, relationshipPool, totalRounds, extraStreams: extraStreams || [], alienSettings, streamA, nrintEnabledFlags, nrintHideLegend, initialSpeedMs: stimulusDuration === 'random' ? 2800 : (stimulusDuration || 2800) });
+    const state = createGameState({ nLevel, modes, relationshipPool, totalRounds, extraStreams: extraStreams || [], alienSettings, streamA, nrintEnabledFlags, nrintHideLegend, rstDifficulty, initialSpeedMs: stimulusDuration === 'random' ? 2800 : (stimulusDuration || 2800) });
     state.autopilot = autopilot;
     state.phaseTitle = phaseTitle;
     return state;
@@ -717,10 +724,15 @@ export default function GameScreen({ nLevel, modes, relationshipPool, totalRound
                 )}
                 {/* RST top banner — mirrors the CCT banner. Stream A only.
                     One premise per trial; from trial N onwards a candidate
-                    conclusion is also shown. Player presses R if valid. */}
+                    conclusion is also shown. Player presses R if valid.
+                    For Hard / Analogy family the layout shifts to compare
+                    the current pair against the N-back pair directly. */}
                 {hasRSTOverlay && phase === 'stimulus' && !clearCanvas && s.stimulus?._rst && (
                   <div className={`absolute ${hasCCTOverlay && s.stimulus?.cctNumber != null ? 'top-14' : 'top-1.5'} left-1/2 -translate-x-1/2 pointer-events-none flex items-center gap-1.5 sm:gap-2 px-2.5 sm:px-3.5 py-1 sm:py-1.5 rounded-xl bg-background/85 backdrop-blur-sm border-2 border-violet-400/70 shadow-[0_0_28px_rgba(167,139,250,0.45)] font-mono z-10 whitespace-nowrap`}>
-                    <span className="text-[10px] sm:text-xs text-violet-300 uppercase tracking-widest font-bold">RST</span>
+                    <span className="text-[10px] sm:text-xs text-violet-300 uppercase tracking-widest font-bold">
+                      RST{s.stimulus._rst.family && s.stimulus._rst.family !== 'distinction' ? ` · ${s.stimulus._rst.family.toUpperCase()}` : ''}
+                    </span>
+                    {/* Premise line — current pair / chain step */}
                     {s.stimulus._rst.premise?.b ? (
                       <span className="font-bold text-cyan-300 text-base sm:text-lg leading-none drop-shadow-[0_0_6px_rgba(34,211,238,0.6)]">
                         {s.stimulus._rst.premise.a}
@@ -732,15 +744,40 @@ export default function GameScreen({ nLevel, modes, relationshipPool, totalRound
                         {s.stimulus._rst.premise?.a}
                       </span>
                     )}
+                    {/* Conclusion / claim */}
                     {s.stimulus._rst.hasConclusion ? (
-                      <>
-                        <span className="text-violet-300 text-sm sm:text-base font-bold leading-none">∴≟</span>
-                        <span className="font-bold text-amber-300 text-base sm:text-lg leading-none drop-shadow-[0_0_6px_rgba(251,191,36,0.6)]">
-                          {s.stimulus._rst.conclusion.a}
-                          <span className="text-violet-200 mx-1 text-sm sm:text-base">{s.stimulus._rst.conclusion.rel}</span>
-                          {s.stimulus._rst.conclusion.b}
-                        </span>
-                      </>
+                      s.stimulus._rst.family === 'analogy' ? (
+                        // Analogy: show "current pair :: N-back pair?"
+                        <>
+                          <span className="text-violet-300 text-sm sm:text-base font-bold leading-none">::</span>
+                          <span className="font-bold text-amber-300 text-base sm:text-lg leading-none drop-shadow-[0_0_6px_rgba(251,191,36,0.6)]">
+                            {s.stimulus._rst.conclusion.tgtA}
+                            <span className="text-violet-200/80 mx-1 text-xs sm:text-sm italic">
+                              {s.stimulus._rst.conclusion.tgtFirstDominant
+                                ? (s.stimulus._rst.conclusion.tgtFamily === 'temporal' ? 'after'
+                                  : s.stimulus._rst.conclusion.tgtFamily === 'magnitude' ? 'heavier'
+                                  : s.stimulus._rst.conclusion.tgtFamily === 'hierarchy' ? 'above'
+                                  : 'more')
+                                : (s.stimulus._rst.conclusion.tgtFamily === 'temporal' ? 'before'
+                                  : s.stimulus._rst.conclusion.tgtFamily === 'magnitude' ? 'lighter'
+                                  : s.stimulus._rst.conclusion.tgtFamily === 'hierarchy' ? 'below'
+                                  : 'less')}
+                            </span>
+                            {s.stimulus._rst.conclusion.tgtB}
+                          </span>
+                          <span className="text-violet-300 text-xs sm:text-sm italic">analogous?</span>
+                        </>
+                      ) : (
+                        // Distinction / Comparison: show "X rel Y?" candidate conclusion
+                        <>
+                          <span className="text-violet-300 text-sm sm:text-base font-bold leading-none">∴≟</span>
+                          <span className="font-bold text-amber-300 text-base sm:text-lg leading-none drop-shadow-[0_0_6px_rgba(251,191,36,0.6)]">
+                            {s.stimulus._rst.conclusion.a}
+                            <span className="text-violet-200 mx-1 text-sm sm:text-base">{s.stimulus._rst.conclusion.rel}</span>
+                            {s.stimulus._rst.conclusion.b}
+                          </span>
+                        </>
+                      )
                     ) : (
                       <span className="text-muted-foreground/70 text-xs sm:text-sm italic ml-0.5">observe</span>
                     )}

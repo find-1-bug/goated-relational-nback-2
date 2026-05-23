@@ -26,6 +26,7 @@ export default function Game() {
   const [carouselSettings, setCarouselSettings] = useState({ enabled: true, streamsPerSlide: 'auto', slideMs: 2800 });
   const [nrintEnabledFlags, setNrintEnabledFlags] = useState(null);
   const [nrintHideLegend, setNrintHideLegend] = useState(false);
+  const [rstDifficulty, setRstDifficulty] = useState('easy');
   const [noobMode, setNoobMode] = useState(false);
   const [autopilot, setAutopilot] = useState(false);
   const [phaseTitle, setPhaseTitle] = useState('');
@@ -55,6 +56,7 @@ export default function Game() {
     setCarouselSettings({ enabled: true, streamsPerSlide: 'auto', slideMs: 2800, ...(extraSettings?.carouselSettings || {}) });
     setNrintEnabledFlags(extraSettings?.nrintEnabledFlags || null);
     setNrintHideLegend(!!extraSettings?.nrintHideLegend);
+    setRstDifficulty(extraSettings?.rstDifficulty || 'easy');
     setNoobMode(noob || false);
     setAutopilot(!!extraSettings?.autopilot);
     setPhaseTitle(extraSettings?.phaseTitle || '');
@@ -76,6 +78,7 @@ export default function Game() {
         carouselSettings: { enabled: true, streamsPerSlide: 'auto', slideMs: 2800, ...(extraSettings?.carouselSettings || {}) },
         nrintEnabledFlags: extraSettings?.nrintEnabledFlags || null,
         nrintHideLegend: !!extraSettings?.nrintHideLegend,
+        rstDifficulty: extraSettings?.rstDifficulty || 'easy',
         noobMode: noob || false,
       }
     };
@@ -156,6 +159,7 @@ export default function Game() {
           carouselSettings={carouselSettings}
           nrintEnabledFlags={nrintEnabledFlags}
           nrintHideLegend={nrintHideLegend}
+          rstDifficulty={rstDifficulty}
           noobMode={noobMode}
           autopilot={autopilot}
           phaseTitle={phaseTitle}
