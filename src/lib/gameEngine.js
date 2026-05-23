@@ -25,6 +25,7 @@ import {
   filterTransitiveRelationships,
   AVAILABLE_THEMES,
   getTokenWeights,
+  LANDSCAPE_PATHS,
 } from './gameConstants';
 import { createRSTChain, nextRSTTurn } from './syllogimousAdapter.js';
 
@@ -930,6 +931,10 @@ export function generateNextStimulus(state) {
   if (activeTheme) {
     stimA._activeTheme = activeTheme;
   }
+  if (isMorph && LANDSCAPE_PATHS.length > 0) {
+    const imgIdx = (0 + (morphStyle === 'shift' ? Math.floor(round / 5) : round)) % LANDSCAPE_PATHS.length;
+    stimA._backgroundImage = LANDSCAPE_PATHS[imgIdx];
+  }
   const categoryA = getCategory(stimA.rel);
 
   // ── Extra streams ──
@@ -969,6 +974,10 @@ export function generateNextStimulus(state) {
     });
     if (activeTheme && res.stim) {
       res.stim._activeTheme = activeTheme;
+    }
+    if (isMorph && res.stim && LANDSCAPE_PATHS.length > 0) {
+      const imgIdx = ((1 + i) + (morphStyle === 'shift' ? Math.floor(round / 5) : round)) % LANDSCAPE_PATHS.length;
+      res.stim._backgroundImage = LANDSCAPE_PATHS[imgIdx];
     }
     return res;
   });

@@ -905,3 +905,12 @@ export const AVAILABLE_THEMES = [
     secondaryColor: '#3b82f6'
   }
 ];
+
+export const LANDSCAPE_PATHS = [
+  '/assets/landscapes/landscape1.jpg',
+  '/assets/landscapes/landscape2.jpg',
+  '/assets/landscapes/landscape3.jpg',
+  '/assets/landscapes/landscape4.jpg',
+  '/assets/landscapes/landscape5.jpg',
+  '/assets/landscapes/landscape6.jpg'
+];

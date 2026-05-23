@@ -1,15 +1,7 @@
 import { drawShape } from './shapeRenderer';
-import { SHAPES, COLORS, pickRandom, pickRandomExcluding, randomBetween, isVerbal, isSound, getVerbalPair, buildVerbalDisplay, buildSoundDisplay, VORONOI_TOKEN_PREFIX, SCRAP_TOKEN_PREFIX, RELATIONSHIP_CATEGORIES } from './gameConstants';
+import { SHAPES, COLORS, pickRandom, pickRandomExcluding, randomBetween, isVerbal, isSound, getVerbalPair, buildVerbalDisplay, buildSoundDisplay, VORONOI_TOKEN_PREFIX, SCRAP_TOKEN_PREFIX, RELATIONSHIP_CATEGORIES, LANDSCAPE_PATHS } from './gameConstants';
 
 // Pre-preload high-contrast lightweight landscape collage images
-const LANDSCAPE_PATHS = [
-  '/assets/landscapes/landscape1.jpg',
-  '/assets/landscapes/landscape2.jpg',
-  '/assets/landscapes/landscape3.jpg',
-  '/assets/landscapes/landscape4.jpg',
-  '/assets/landscapes/landscape5.jpg',
-  '/assets/landscapes/landscape6.jpg'
-];
 const loadedLandscapes = [];
 if (typeof window !== 'undefined') {
   LANDSCAPE_PATHS.forEach((path, idx) => {

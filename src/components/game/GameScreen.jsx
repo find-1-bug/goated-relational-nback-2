@@ -644,16 +644,27 @@ export default function GameScreen({ nLevel, modes, relationshipPool, totalRound
           const showRintChain = phase === 'stimulus' && allTrialModes[idx] === 'rint' && rintChain?.length > 0;
           const theme = s.stimulus?._activeTheme;
           return (
-            <div key={idx} className={`relative rounded-xl flex flex-col overflow-hidden transition-[box-shadow,border-color] duration-150 ${
-              theme 
-                ? theme.className
-                : (audioEarForIndex(idx)
-                    ? 'bg-emerald-500/10 border-emerald-400 shadow-[0_0_28px_rgba(52,211,153,0.28)] border-2'
-                    : (s.responded || s.positionResponded || s.cctResponded) && phase === 'stimulus'
-                      ? 'bg-secondary/30 border-primary/80 shadow-[0_0_32px_rgba(43,227,198,0.40)] border-2'
-                      : `bg-secondary/30 ${STREAM_BORDER_COLORS[idx % STREAM_BORDER_COLORS.length]} border-2`)
-            }`}>
-              <div className="flex-1 min-h-0 relative">
+            <div 
+              key={idx} 
+              className={`relative rounded-xl flex flex-col overflow-hidden transition-[box-shadow,border-color] duration-150 ${
+                theme 
+                  ? theme.className
+                  : (audioEarForIndex(idx)
+                      ? 'bg-emerald-500/10 border-emerald-400 shadow-[0_0_28px_rgba(52,211,153,0.28)] border-2'
+                      : (s.responded || s.positionResponded || s.cctResponded) && phase === 'stimulus'
+                        ? 'bg-secondary/30 border-primary/80 shadow-[0_0_32px_rgba(43,227,198,0.40)] border-2'
+                        : `bg-secondary/30 ${STREAM_BORDER_COLORS[idx % STREAM_BORDER_COLORS.length]} border-2`)
+              }`}
+              style={s.stimulus?._backgroundImage ? {
+                backgroundImage: `url(${s.stimulus._backgroundImage})`,
+                backgroundSize: 'cover',
+                backgroundPosition: 'center',
+              } : undefined}
+            >
+              {s.stimulus?._backgroundImage && (
+                <div className="absolute inset-0 bg-slate-950/70 backdrop-blur-[2px] pointer-events-none z-0" />
+              )}
+              <div className="flex-1 min-h-0 relative z-10">
                 <GameCanvas
                 relationship={!clearCanvas ? s.rel : null}
                 stimulus={s.stimulus}
