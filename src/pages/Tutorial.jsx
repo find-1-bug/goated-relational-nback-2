@@ -290,7 +290,104 @@ export default function Tutorial() {
                       </div>
                       <div>
                         <strong className="text-violet-300 block font-mono uppercase tracking-wider">Analogy N-Back (4-place visual)</strong>
-                        <span>A target fires when the current relation shares structural <strong>form class</strong> with the N-back relation, even if the relation tokens differ (e.g. ABOVE_BELOW ≈ BIGGER_THAN ≈ STACKED — all "directional asymmetric"). Same-token repeats are NOT matches — you must abstract the form. This is the Halford 4-place rung in visual form: the cognitive operation that Raven's Progressive Matrices specifically measures at the high-difficulty end. Form classes include directional-asymmetric, containment, symmetric-contact, identity, opposition, multiplicity-asymmetric, ordered-sequence, temporal-ordered, complex-pattern, and transform-dependency. Requires N&ge;2.</span>
+                        <span>A target fires when the current relation shares structural <strong>form class</strong> with the N-back relation, even if the relation tokens differ (e.g. ABOVE_BELOW ≈ BIGGER_THAN ≈ STACKED — all "directional asymmetric"). Same-token repeats are NOT matches — you must abstract the form. This is the Halford 4-place rung in visual form: the cognitive operation that Raven's Progressive Matrices specifically measures at the high-difficulty end. Requires N&ge;2.</span>
+                      </div>
+                    </div>
+
+                    {/* Analogy Form Class Table — the exact rule of the mode */}
+                    <div className="mt-6 pt-4 border-t border-border/40">
+                      <h3 className="text-xs font-bold uppercase tracking-widest text-violet-300 mb-2 flex items-center gap-2">
+                        <GitBranch className="w-3.5 h-3.5" /> Analogy Mode · Form Class Reference
+                      </h3>
+                      <p className="text-[11px] text-muted-foreground font-mono leading-relaxed mb-3">
+                        Match rule: two relations are <strong>analogous</strong> iff they share a form class AND are different tokens. Same-token (e.g. INSIDE → INSIDE) is treated as <strong>not a match</strong> — that would be plain 1-place identity, not 4-place structural mapping. Different form class is also not a match.
+                      </p>
+                      <div className="overflow-x-auto rounded-lg border border-border/60 bg-background/40">
+                        <table className="w-full text-[10px] sm:text-[11px] font-mono">
+                          <thead>
+                            <tr className="border-b border-border/60 bg-secondary/40">
+                              <th className="text-left p-2 text-violet-300 uppercase tracking-wider font-bold">Form Class</th>
+                              <th className="text-left p-2 text-violet-300 uppercase tracking-wider font-bold">Sample Members</th>
+                              <th className="text-left p-2 text-violet-300 uppercase tracking-wider font-bold">Cognitive Pattern</th>
+                            </tr>
+                          </thead>
+                          <tbody className="text-foreground/85">
+                            <tr className="border-b border-border/30">
+                              <td className="p-2 text-cyan-300 font-semibold align-top">directional-asymmetric</td>
+                              <td className="p-2 align-top">ABOVE_BELOW · STACKED · BIGGER_THAN · MORE_THAN · BEFORE · IN_FRONT_OF · FLOATING_ABOVE · LEFT_RIGHT · DIAGONAL · all transitive verbal comparisons</td>
+                              <td className="p-2 text-muted-foreground/80 align-top">One element dominates the other on an axis (vertical, depth, size, weight, time, etc.)</td>
+                            </tr>
+                            <tr className="border-b border-border/30">
+                              <td className="p-2 text-cyan-300 font-semibold align-top">containment</td>
+                              <td className="p-2 align-top">INSIDE · SURROUNDED · NESTED_3 · NESTED_VOLUME · INSIDE_OF · CONTAINS · PART_OF · BELONGS_TO</td>
+                              <td className="p-2 text-muted-foreground/80 align-top">One element wholly inside or part of another</td>
+                            </tr>
+                            <tr className="border-b border-border/30">
+                              <td className="p-2 text-cyan-300 font-semibold align-top">symmetric-contact</td>
+                              <td className="p-2 align-top">TOUCHING · OVERLAPPING · CONNECTED · COLLIDING · INTERSECTING_PLANES · NEXT_TO · BOUND_BY_GRAVITY</td>
+                              <td className="p-2 text-muted-foreground/80 align-top">Elements are close / touching / joined — no dominance</td>
+                            </tr>
+                            <tr className="border-b border-border/30">
+                              <td className="p-2 text-cyan-300 font-semibold align-top">symmetric-separation</td>
+                              <td className="p-2 align-top">REPELLING · SCATTERED · FAR_FROM</td>
+                              <td className="p-2 text-muted-foreground/80 align-top">Elements pushed apart / dispersed</td>
+                            </tr>
+                            <tr className="border-b border-border/30">
+                              <td className="p-2 text-cyan-300 font-semibold align-top">identity</td>
+                              <td className="p-2 align-top">SAME_COLOR · SAME_SHAPE · ONE_SHARED_TRAIT · SAME_AS · MIRRORED · SHADOW_COPY · EQUAL_COUNT · MATCHES</td>
+                              <td className="p-2 text-muted-foreground/80 align-top">Elements share / duplicate a trait</td>
+                            </tr>
+                            <tr className="border-b border-border/30">
+                              <td className="p-2 text-cyan-300 font-semibold align-top">opposition</td>
+                              <td className="p-2 align-top">HOLLOW_VS_SOLID · OPPOSITE_COLORS · OPPOSITE_OF · NEGATES</td>
+                              <td className="p-2 text-muted-foreground/80 align-top">Elements differ on a binary trait</td>
+                            </tr>
+                            <tr className="border-b border-border/30">
+                              <td className="p-2 text-cyan-300 font-semibold align-top">multiplicity-asymmetric</td>
+                              <td className="p-2 align-top">ONE_TO_MANY · TWO_TO_ONE · THREE_TO_ONE · ONE_TO_FIVE · SIZE_MISMATCH · PYRAMID</td>
+                              <td className="p-2 text-muted-foreground/80 align-top">Counts differ across sides</td>
+                            </tr>
+                            <tr className="border-b border-border/30">
+                              <td className="p-2 text-cyan-300 font-semibold align-top">ordered-sequence</td>
+                              <td className="p-2 align-top">INCREASING_ROW · DECREASING_ROW · SIZE_GRADIENT · ASCENDING_SPIRAL · ORBITING · ROTATING_PAIR</td>
+                              <td className="p-2 text-muted-foreground/80 align-top">Monotonic chain of elements</td>
+                            </tr>
+                            <tr className="border-b border-border/30">
+                              <td className="p-2 text-cyan-300 font-semibold align-top">temporal-ordered</td>
+                              <td className="p-2 align-top">BEFORE · AFTER · FOLLOWS · PRECEDES · EXCEEDS</td>
+                              <td className="p-2 text-muted-foreground/80 align-top">Temporal sequence on a verbal axis</td>
+                            </tr>
+                            <tr className="border-b border-border/30">
+                              <td className="p-2 text-cyan-300 font-semibold align-top">surface-modified</td>
+                              <td className="p-2 align-top">BORDER_ONLY · STRIPED · DASHED_OUTLINE · ROTATED</td>
+                              <td className="p-2 text-muted-foreground/80 align-top">Shapes carry a surface / texture modifier</td>
+                            </tr>
+                            <tr className="border-b border-border/30">
+                              <td className="p-2 text-cyan-300 font-semibold align-top">complex-pattern</td>
+                              <td className="p-2 align-top">THREE_PAIRS_ONE_DIFFERENT · FOUR_PAIRS_GRID · TWO_OF_THREE_HOLLOW · ODD_COLOR_OUT · ODD_SHAPE_OUT</td>
+                              <td className="p-2 text-muted-foreground/80 align-top">Odd-one-out / multi-group scan</td>
+                            </tr>
+                            <tr>
+                              <td className="p-2 text-cyan-300 font-semibold align-top">transform-dependency</td>
+                              <td className="p-2 align-top">CAUSES · DEFINES · REPLACES · TRANSFORMS_INTO · DEPENDS_ON</td>
+                              <td className="p-2 text-muted-foreground/80 align-top">Abstract logical / causal relations</td>
+                            </tr>
+                          </tbody>
+                        </table>
+                      </div>
+                      <div className="mt-3 grid grid-cols-1 sm:grid-cols-3 gap-2 text-[11px] font-mono">
+                        <div className="rounded p-2 bg-emerald-500/10 border border-emerald-500/30">
+                          <div className="text-emerald-300 font-bold uppercase tracking-wider text-[9px] mb-0.5">TARGET</div>
+                          <div className="text-foreground/85">N-back: <span className="text-primary">INSIDE</span><br/>Current: <span className="text-primary">NESTED_3</span><br/><span className="text-muted-foreground/70">→ both containment, different tokens</span></div>
+                        </div>
+                        <div className="rounded p-2 bg-rose-500/10 border border-rose-500/30">
+                          <div className="text-rose-300 font-bold uppercase tracking-wider text-[9px] mb-0.5">NON-TARGET (cross-class)</div>
+                          <div className="text-foreground/85">N-back: <span className="text-primary">INSIDE</span><br/>Current: <span className="text-primary">TOUCHING</span><br/><span className="text-muted-foreground/70">→ containment vs symmetric-contact</span></div>
+                        </div>
+                        <div className="rounded p-2 bg-rose-500/10 border border-rose-500/30">
+                          <div className="text-rose-300 font-bold uppercase tracking-wider text-[9px] mb-0.5">NON-TARGET (same-token)</div>
+                          <div className="text-foreground/85">N-back: <span className="text-primary">INSIDE</span><br/>Current: <span className="text-primary">INSIDE</span><br/><span className="text-muted-foreground/70">→ identical token, not 4-place analogy</span></div>
+                        </div>
                       </div>
                     </div>
                   </div>
