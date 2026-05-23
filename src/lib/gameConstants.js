@@ -1012,9 +1012,9 @@ export const COACH_PHASES = [
     nLevel: 3,
     speedMs: 1300,
     rounds: 40,
-    modes: ['distractors', 'lures', 'negation', 'adaptive_closed_loop', 'rint', 'rst_overlay', 'cct_overlay', 'analogy_nback', 'wrapper_morph'],
+    modes: ['distractors', 'lures', 'negation', 'adaptive_closed_loop', 'rint', 'rst_overlay', 'cct_overlay', 'wrapper_morph'],
     rstDifficulty: 'hard',
-    desc: "Unifies transitive chaining (RINT), syllogistic premise deductions (RST at Hard / 4-place analogy), visual 4-place analogy n-back, and arithmetic CCT updating. Three flavors of relational integration firing at once.",
+    desc: "Unifies transitive chaining (RINT) on the main stream with syllogistic premise deductions (RST at Hard / 4-place analogy) and arithmetic CCT updating layered as side-tasks. Three response axes firing in parallel.",
     streamsCount: 1
   },
   {

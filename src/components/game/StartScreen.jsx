@@ -1503,23 +1503,25 @@ export default function StartScreen({ onStart, suggestedN, lastSettings }) {
                 streamType: autopilotModes.includes('cct') ? 'cct' : 'relation',
               };
               
-              // Stream B setup if streamsCount is 2
-              let autopilotExtraStreams = [];
-              if (currentPhase.streamsCount === 2) {
-                autopilotExtraStreams.push({
-                  key: 'KeyF',
-                  keyDisplay: 'F',
-                  positionKey: 'KeyK',
-                  positionKeyDisplay: 'K',
-                  cctKey: 'KeyC',
-                  cctKeyDisplay: 'C',
-                  rstKey: 'KeyR',
-                  rstKeyDisplay: 'R',
-                  streamType: 'relation'
-                });
-              }
+              // Extra streams setup — phase can call for 2 or 3 (or more)
+              // streams. Earlier this only handled streamsCount === 2 so
+              // phases like 24/25 (3 streams) shipped with one. Generalize.
+              const EXTRA_STREAM_TEMPLATES = [
+                { key: 'KeyF', keyDisplay: 'F', positionKey: 'KeyK', positionKeyDisplay: 'K', cctKey: 'KeyC', cctKeyDisplay: 'C', rstKey: 'KeyR', rstKeyDisplay: 'R' },
+                { key: 'KeyJ', keyDisplay: 'J', positionKey: 'KeyL', positionKeyDisplay: 'L', cctKey: 'KeyN', cctKeyDisplay: 'N', rstKey: 'KeyT', rstKeyDisplay: 'T' },
+                { key: 'KeyA', keyDisplay: 'A', positionKey: 'KeyS', positionKeyDisplay: 'S', cctKey: 'KeyD', cctKeyDisplay: 'D', rstKey: 'KeyG', rstKeyDisplay: 'G' },
+              ];
+              const wantedExtras = Math.max(0, (currentPhase.streamsCount || 1) - 1);
+              const autopilotExtraStreams = EXTRA_STREAM_TEMPLATES
+                .slice(0, wantedExtras)
+                .map(t => ({ ...t, streamType: 'relation' }));
 
-              const enabledRels = new Set(selectedRels);
+              // Pool selection — when the user is testing an arbitrary phase
+              // (testPhaseIndex set), force-expand to ALL relations so the
+              // phase isn't starved by their narrowed manual pool. In normal
+              // coach progression, respect their pool.
+              const allRels = Object.values(RELATIONSHIP_CATEGORIES).flat();
+              const enabledRels = testPhaseIndex !== null ? new Set(allRels) : new Set(selectedRels);
               let autopilotPool = buildWeightedPool(enabledRels, catWeights);
               if (autopilotModes.includes('rint') || autopilotModes.includes('type_nback')) {
                 autopilotPool = filterTransitiveRelationships(autopilotPool);
