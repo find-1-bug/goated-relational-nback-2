@@ -824,6 +824,42 @@ export const COACH_PHASES = [
     modes: ['distractors', 'lures', 'negation', 'adaptive_closed_loop', 'stress_glitch', 'stress_shake', 'timer_panic', 'impossible', 'wrapper_morph', 'token_blending'],
     desc: "The absolute peak: 2 streams at N=3 with random multi-rules, full chaos morphs, and cross-modal token blending active.",
     streamsCount: 2
+  },
+  {
+    title: "Phase 22: Hyper-Dimensional Tesseract",
+    nLevel: 2,
+    speedMs: 1400,
+    rounds: 38,
+    modes: ['distractors', 'lures', 'negation', 'adaptive_closed_loop', 'alien_tesseract', 'stress_glitch', 'stress_shake', 'timer_panic', 'wrapper_morph', 'token_blending'],
+    desc: "Pushes spatial processing to the limit by tracking orbiting items within a projected 4D rotating hypercube (Tesseract).",
+    streamsCount: 1
+  },
+  {
+    title: "Phase 23: Relational Supercomputer",
+    nLevel: 3,
+    speedMs: 1300,
+    rounds: 40,
+    modes: ['distractors', 'lures', 'negation', 'adaptive_closed_loop', 'rint', 'rst_overlay', 'cct_overlay', 'wrapper_morph'],
+    desc: "Unifies transitive chaining (RINT), syllogistic premise deductions (RST), and arithmetic CCT updating in N=3 streams.",
+    streamsCount: 1
+  },
+  {
+    title: "Phase 24: Grandmaster Crucible",
+    nLevel: 3,
+    speedMs: 1200,
+    rounds: 42,
+    modes: ['distractors', 'lures', 'negation', 'adaptive_closed_loop', 'alien_cube', 'impossible', 'wrapper_morph', 'token_blending'],
+    desc: "Expands multitasking to 3 parallel sequences of N=3 with chaotic visual card morphs and blended junk journal cliparts.",
+    streamsCount: 3
+  },
+  {
+    title: "Phase 25: The Infinite Singularity",
+    nLevel: 4,
+    speedMs: 1100,
+    rounds: 45,
+    modes: ['distractors', 'lures', 'negation', 'adaptive_closed_loop', 'alien_tesseract', 'stress_glitch', 'stress_shake', 'timer_panic', 'impossible', 'wrapper_morph', 'token_blending'],
+    desc: "The ultimate boss level of human working memory: 3 parallel streams at N=4 inside a rotating 4D tesseract under extreme Glitch/Shake noise and full rule shifting!",
+    streamsCount: 3
   }
 ];
 

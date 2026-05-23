@@ -24,6 +24,7 @@ import {
   INVERSE_RELATIONSHIP,
   filterTransitiveRelationships,
   AVAILABLE_THEMES,
+  getTokenWeights,
 } from './gameConstants';
 import { createRSTChain, nextRSTTurn } from './syllogimousAdapter.js';
 
