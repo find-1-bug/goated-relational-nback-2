@@ -1,12 +1,12 @@
 import { drawShape } from './shapeRenderer';
-import { SHAPES, COLORS, pickRandom, pickRandomExcluding, randomBetween, isVerbal, isSound, getVerbalPair, buildVerbalDisplay, buildSoundDisplay, VORONOI_TOKEN_PREFIX, SCRAP_TOKEN_PREFIX, RELATIONSHIP_CATEGORIES, LANDSCAPE_PATHS } from './gameConstants';
+import { SHAPES, COLORS, pickRandom, pickRandomExcluding, randomBetween, isVerbal, isSound, getVerbalPair, buildVerbalDisplay, buildSoundDisplay, VORONOI_TOKEN_PREFIX, SCRAP_TOKEN_PREFIX, RELATIONSHIP_CATEGORIES, LANDSCAPE_PATHS, getAssetUrl } from './gameConstants';
 
 // Pre-preload high-contrast lightweight landscape collage images
 const loadedLandscapes = [];
 if (typeof window !== 'undefined') {
   LANDSCAPE_PATHS.forEach((path, idx) => {
     const img = new Image();
-    img.src = path;
+    img.src = getAssetUrl(path);
     img.onload = () => {
       loadedLandscapes[idx] = img;
     };

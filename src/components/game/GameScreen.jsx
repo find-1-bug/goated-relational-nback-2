@@ -11,6 +11,7 @@ import {
   WIPE_DURATION,
   FEEDBACK_DURATION,
   isSound,
+  getAssetUrl,
 } from '@/lib/gameConstants';
 import { playSoundStimulus, playNRINTAudioCue, playNRINTPitchHighCue } from '@/lib/audioRelationships';
 
@@ -656,7 +657,7 @@ export default function GameScreen({ nLevel, modes, relationshipPool, totalRound
                         : `bg-secondary/30 ${STREAM_BORDER_COLORS[idx % STREAM_BORDER_COLORS.length]} border-2`)
               }`}
               style={s.stimulus?._backgroundImage ? {
-                backgroundImage: `url(${s.stimulus._backgroundImage})`,
+                backgroundImage: `url(${getAssetUrl(s.stimulus._backgroundImage)})`,
                 backgroundSize: 'cover',
                 backgroundPosition: 'center',
               } : undefined}
