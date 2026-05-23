@@ -101,6 +101,166 @@ export function filterTransitiveRelationships(rels, isRINTMode, isTypeMode) {
   return rels.filter(r => allowed.has(r));
 }
 
+// ─── Form-class taxonomy (for analogy_nback) ──────────────────────────────────
+// Groups relations by STRUCTURAL FORM, not by category. Two relations in the
+// same form class are considered analogous: e.g. ABOVE_BELOW and STACKED both
+// express a "directional asymmetric vertical" structure even though the
+// surface visuals differ. Analogy n-back matches on form class, NOT on
+// relation token — same-token across trials is treated as a non-target so
+// the player is forced to discover the abstract form rather than identity-
+// match. This is the Halford 4-place rung in visual form.
+export const RELATION_FORM_CLASS = {
+  // Asymmetric directional — one element dominates the other on some axis
+  ABOVE_BELOW: 'asymmetric_directional',
+  STACKED: 'asymmetric_directional',
+  STACKED_3D: 'asymmetric_directional',
+  FLOATING_ABOVE: 'asymmetric_directional',
+  IN_FRONT_OF: 'asymmetric_directional',
+  BEHIND: 'asymmetric_directional',
+  LEFT_RIGHT: 'asymmetric_directional',
+  DIAGONAL: 'asymmetric_directional',
+  DEPTH_LAYERED: 'asymmetric_directional',
+  CASTING_SHADOW: 'asymmetric_directional',
+  LEANING_AGAINST: 'asymmetric_directional',
+  BIGGER_THAN: 'asymmetric_directional',
+  SMALLER_THAN: 'asymmetric_directional',
+  MORE_THAN: 'asymmetric_directional',
+  LESS_THAN: 'asymmetric_directional',
+  FASTER_THAN: 'asymmetric_directional',
+  SLOWER_THAN: 'asymmetric_directional',
+  HEAVIER_THAN: 'asymmetric_directional',
+  LIGHTER_THAN: 'asymmetric_directional',
+  HOTTER_THAN: 'asymmetric_directional',
+  COLDER_THAN: 'asymmetric_directional',
+  LOUDER_THAN: 'asymmetric_directional',
+  SOFTER_THAN: 'asymmetric_directional',
+  STRONGER_THAN: 'asymmetric_directional',
+  WEAKER_THAN: 'asymmetric_directional',
+  OLDER_THAN: 'asymmetric_directional',
+  NEWER_THAN: 'asymmetric_directional',
+  HIGHER_THAN: 'asymmetric_directional',
+  LOWER_THAN: 'asymmetric_directional',
+  CLOSER_THAN: 'asymmetric_directional',
+  FURTHER_THAN: 'asymmetric_directional',
+  LEFT_OF: 'asymmetric_directional',
+  RIGHT_OF: 'asymmetric_directional',
+  ABOVE: 'asymmetric_directional',
+  BELOW: 'asymmetric_directional',
+  NORTH_OF: 'asymmetric_directional',
+  SOUTH_OF: 'asymmetric_directional',
+  EAST_OF: 'asymmetric_directional',
+  WEST_OF: 'asymmetric_directional',
+  NORTH_EAST_OF: 'asymmetric_directional',
+  NORTH_WEST_OF: 'asymmetric_directional',
+  SOUTH_EAST_OF: 'asymmetric_directional',
+  SOUTH_WEST_OF: 'asymmetric_directional',
+  BALANCED_SCALE: 'asymmetric_directional',
+  PITCH_HIGHER: 'asymmetric_directional',
+  PITCH_LOWER: 'asymmetric_directional',
+  RHYTHM_FASTER: 'asymmetric_directional',
+  RHYTHM_SLOWER: 'asymmetric_directional',
+
+  // Containment — one element wholly inside another
+  INSIDE: 'containment',
+  SURROUNDED: 'containment',
+  NESTED_3: 'containment',
+  NESTED_VOLUME: 'containment',
+  INSIDE_OF: 'containment',
+  CONTAINS: 'containment',
+  OUTSIDE_OF: 'containment',
+  PART_OF: 'containment',
+  BELONGS_TO: 'containment',
+
+  // Symmetric proximity / contact — elements are close, touching, joined
+  TOUCHING: 'symmetric_contact',
+  OVERLAPPING: 'symmetric_contact',
+  CONNECTED: 'symmetric_contact',
+  COLLIDING: 'symmetric_contact',
+  INTERSECTING_PLANES: 'symmetric_contact',
+  NEXT_TO: 'symmetric_contact',
+  BOUND_BY_GRAVITY: 'symmetric_contact',
+
+  // Symmetric separation / repulsion
+  REPELLING: 'symmetric_separation',
+  SCATTERED: 'symmetric_separation',
+  FAR_FROM: 'symmetric_separation',
+
+  // Symmetric identity — elements share a trait / are duplicates
+  SAME_COLOR: 'identity',
+  SAME_SHAPE: 'identity',
+  ONE_SHARED_TRAIT: 'identity',
+  SAME_AS: 'identity',
+  MIRRORED: 'identity',
+  SHADOW_COPY: 'identity',
+  EQUAL_COUNT: 'identity',
+  MATCHES: 'identity',
+
+  // Opposition / contrast
+  HOLLOW_VS_SOLID: 'opposition',
+  OPPOSITE_COLORS: 'opposition',
+  OPPOSITE_OF: 'opposition',
+  NEGATES: 'opposition',
+
+  // Multiplicity asymmetric — counts differ across sides
+  ONE_TO_MANY: 'multiplicity_asymmetric',
+  TWO_TO_ONE: 'multiplicity_asymmetric',
+  THREE_TO_ONE: 'multiplicity_asymmetric',
+  ONE_TO_FIVE: 'multiplicity_asymmetric',
+  SIZE_MISMATCH: 'multiplicity_asymmetric',
+  PYRAMID: 'multiplicity_asymmetric',
+
+  // Ordered sequence — a monotonic chain of elements
+  INCREASING_ROW: 'ordered_sequence',
+  DECREASING_ROW: 'ordered_sequence',
+  SIZE_GRADIENT: 'ordered_sequence',
+  ASCENDING_SPIRAL: 'ordered_sequence',
+  ORBITING: 'ordered_sequence',
+  ROTATING_PAIR: 'ordered_sequence',
+
+  // Temporal ordered
+  BEFORE: 'temporal_ordered',
+  AFTER: 'temporal_ordered',
+  FOLLOWS: 'temporal_ordered',
+  PRECEDES: 'temporal_ordered',
+  EXCEEDS: 'temporal_ordered',
+
+  // Surface / trait modifiers (loose: shapes with surface modification)
+  BORDER_ONLY: 'surface_modified',
+  STRIPED: 'surface_modified',
+  DASHED_OUTLINE: 'surface_modified',
+  ROTATED: 'surface_modified',
+
+  // Complex composite (scan-for-difference) — odd-one-out patterns
+  THREE_PAIRS_ONE_DIFFERENT: 'complex_pattern',
+  FOUR_PAIRS_GRID: 'complex_pattern',
+  TWO_OF_THREE_HOLLOW: 'complex_pattern',
+  ODD_COLOR_OUT: 'complex_pattern',
+  ODD_SHAPE_OUT: 'complex_pattern',
+
+  // Verbal transforms / dependencies — abstract logical relations
+  CAUSES: 'transform_dependency',
+  DEFINES: 'transform_dependency',
+  REPLACES: 'transform_dependency',
+  TRANSFORMS_INTO: 'transform_dependency',
+  DEPENDS_ON: 'transform_dependency',
+};
+
+// Return the form class for a relation, or null if unknown.
+export function getRelationFormClass(rel) {
+  return RELATION_FORM_CLASS[rel] || null;
+}
+
+// Two relations are "analogous" iff they share a form class AND are not
+// the same exact relation token. The same-token exclusion forces the player
+// to abstract structural form rather than identity-match.
+export function relationsAreAnalogous(relA, relB) {
+  if (!relA || !relB) return false;
+  if (relA === relB) return false;
+  const a = RELATION_FORM_CLASS[relA];
+  const b = RELATION_FORM_CLASS[relB];
+  return !!a && a === b;
+}
+
 // For the HUD category label
 export const CATEGORY_LABELS = {
   SPATIAL: 'Spatial',
@@ -839,13 +999,22 @@ export const COACH_PHASES = [
     streamsCount: 1
   },
   {
+    title: "Phase 22.5: Analogy Crucible (visual 4-place)",
+    nLevel: 2,
+    speedMs: 1800,
+    rounds: 30,
+    modes: ['distractors', 'lures', 'negation', 'adaptive_closed_loop', 'analogy_nback'],
+    desc: "Pure visual 4-place analogy n-back. A target fires when the current relation shares structural FORM with the N-back relation, even if the relation tokens differ (ABOVE_BELOW ≈ BIGGER_THAN ≈ STACKED). Same-token repeats are NOT matches — you have to abstract the form. The Halford 4-place rung, visual edition.",
+    streamsCount: 1
+  },
+  {
     title: "Phase 23: Relational Supercomputer",
     nLevel: 3,
     speedMs: 1300,
     rounds: 40,
-    modes: ['distractors', 'lures', 'negation', 'adaptive_closed_loop', 'rint', 'rst_overlay', 'cct_overlay', 'wrapper_morph'],
+    modes: ['distractors', 'lures', 'negation', 'adaptive_closed_loop', 'rint', 'rst_overlay', 'cct_overlay', 'analogy_nback', 'wrapper_morph'],
     rstDifficulty: 'hard',
-    desc: "Unifies transitive chaining (RINT), syllogistic premise deductions (RST at Hard / 4-place analogy), and arithmetic CCT updating in N=3 streams.",
+    desc: "Unifies transitive chaining (RINT), syllogistic premise deductions (RST at Hard / 4-place analogy), visual 4-place analogy n-back, and arithmetic CCT updating. Three flavors of relational integration firing at once.",
     streamsCount: 1
   },
   {

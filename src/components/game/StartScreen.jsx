@@ -48,6 +48,7 @@ const MODE_OPTIONS = [
   { id: 'wrapper_morph', icon: Shuffle,    label: 'Wrapper Morphing Mode', desc: 'Combines dynamic visual theme morphing (Cyberpunk, Stark, Glass, Sunset, Matrix) with logical token category morphing mid-session (blocks of 5 or trial-by-trial). Challenges cognitive set-shifting.', phase: "Phase C: Memory Integration & Dynamic Rules" },
   { id: 'token_blending',icon: Brain,      label: 'Cross-Modal Token Blending', desc: 'Blends verbal words, alphanumeric code letters, and emoji tokens directly inside spatial, trait, and quantitative relationships. Overloads the Episodic Buffer.', phase: "Phase C: Memory Integration & Dynamic Rules" },
   { id: 'binary_logic',  icon: GitBranch,  label: 'Binary Logic',      desc: 'Each trial, each stream is assigned a random pair: <NBack type> <OP> <NBack type> (e.g. NRM AND NOT RINT). A match fires only when the combined boolean condition is true. Shown as live badges on each stream. Requires N≥2.', minN: 2, phase: "Phase C: Memory Integration & Dynamic Rules" },
+  { id: 'analogy_nback', icon: GitBranch,  label: 'Analogy N-Back (4-place)', desc: 'Visual 4-place analogy match. The N-back target fires when the CURRENT relation shares a STRUCTURAL FORM with the N-back relation, even if the relation tokens differ (e.g. ABOVE_BELOW ≈ BIGGER_THAN ≈ STACKED — all "directional asymmetric"). Same-token repeats are NOT matches — you have to abstract the form. This is the Halford 4-place rung in visual form — closest mode to what Raven\'s actually measures. Requires N≥2.', minN: 2, phase: "Phase C: Memory Integration & Dynamic Rules" },
 
   // Spatial & Stress Overloads (Alien Dimensions & Distractors)
   { id: 'alien_square',    icon: Layers,     label: 'Alien Square Mode',    desc: 'Each stream appears inside a rotating 3×3 square. Relation and square position can be answered with separate keys.', phase: "Phase D: Spatial Overloads & Stress Resilience" },
@@ -64,10 +65,10 @@ const MODE_OPTIONS = [
 // type, not a core matching rule, so it freely blends with type_nback / rint /
 // mixed / binary_logic / alien-modes via the per-stream REL/CCT toggle.
 const EXCLUSIVE_GROUPS = [
-  ['type_nback', 'mixed_nback', 'mixed_rint', 'impossible', 'nonverbal_rint'],
-  ['rint', 'mixed_rint', 'impossible', 'nonverbal_rint'],
+  ['type_nback', 'mixed_nback', 'mixed_rint', 'impossible', 'nonverbal_rint', 'analogy_nback'],
+  ['rint', 'mixed_rint', 'impossible', 'nonverbal_rint', 'analogy_nback'],
   // binary_logic overrides the primary nback type selection per trial so conflicts with fixed-mode selectors
-  ['binary_logic', 'mixed_nback', 'mixed_rint', 'impossible', 'nonverbal_rint'],
+  ['binary_logic', 'mixed_nback', 'mixed_rint', 'impossible', 'nonverbal_rint', 'analogy_nback'],
   ['alien_cube', 'alien_tesseract', 'alien_square'],
 ];
 

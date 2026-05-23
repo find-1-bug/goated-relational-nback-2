@@ -284,6 +284,14 @@ export default function Tutorial() {
                         <strong className="text-fuchsia-400 block font-mono uppercase tracking-wider">Cross-Modal Token Blending</strong>
                         <span>Blends verbal text, alphanumeric characters, and graphic emojis directly inside other relationship grids (like Spatial matrices, Orbiting 3D shapes, or Trait pairings). Blocks superficial shortcuts and overloads the episodic buffer.</span>
                       </div>
+                      <div>
+                        <strong className="text-violet-300 block font-mono uppercase tracking-wider">RST Side-Task (Reasoning) · Easy / Medium / Hard</strong>
+                        <span>Layered on stream A like CCT, but trains deductive inference. One premise per trial; from trial N onwards a candidate conclusion is also shown. Press R if logically valid. Difficulty locks the family: <strong>Easy</strong> = Distinction (same/opposite XOR), <strong>Medium</strong> = Comparison (transitive order), <strong>Hard</strong> = Analogy (4-place structural mapping). Hard auto-extends SOA by 60% so the role-binding read stays sustainable. Generators ported from <a href="https://github.com/4skinskywalker/Syllogimous-v3" target="_blank" rel="noreferrer" className="underline">Syllogimous v3</a> (CC BY-NC 3.0). Requires N&ge;2.</span>
+                      </div>
+                      <div>
+                        <strong className="text-violet-300 block font-mono uppercase tracking-wider">Analogy N-Back (4-place visual)</strong>
+                        <span>A target fires when the current relation shares structural <strong>form class</strong> with the N-back relation, even if the relation tokens differ (e.g. ABOVE_BELOW ≈ BIGGER_THAN ≈ STACKED — all "directional asymmetric"). Same-token repeats are NOT matches — you must abstract the form. This is the Halford 4-place rung in visual form: the cognitive operation that Raven's Progressive Matrices specifically measures at the high-difficulty end. Form classes include directional-asymmetric, containment, symmetric-contact, identity, opposition, multiplicity-asymmetric, ordered-sequence, temporal-ordered, complex-pattern, and transform-dependency. Requires N&ge;2.</span>
+                      </div>
                     </div>
                   </div>
                 </div>
@@ -448,6 +456,25 @@ export default function Tutorial() {
                       </div>
                       <p className="text-muted-foreground/70 text-[11px] leading-relaxed pt-1">
                         Hard auto-extends SOA by 60% on analogy trials so the role-binding read is sustainable. Family generators ported from <a href="https://github.com/4skinskywalker/Syllogimous-v3" target="_blank" rel="noreferrer" className="underline text-violet-300">Syllogimous v3</a> (CC BY-NC 3.0).
+                      </p>
+                    </div>
+
+                    {/* Ex 5 — Analogy N-Back (visual 4-place) */}
+                    <div className="rounded-lg bg-secondary/20 border border-violet-500/40 p-5 space-y-2">
+                      <strong className="text-violet-300 block font-mono">Analogy N-Back — visual 4-place (N = 2)</strong>
+                      <p className="text-muted-foreground leading-relaxed">
+                        A target fires when the current relation shares structural <strong>form class</strong> with the N-back relation, even if the relation tokens differ. Same-token = NOT a match (would be trivial identity).
+                      </p>
+                      <div className="rounded bg-background/50 border border-border p-3 space-y-2 font-mono text-[11px]">
+                        <div className="text-violet-300 font-bold">Match across form class (target)</div>
+                        <div className="pl-3">T1: <span className="text-primary font-bold">ABOVE_BELOW</span> (directional asymmetric) · T2: <span className="text-primary font-bold">INSIDE</span> · T3: <span className="text-primary font-bold">BIGGER_THAN</span> (also directional asymmetric) → <span className="text-emerald-400 font-bold">TARGET</span> (analogous to T1)</div>
+                        <div className="text-violet-300 font-bold pt-1">Cross-class (non-target)</div>
+                        <div className="pl-3">T1: <span className="text-primary font-bold">INSIDE</span> (containment) · T3: <span className="text-primary font-bold">TOUCHING</span> (symmetric-contact) → <span className="text-rose-400 font-bold">NOT A MATCH</span></div>
+                        <div className="text-violet-300 font-bold pt-1">Same-token (trivially excluded)</div>
+                        <div className="pl-3">T1: <span className="text-primary font-bold">MORE_THAN</span> · T3: <span className="text-primary font-bold">MORE_THAN</span> → <span className="text-rose-400 font-bold">NOT A MATCH</span> (identity ≠ analogy)</div>
+                      </div>
+                      <p className="text-muted-foreground/70 text-[11px] leading-relaxed pt-1">
+                        Closest mode in this app to what Raven's Progressive Matrices measures at high difficulty. Form classes you'll meet: directional-asymmetric · containment · symmetric-contact · identity · opposition · multiplicity-asymmetric · ordered-sequence · temporal-ordered · complex-pattern · transform-dependency.
                       </p>
                     </div>
                   </div>

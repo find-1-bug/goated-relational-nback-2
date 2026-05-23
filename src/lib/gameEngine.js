@@ -26,6 +26,8 @@ import {
   AVAILABLE_THEMES,
   getTokenWeights,
   LANDSCAPE_PATHS,
+  getRelationFormClass,
+  relationsAreAnalogous,
 } from './gameConstants';
 import { createRSTChain, nextRSTTurn, pickRSTFamily, isHeavyFamily } from './syllogimousAdapter.js';
 
@@ -132,6 +134,13 @@ function evaluateStimulusForMode({ stim, mode, history, typeHistory, rintState, 
     const entries = getTypeHistory(typeHistory, stim.rel);
     const past = entries[entries.length - effectiveN];
     return !!stim._negated === !!past?._negated;
+  }
+  if (mode === 'analogy') {
+    // 4-place analogy: current is a target iff its relation shares a form
+    // CLASS with the N-back relation, AND they are not the same exact
+    // relation token (same-token would be ordinary 1-place identity match).
+    const nBackEntry = history.length >= effectiveN ? history[history.length - effectiveN] : null;
+    return !!nBackEntry && relationsAreAnalogous(stim.rel, nBackEntry.rel);
   }
   if (mode === 'hierarchical') {
     const canHier = (hierHistory || []).length >= effectiveN;
@@ -278,6 +287,7 @@ function rollTrialMode(modes, effectiveN) {
     return Math.random() < 0.5 ? 'type' : 'normal';
   }
   if (isCCT) return 'cct';
+  if (modes.includes('analogy_nback')) return 'analogy';
   // NRINT always uses the nrint branch (it gracefully emits non-target stims
   // until enough history accumulates). Without this, N<2 falls into 'normal'
   // and tries to copy a non-existent stim, producing blank panels.
@@ -565,6 +575,31 @@ function generateOneStreamStimulus({ history, typeHistory, rintState, pool, effe
       : makeNonTargetRelationship(finalPool, r => canHier && getCategory(r) === nBackCat);
     stim = makeStimulusEntry(rel, modes);
     isPrimaryTarget = canHier && getCategory(stim.rel) === nBackCat;
+  } else if (trialMode === 'analogy') {
+    // 4-place analogy: pick a relation that shares the form class with the
+    // N-back entry's relation (target) or a different form class (non-target).
+    // Same-token is always rejected as a "trivial" match (that's just 1-place
+    // identity), forcing the player to abstract the structural form.
+    let chosenRel = null;
+    if (canTarget && nBackEntry) {
+      const nbClass = getRelationFormClass(nBackEntry.rel);
+      const sameClass = finalPool.filter(r => r !== nBackEntry.rel && getRelationFormClass(r) === nbClass);
+      const diffClass = finalPool.filter(r => getRelationFormClass(r) !== nbClass);
+      if (Math.random() < matchChance && sameClass.length > 0) {
+        chosenRel = pickRandom(sameClass);
+      } else if (diffClass.length > 0) {
+        chosenRel = pickRandom(diffClass);
+      } else {
+        // Pool too narrow — fallback to any non-same-token relation
+        chosenRel = pickRandomExcluding(finalPool, nBackEntry.rel);
+      }
+    } else {
+      chosenRel = pickRandom(finalPool);
+    }
+    stim = isVerbal(chosenRel)
+      ? makeStimulusEntry(chosenRel, modes)
+      : maybeInvertVisual(makeStimulusEntry(chosenRel, modes));
+    isPrimaryTarget = canTarget && relationsAreAnalogous(stim.rel, nBackEntry?.rel);
   } else {
     let isLure = false;
     let lureOffset = 0;
