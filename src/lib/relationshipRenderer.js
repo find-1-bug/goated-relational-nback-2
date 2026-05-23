@@ -1,6 +1,27 @@
 import { drawShape } from './shapeRenderer';
 import { SHAPES, COLORS, pickRandom, pickRandomExcluding, randomBetween, isVerbal, isSound, getVerbalPair, buildVerbalDisplay, buildSoundDisplay, VORONOI_TOKEN_PREFIX, SCRAP_TOKEN_PREFIX, RELATIONSHIP_CATEGORIES } from './gameConstants';
 
+// Pre-preload high-contrast lightweight landscape collage images
+const LANDSCAPE_PATHS = [
+  '/assets/landscapes/landscape1.jpg',
+  '/assets/landscapes/landscape2.jpg',
+  '/assets/landscapes/landscape3.jpg',
+  '/assets/landscapes/landscape4.jpg',
+  '/assets/landscapes/landscape5.jpg',
+  '/assets/landscapes/landscape6.jpg'
+];
+const loadedLandscapes = [];
+if (typeof window !== 'undefined') {
+  LANDSCAPE_PATHS.forEach((path, idx) => {
+    const img = new Image();
+    img.src = path;
+    img.onload = () => {
+      loadedLandscapes[idx] = img;
+    };
+  });
+}
+
+
 // Check if a relationship is 3D
 export function is3D(relationship) {
   return RELATIONSHIP_CATEGORIES.SPATIAL_3D.includes(relationship);
@@ -313,26 +334,44 @@ export function drawScrapToken(ctx, seed, cx, cy, size, baseColor) {
   ctx.save();
   ctx.clip();
   
-  // 5. Draw photo background (rich neon double gradients or analog sunset vibe)
-  const gradType = rand();
-  if (gradType < 0.33) {
-    const grad = ctx.createLinearGradient(cx - size * 0.5, cy - size * 0.5, cx + size * 0.5, cy + size * 0.5);
-    grad.addColorStop(0, '#f43f5e'); // Sunset rose
-    grad.addColorStop(0.5, '#d946ef'); // Synthwave violet
-    grad.addColorStop(1, '#6366f1'); // Electric indigo
-    ctx.fillStyle = grad;
-  } else if (gradType < 0.66) {
-    const grad = ctx.createRadialGradient(cx, cy, size * 0.1, cx, cy, size * 0.5);
-    grad.addColorStop(0, '#10b981'); // Emerald glow
-    grad.addColorStop(1, '#06b6d4'); // Cyber cyan
-    ctx.fillStyle = grad;
-  } else {
-    const grad = ctx.createLinearGradient(cx - size * 0.5, cy + size * 0.5, cx + size * 0.5, cy - size * 0.5);
-    grad.addColorStop(0, '#f97316'); // Tangerine
-    grad.addColorStop(1, '#e11d48'); // Coral ruby
-    ctx.fillStyle = grad;
+  // 5. Draw photo background (crop from random landscape image or use gradient fallback)
+  let drewImage = false;
+  
+  if (loadedLandscapes.length > 0) {
+    const imgIndex = Math.floor(rand() * loadedLandscapes.length);
+    const img = loadedLandscapes[imgIndex];
+    if (img && img.complete && img.naturalWidth > 0) {
+      const cropW = img.naturalWidth * (0.35 + rand() * 0.35);
+      const cropH = img.naturalHeight * (0.35 + rand() * 0.35);
+      const cropX = rand() * (img.naturalWidth - cropW);
+      const cropY = rand() * (img.naturalHeight - cropH);
+      
+      ctx.drawImage(img, cropX, cropY, cropW, cropH, cx - size * 0.5, cy - size * 0.5, size, size);
+      drewImage = true;
+    }
   }
-  ctx.fillRect(cx - size, cy - size, size * 2, size * 2);
+
+  if (!drewImage) {
+    const gradType = rand();
+    if (gradType < 0.33) {
+      const grad = ctx.createLinearGradient(cx - size * 0.5, cy - size * 0.5, cx + size * 0.5, cy + size * 0.5);
+      grad.addColorStop(0, '#f43f5e'); // Sunset rose
+      grad.addColorStop(0.5, '#d946ef'); // Synthwave violet
+      grad.addColorStop(1, '#6366f1'); // Electric indigo
+      ctx.fillStyle = grad;
+    } else if (gradType < 0.66) {
+      const grad = ctx.createRadialGradient(cx, cy, size * 0.1, cx, cy, size * 0.5);
+      grad.addColorStop(0, '#10b981'); // Emerald glow
+      grad.addColorStop(1, '#06b6d4'); // Cyber cyan
+      ctx.fillStyle = grad;
+    } else {
+      const grad = ctx.createLinearGradient(cx - size * 0.5, cy + size * 0.5, cx + size * 0.5, cy - size * 0.5);
+      grad.addColorStop(0, '#f97316'); // Tangerine
+      grad.addColorStop(1, '#e11d48'); // Coral ruby
+      ctx.fillStyle = grad;
+    }
+    ctx.fillRect(cx - size, cy - size, size * 2, size * 2);
+  }
   
   // 6. Draw dynamic retro photographic grid or lines
   ctx.strokeStyle = 'rgba(255, 255, 255, 0.2)';
@@ -1621,4 +1660,9 @@ function renderBalancedScale(ctx, cx, cy, v, scale = 1) {
   ctx.setLineDash([]);
   ctx.restore();
   drawShape(ctx, v.shapeB, cx + panX, cy + 16 * scale + sizeB / 2, sizeB, v.colorB, true);
+}
+
+if (typeof window !== 'undefined') {
+  window.drawScrapToken = drawScrapToken;
+  window.drawVoronoiToken = drawVoronoiToken;
 }

@@ -1,3 +1,5 @@
+import { SCRAP_TOKEN_PREFIX, VORONOI_TOKEN_PREFIX } from './gameConstants';
+
 // Draws a shape at (cx, cy) with given size, color, filled or outline
 
 export function getSynaesthesiaColor(char, defaultColor = '#ffd700') {
@@ -38,6 +40,23 @@ export function drawShape(ctx, shape, cx, cy, size, color, filled = true) {
   ctx.lineWidth = 3;
   ctx.strokeStyle = color;
   ctx.fillStyle = color;
+
+  if (typeof shape === 'string' && shape.startsWith(SCRAP_TOKEN_PREFIX)) {
+    const seed = Number(shape.slice(SCRAP_TOKEN_PREFIX.length)) || 0;
+    if (typeof window !== 'undefined' && window.drawScrapToken) {
+      window.drawScrapToken(ctx, seed, cx, cy, size, color);
+    }
+    ctx.restore();
+    return;
+  }
+  if (typeof shape === 'string' && shape.startsWith(VORONOI_TOKEN_PREFIX)) {
+    const seed = shape.slice(VORONOI_TOKEN_PREFIX.length);
+    if (typeof window !== 'undefined' && window.drawVoronoiToken) {
+      window.drawVoronoiToken(ctx, seed, cx, cy, size, color);
+    }
+    ctx.restore();
+    return;
+  }
 
   const standardShapes = [
     'circle', 'square', 'triangle', 'hexagon', 'pentagon',
