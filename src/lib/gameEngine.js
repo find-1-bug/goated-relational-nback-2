@@ -51,7 +51,9 @@ function makeStimulusEntry(rel, modes = []) {
   }
   if (isVerbal(rel)) {
     let wordA, wordB;
-    if (Math.random() < 0.40) {
+    const weights = getTokenWeights();
+    const canUseMeaningful = (weights.meaningful > 0);
+    if (canUseMeaningful && Math.random() < 0.40) {
       [wordA, wordB] = getVerbalPair(rel);
     } else {
       wordA = pickTokenWord(pickTokenType());
