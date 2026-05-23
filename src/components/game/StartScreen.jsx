@@ -335,6 +335,13 @@ export default function StartScreen({ onStart, suggestedN, lastSettings }) {
     };
   });
 
+  // Manual phase override — lets the user TEST any Coach phase without
+  // disturbing their real curriculum progress (coachState.phaseIndex).
+  // null = use the real coach progress; otherwise override with the picked
+  // index. Cleared when user clicks "Reset to my progress".
+  const [testPhaseIndex, setTestPhaseIndex] = React.useState(null);
+  const effectivePhaseIndex = testPhaseIndex !== null ? testPhaseIndex : (coachState.phaseIndex || 0);
+
   const [nLevel, setNLevel] = React.useState(suggestedN || lastSettings?.n || coachState.nLevel);
   const [modes, setModes] = React.useState(() => [...new Set(lastSettings?.modes || [])]);
 
@@ -706,24 +713,57 @@ export default function StartScreen({ onStart, suggestedN, lastSettings }) {
         <div className="bg-secondary/35 border border-border/80 rounded-xl p-3.5 space-y-2 text-center shadow-inner">
           <div className="text-[10px] font-mono uppercase tracking-widest font-semibold text-primary/80 flex items-center justify-center gap-1.5">
             <Brain className="w-3.5 h-3.5 animate-pulse text-primary" /> Cognitive Coach Autopilot
+            {testPhaseIndex !== null && (
+              <span className="text-[9px] font-mono uppercase tracking-widest bg-amber-500/20 border border-amber-400/60 text-amber-300 px-1.5 py-0.5 rounded">TEST</span>
+            )}
           </div>
           <div className="text-[11px] font-mono font-bold text-fuchsia-400">
-            {COACH_PHASES[coachState.phaseIndex || 0]?.title || "Phase 1: Foundational Focus"}
+            {COACH_PHASES[effectivePhaseIndex]?.title || "Phase 1: Foundational Focus"}
           </div>
           <p className="text-[9px] font-mono text-muted-foreground/90 max-w-sm mx-auto leading-normal">
-            "{COACH_PHASES[coachState.phaseIndex || 0]?.desc || ""}"
+            "{COACH_PHASES[effectivePhaseIndex]?.desc || ""}"
           </p>
           <div className="flex justify-between items-center text-[10px] font-mono border-t border-border/40 pt-2 px-1">
             <span className="text-muted-foreground">Rank: <strong className="text-emerald-400">{coachState.rankName}</strong></span>
-            <span className="text-muted-foreground">Autopilot Target: <strong className="text-primary">N={COACH_PHASES[coachState.phaseIndex || 0]?.nLevel || 2}</strong> &middot; <strong className="text-cyan-400">{COACH_PHASES[coachState.phaseIndex || 0]?.speedMs || 3200}ms</strong></span>
+            <span className="text-muted-foreground">Autopilot Target: <strong className="text-primary">N={COACH_PHASES[effectivePhaseIndex]?.nLevel || 2}</strong> &middot; <strong className="text-cyan-400">{COACH_PHASES[effectivePhaseIndex]?.speedMs || 3200}ms</strong></span>
+          </div>
+          {/* Manual phase selector — pick any phase to test without losing
+              real curriculum progress. Selecting "My progress" clears the
+              override and goes back to the coach's choice. */}
+          <div className="flex items-center gap-2 pt-2 border-t border-border/40">
+            <span className="text-[10px] font-mono uppercase tracking-widest text-muted-foreground shrink-0">Test phase</span>
+            <select
+              value={testPhaseIndex !== null ? testPhaseIndex : ''}
+              onChange={(e) => {
+                const v = e.target.value;
+                setTestPhaseIndex(v === '' ? null : Number(v));
+              }}
+              className="flex-1 bg-secondary border border-border rounded px-2 py-1 text-[10px] font-mono text-foreground"
+            >
+              <option value="">My progress (Phase {(coachState.phaseIndex || 0) + 1})</option>
+              {COACH_PHASES.map((p, i) => (
+                <option key={i} value={i}>
+                  {i + 1}. {p.title.replace(/^Phase [\d.]+:\s*/, '')}
+                </option>
+              ))}
+            </select>
+            {testPhaseIndex !== null && (
+              <button
+                onClick={() => setTestPhaseIndex(null)}
+                className="text-[10px] font-mono px-1.5 py-1 rounded border border-amber-500/40 text-amber-300 hover:bg-amber-500/10 transition-colors shrink-0"
+                title="Clear override — go back to your real coach progress"
+              >
+                ✕
+              </button>
+            )}
           </div>
         </div>
 
         {/* Quick Actions & Presets */}
         <div className="flex gap-2 justify-center shrink-0">
-          <Button 
+          <Button
             onClick={() => {
-              const p = COACH_PHASES[coachState.phaseIndex || 0] || COACH_PHASES[0];
+              const p = COACH_PHASES[effectivePhaseIndex] || COACH_PHASES[0];
               setNLevel(p.nLevel);
               setRounds(p.rounds);
               setSpeedMs(p.speedMs);
@@ -1444,7 +1484,7 @@ export default function StartScreen({ onStart, suggestedN, lastSettings }) {
               if (soundOnlySelection) return;
               setTokenWeights(tokenWeights);
               
-              const currentPhase = COACH_PHASES[coachState.phaseIndex || 0] || COACH_PHASES[0];
+              const currentPhase = COACH_PHASES[effectivePhaseIndex] || COACH_PHASES[0];
               const autopilotN = currentPhase.nLevel;
               const autopilotSpeedMs = currentPhase.speedMs;
               const autopilotRounds = currentPhase.rounds;
