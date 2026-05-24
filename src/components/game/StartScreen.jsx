@@ -3,6 +3,7 @@ import { Button } from '@/components/ui/button';
 import { Brain, Zap, TrendingUp, Layers, GitBranch, Shuffle, ChevronDown, ChevronUp, Plus, Minus, Eye } from 'lucide-react';
 import { motion, AnimatePresence } from 'framer-motion';
 import { RELATIONSHIP_CATEGORIES, setTokenWeights, getTokenWeights, filterTransitiveRelationships, COACH_PHASES } from '@/lib/gameConstants';
+import { migrateCoachState, pickNextPhase, masteryLabel } from '@/lib/coachMastery';
 import { NRINT_FLAGS, NRINT_FLAG_META } from '@/lib/gameEngine';
 
 // Build a weighted pool from category weights + enabled rels
@@ -351,23 +352,18 @@ export default function StartScreen({ onStart, suggestedN, lastSettings }) {
   const [coachState, setCoachState] = React.useState(() => {
     try {
       const saved = localStorage.getItem('goated_coach_state');
-      if (saved) {
-        const parsed = JSON.parse(saved);
-        if (parsed.phaseIndex === undefined) parsed.phaseIndex = 0;
-        return parsed;
-      }
+      const parsed = saved ? JSON.parse(saved) : {};
+      const migrated = migrateCoachState(parsed);
+      // Default rendering fields the legacy code expects
+      if (!migrated.nLevel) migrated.nLevel = 2;
+      if (!migrated.rounds) migrated.rounds = 20;
+      if (!migrated.speedMs) migrated.speedMs = 3200;
+      if (!migrated.rankName) migrated.rankName = 'Initiate (Rank I)';
+      return migrated;
     } catch (e) {
       console.error(e);
+      return migrateCoachState({});
     }
-    return {
-      nLevel: 2,
-      rounds: 20,
-      speedMs: 3200,
-      rankName: "Initiate (Rank I)",
-      consecutiveSuccesses: 0,
-      consecutiveFailures: 0,
-      phaseIndex: 0
-    };
   });
 
   // Manual phase override — lets the user TEST any Coach phase without
@@ -747,22 +743,48 @@ export default function StartScreen({ onStart, suggestedN, lastSettings }) {
         </div>
 
         {/* Dynamic Coach Level & Progression Card */}
+        {(() => {
+          // Compute the mastery scheduler's pick PREVIEW so the card shows
+          // what will actually play when the user clicks Coach Autopilot.
+          // (When test override is set, that wins instead.)
+          const preview = testPhaseIndex !== null
+            ? { phaseIndex: testPhaseIndex, reason: 'manual_test' }
+            : pickNextPhase(coachState, COACH_PHASES.length);
+          const previewPhaseIdx = preview.phaseIndex;
+          const previewPhase = COACH_PHASES[previewPhaseIdx] || COACH_PHASES[0];
+          const reasonLabel = {
+            manual_test: 'TEST',
+            review:      'REVIEW',
+            frontier:    'FRONTIER',
+            advance:     'ADVANCE',
+            maintenance: 'MAINTAIN',
+          }[preview.reason] || 'NEXT';
+          const reasonCls = {
+            manual_test: 'bg-amber-500/20 border-amber-400/60 text-amber-300',
+            review:      'bg-violet-500/20 border-violet-400/60 text-violet-200',
+            frontier:    'bg-primary/20 border-primary/60 text-primary',
+            advance:     'bg-emerald-500/20 border-emerald-400/60 text-emerald-300',
+            maintenance: 'bg-cyan-500/20 border-cyan-400/60 text-cyan-300',
+          }[preview.reason] || 'bg-secondary border-border text-foreground';
+          return (
         <div className="bg-secondary/35 border border-border/80 rounded-xl p-3.5 space-y-2 text-center shadow-inner">
-          <div className="text-[10px] font-mono uppercase tracking-widest font-semibold text-primary/80 flex items-center justify-center gap-1.5">
+          <div className="text-[10px] font-mono uppercase tracking-widest font-semibold text-primary/80 flex items-center justify-center gap-1.5 flex-wrap">
             <Brain className="w-3.5 h-3.5 animate-pulse text-primary" /> Cognitive Coach Autopilot
-            {testPhaseIndex !== null && (
-              <span className="text-[9px] font-mono uppercase tracking-widest bg-amber-500/20 border border-amber-400/60 text-amber-300 px-1.5 py-0.5 rounded">TEST</span>
-            )}
+            <span className={`text-[9px] font-mono uppercase tracking-widest border px-1.5 py-0.5 rounded ${reasonCls}`}>{reasonLabel}</span>
           </div>
           <div className="text-[11px] font-mono font-bold text-fuchsia-400">
-            {COACH_PHASES[effectivePhaseIndex]?.title || "Phase 1: Foundational Focus"}
+            {previewPhase.title || "Phase 1: Foundational Focus"}
           </div>
           <p className="text-[9px] font-mono text-muted-foreground/90 max-w-sm mx-auto leading-normal">
-            "{COACH_PHASES[effectivePhaseIndex]?.desc || ""}"
+            "{previewPhase.desc || ""}"
           </p>
-          <div className="flex justify-between items-center text-[10px] font-mono border-t border-border/40 pt-2 px-1">
+          <div className="flex justify-between items-center text-[10px] font-mono border-t border-border/40 pt-2 px-1 gap-2 flex-wrap">
             <span className="text-muted-foreground">Rank: <strong className="text-emerald-400">{coachState.rankName}</strong></span>
-            <span className="text-muted-foreground">Autopilot Target: <strong className="text-primary">N={COACH_PHASES[effectivePhaseIndex]?.nLevel || 2}</strong> &middot; <strong className="text-cyan-400">{COACH_PHASES[effectivePhaseIndex]?.speedMs || 3200}ms</strong></span>
+            <span className="text-muted-foreground">Mastery: <strong className="text-violet-300">{masteryLabel(coachState.phaseMastery?.[previewPhaseIdx], coachState.sessionCount || 0)}</strong></span>
+            <span className="text-muted-foreground">N={previewPhase.nLevel || 2} · {previewPhase.speedMs || 3200}ms</span>
+          </div>
+          <div className="text-[9px] font-mono text-muted-foreground/60 italic">
+            Sessions played: {coachState.sessionCount || 0} · Frontier: Phase {(coachState.phaseIndex || 0) + 1}
           </div>
           {/* Manual phase selector — pick any phase to test without losing
               real curriculum progress. Selecting "My progress" clears the
@@ -777,12 +799,16 @@ export default function StartScreen({ onStart, suggestedN, lastSettings }) {
               }}
               className="flex-1 bg-secondary border border-border rounded px-2 py-1 text-[10px] font-mono text-foreground"
             >
-              <option value="">My progress (Phase {(coachState.phaseIndex || 0) + 1})</option>
-              {COACH_PHASES.map((p, i) => (
-                <option key={i} value={i}>
-                  {i + 1}. {p.title.replace(/^Phase [\d.]+:\s*/, '')}
-                </option>
-              ))}
+              <option value="">Auto (mastery-scheduled)</option>
+              {COACH_PHASES.map((p, i) => {
+                const m = coachState.phaseMastery?.[i];
+                const lvlStr = m && m.attempts > 0 ? ` [Lvl ${m.masteryLevel}]` : ' [new]';
+                return (
+                  <option key={i} value={i}>
+                    {i + 1}. {p.title.replace(/^Phase [\d.]+:\s*/, '')}{lvlStr}
+                  </option>
+                );
+              })}
             </select>
             {testPhaseIndex !== null && (
               <button
@@ -795,6 +821,8 @@ export default function StartScreen({ onStart, suggestedN, lastSettings }) {
             )}
           </div>
         </div>
+          );
+        })()}
 
         {/* Quick Actions & Presets */}
         <div className="flex gap-2 justify-center shrink-0">
@@ -1248,13 +1276,14 @@ export default function StartScreen({ onStart, suggestedN, lastSettings }) {
               <span className="text-[10px] font-mono text-violet-400/70">family pool</span>
             </div>
             <p className="text-xs font-mono text-muted-foreground/70 leading-relaxed">
-              Each difficulty locks the session to exactly one family. Easy = parity (XOR over same/opposite). Medium = transitive order (more/less). Hard = <span className="text-violet-300 font-semibold">4-place analogy</span> — the canonical Gf-loading operation. Hard auto-extends SOA by 60% on analogy trials so the role-binding read is sustainable.
+              Each difficulty locks the session to exactly one family. Easy = parity (XOR over same/opposite). Medium = transitive order. Hard = <span className="text-violet-300 font-semibold">4-place analogy</span>. Extreme = <span className="text-rose-300 font-semibold">5-place meta-relations</span> (boolean combos over two analogy claims; Halford "meta-knowledge" rung). Hard + Extreme auto-extend SOA by 60% to make the read sustainable.
             </p>
-            <div className="grid grid-cols-3 gap-1.5">
+            <div className="grid grid-cols-2 sm:grid-cols-4 gap-1.5">
               {[
-                { id: 'easy',   label: 'Easy',   sub: 'Distinction' },
-                { id: 'medium', label: 'Medium', sub: 'Comparison' },
-                { id: 'hard',   label: 'Hard',   sub: 'Analogy (4-place)' },
+                { id: 'easy',    label: 'Easy',    sub: 'Distinction' },
+                { id: 'medium',  label: 'Medium',  sub: 'Comparison' },
+                { id: 'hard',    label: 'Hard',    sub: 'Analogy (4-place)' },
+                { id: 'extreme', label: 'Extreme', sub: 'Meta (5-place)' },
               ].map(({ id, label, sub }) => {
                 const on = rstDifficulty === id;
                 return (
@@ -1569,8 +1598,17 @@ export default function StartScreen({ onStart, suggestedN, lastSettings }) {
             onClick={() => {
               if (soundOnlySelection) return;
               setTokenWeights(tokenWeights);
-              
-              const currentPhase = COACH_PHASES[effectivePhaseIndex] || COACH_PHASES[0];
+
+              // Pick which phase to play: when the user has manually overridden
+              // via the Test Phase dropdown, honor that; otherwise let the
+              // mastery-aware scheduler pick (review-due → frontier → advance →
+              // maintenance). pickResult.reason is also recorded so ResultsScreen
+              // can attribute the session correctly.
+              const pickResult = testPhaseIndex !== null
+                ? { phaseIndex: testPhaseIndex, reason: 'manual_test' }
+                : pickNextPhase(coachState, COACH_PHASES.length);
+              const launchPhaseIndex = pickResult.phaseIndex;
+              const currentPhase = COACH_PHASES[launchPhaseIndex] || COACH_PHASES[0];
               const autopilotN = currentPhase.nLevel;
               const autopilotSpeedMs = currentPhase.speedMs;
               const autopilotRounds = currentPhase.rounds;
@@ -1634,7 +1672,9 @@ export default function StartScreen({ onStart, suggestedN, lastSettings }) {
                   rstDifficulty: currentPhase.rstDifficulty || rstDifficulty,
                   wrapperMorphStyle,
                   autopilot: true,
-                  phaseTitle: currentPhase.title
+                  phaseTitle: currentPhase.title,
+                  coachPickedPhaseIndex: launchPhaseIndex,
+                  coachPickReason: pickResult.reason,
                 },
                 false
               );

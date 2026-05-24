@@ -7,6 +7,7 @@ import {
 import { Link } from 'react-router-dom';
 import { getSessions, deleteSession, exportData, importData } from '@/lib/localStorageManager';
 import { COACH_PHASES } from '@/lib/gameConstants';
+import { migrateCoachState } from '@/lib/coachMastery';
 
 export default function Stats() {
   const [sessions, setSessions] = useState([]);
@@ -21,9 +22,8 @@ export default function Stats() {
     // Recover coach state
     try {
       const saved = localStorage.getItem('goated_coach_state');
-      if (saved) {
-        setCoachState(JSON.parse(saved));
-      }
+      const parsed = saved ? JSON.parse(saved) : {};
+      setCoachState(migrateCoachState(parsed));
     } catch (e) {
       console.error(e);
     }
@@ -318,24 +318,60 @@ export default function Stats() {
               </div>
               <div className="grid grid-cols-5 sm:grid-cols-10 gap-1.5">
                 {Array.from({ length: COACH_PHASES.length }).map((_, idx) => {
-                  const active = coachState.phaseIndex >= idx;
-                  const isCurrent = coachState.phaseIndex === idx;
-                  let color = active ? 'bg-emerald-500/25 border-emerald-500/60 text-emerald-400' : 'bg-secondary/40 border-border/50 text-muted-foreground';
-                  if (isCurrent) {
-                    color = 'bg-accent border-accent text-accent-foreground animate-pulse font-bold ring-2 ring-accent/30';
+                  // Color by MASTERY LEVEL (0–5) instead of binary
+                  // before/at/after. Pre-frontier untouched phases stay grey;
+                  // frontier highlighted; mastery levels fade through cyan→
+                  // emerald→gold; phases due for review get a violet ring.
+                  const m = coachState.phaseMastery?.[idx];
+                  const isCurrent = (coachState.phaseIndex || 0) === idx;
+                  const lvl = m?.masteryLevel || 0;
+                  const sessionN = coachState.sessionCount || 0;
+                  const reviewDue = m && m.masteryLevel >= 2 && (m.nextReviewN || 0) <= sessionN;
+
+                  let color;
+                  if (!m || m.attempts === 0) {
+                    color = 'bg-secondary/40 border-border/50 text-muted-foreground';
+                  } else if (lvl === 0) {
+                    color = 'bg-red-500/20 border-red-400/50 text-red-300';
+                  } else if (lvl === 1) {
+                    color = 'bg-amber-500/20 border-amber-400/50 text-amber-300';
+                  } else if (lvl === 2) {
+                    color = 'bg-cyan-500/20 border-cyan-400/50 text-cyan-300';
+                  } else if (lvl === 3) {
+                    color = 'bg-emerald-500/25 border-emerald-400/60 text-emerald-300';
+                  } else { // 4–5 mastered
+                    color = 'bg-yellow-500/30 border-yellow-400/70 text-yellow-200 font-bold';
                   }
+                  if (isCurrent) color += ' ring-2 ring-accent/40';
+                  if (reviewDue) color += ' ring-2 ring-violet-400/70';
+
+                  const tip = `${COACH_PHASES[idx]?.title || ''}\n${m && m.attempts > 0 ? `Lvl ${lvl} · ${m.attempts} attempts · ${m.successes} successes` + (reviewDue ? ' · REVIEW DUE' : (m.nextReviewN ? ` · review in ${Math.max(0, m.nextReviewN - sessionN)}` : '')) : 'Not attempted'}`;
 
                   return (
                     <div
                       key={idx}
                       className={`py-2 text-center rounded border font-mono text-[10px] flex flex-col justify-center items-center h-10 transition-colors ${color}`}
-                      title={COACH_PHASES[idx]?.title || ''}
+                      title={tip}
                     >
                       <span className="font-semibold block">{idx + 1}</span>
-                      <span className="text-[7px] font-medium text-muted-foreground block truncate max-w-full px-0.5">N={COACH_PHASES[idx]?.nLevel || 2}</span>
+                      <span className="text-[7px] font-medium block truncate max-w-full px-0.5">{m && m.attempts > 0 ? `L${lvl}` : `N=${COACH_PHASES[idx]?.nLevel || 2}`}</span>
                     </div>
                   );
                 })}
+              </div>
+              {/* Mastery legend */}
+              <div className="flex items-center gap-2 flex-wrap text-[9px] font-mono pt-2 border-t border-border/40">
+                <span className="text-muted-foreground">Mastery:</span>
+                <span className="px-1.5 py-0.5 rounded bg-secondary/40 border border-border/50 text-muted-foreground">none</span>
+                <span className="px-1.5 py-0.5 rounded bg-red-500/20 border border-red-400/50 text-red-300">L0 fail</span>
+                <span className="px-1.5 py-0.5 rounded bg-amber-500/20 border border-amber-400/50 text-amber-300">L1</span>
+                <span className="px-1.5 py-0.5 rounded bg-cyan-500/20 border border-cyan-400/50 text-cyan-300">L2</span>
+                <span className="px-1.5 py-0.5 rounded bg-emerald-500/25 border border-emerald-400/60 text-emerald-300">L3</span>
+                <span className="px-1.5 py-0.5 rounded bg-yellow-500/30 border border-yellow-400/70 text-yellow-200 font-bold">L4–5</span>
+                <span className="px-1.5 py-0.5 rounded ring-1 ring-violet-400/70 text-violet-300">review due</span>
+              </div>
+              <div className="text-[10px] font-mono text-muted-foreground/70">
+                Sessions played: <strong className="text-foreground">{coachState.sessionCount || 0}</strong> · Frontier: Phase <strong className="text-primary">{(coachState.phaseIndex || 0) + 1}</strong> · Phases mastered (L≥2): <strong className="text-emerald-400">{Object.values(coachState.phaseMastery || {}).filter(m => m.masteryLevel >= 2).length}</strong>
               </div>
             </div>
 

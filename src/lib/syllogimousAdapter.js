@@ -38,26 +38,29 @@ export function createRSTChain(family = 'distinction') {
   return { family, entities: [], values: [] };
 }
 
-export const RST_FAMILIES = ['distinction', 'comparison', 'analogy'];
+export const RST_FAMILIES = ['distinction', 'comparison', 'analogy', 'meta_relation'];
 
-// Difficulty → family is a hard 1:1 map. Earlier this was a random pool
-// (e.g. Hard could pick any of three) but that made "Hard" sometimes feel
-// like Easy — bad UX. The user picks a difficulty to get THAT difficulty,
-// every time. Variety lives in stim content, not in dice rolls over rung.
+// Difficulty → family is a hard 1:1 map. Picking a difficulty gives THAT
+// difficulty every time — variety lives in stim content, not in dice rolls
+// over rung. Extreme tier adds 5-place meta-relations: each conclusion is
+// a boolean combination of TWO pair-form claims that span 5–6 entities.
 export const RST_DIFFICULTY_FAMILY = {
-  easy:   'distinction',
-  medium: 'comparison',
-  hard:   'analogy',
+  easy:    'distinction',
+  medium:  'comparison',
+  hard:    'analogy',
+  extreme: 'meta_relation',
 };
 
 export function pickRSTFamily(difficulty = 'easy') {
   return RST_DIFFICULTY_FAMILY[difficulty] || 'distinction';
 }
 
-// Hard difficulty = the analogy family. SOA extension is the engine's call;
-// adapter just flags whether the family is "heavy".
+// "Heavy" families need SOA extension during play because their per-trial
+// reading load is ~2× a binary chain. Both analogy (Hard) and meta_relation
+// (Extreme) qualify — meta-relation is heavier still since it nests boolean
+// operators over two analogies.
 export function isHeavyFamily(family) {
-  return family === 'analogy';
+  return family === 'analogy' || family === 'meta_relation';
 }
 
 // ─── Distinction (Easy) ──────────────────────────────────────────────────────
@@ -210,15 +213,130 @@ function nextAnalogyTurn(chain, n, matchChance) {
   return { chain: nextChain, premise, conclusion, hasConclusion, isValid, family: 'analogy' };
 }
 
+// ─── Meta-Relation (Extreme) — 5-place boolean over two analogy claims ──────
+// Each trial is exactly like an analogy turn (fresh pair, form-class form).
+// What changes is the *conclusion*: instead of a single "current analogous
+// to N-back?" claim, it's a BOOLEAN combination of TWO analogy sub-claims:
+//
+//   (current pair :: N-back pair)  [AND/OR/AND-NOT]  (current pair :: (N-1)-back pair)
+//
+// To evaluate, the player must hold:
+//   - the current pair's form
+//   - the N-back pair's form
+//   - the (N-1)-back pair's form
+//   - parse the boolean connective
+//   - evaluate the conjunction / disjunction
+//
+// That's 5+ entities and one boolean binding held simultaneously — pushes
+// past Halford's 4-place rung into "meta-knowledge" territory (relations
+// about relations). Heavy SOA bump compensates for the reading load.
+//
+// Falls back to plain analogy when chain depth < n+1 (need 2 past refs).
+const META_CONNECTIVES = [
+  { sym: '∧',  name: 'AND',     eval: (p, q) => p && q       },
+  { sym: '∨',  name: 'OR',      eval: (p, q) => p || q       },
+  { sym: '∧¬', name: 'AND NOT', eval: (p, q) => p && !q      },
+  { sym: '↔',  name: 'IFF',     eval: (p, q) => p === q      },
+];
+
+function nextMetaRelationTurn(chain, n, matchChance) {
+  const idx = (chain.pairs || []).length;
+  const ent1 = greekLabel(idx * 2);
+  const ent2 = greekLabel(idx * 2 + 1);
+
+  // We need TWO past references (idx-n and idx-n-1). Until both exist, fall
+  // back to plain analogy semantics.
+  const haveDeepHistory = idx >= n + 1;
+
+  // For target trials with deep history, bias firstDominant so we land on
+  // matchChance frequency. To do this we pick a candidate form and a
+  // candidate connective, evaluate the resulting boolean, then accept or
+  // re-roll until the result matches the desired isTarget value.
+  let firstDominant;
+  let connective = null;
+  let conclusion = null;
+  let isValid = null;
+  let hasConclusion = false;
+
+  if (haveDeepHistory) {
+    const wantTarget = Math.random() < matchChance;
+    // Try up to 12 rolls to land on the desired truth value.
+    for (let attempt = 0; attempt < 12; attempt++) {
+      const candFirstDominant = Math.random() < 0.5;
+      const candConn = META_CONNECTIVES[Math.floor(Math.random() * META_CONNECTIVES.length)];
+      const nbForm   = chain.forms[idx - n].firstDominant;
+      const nbPrevForm = chain.forms[idx - n - 1].firstDominant;
+      const subClaim1 = nbForm === candFirstDominant;     // current :: N-back
+      const subClaim2 = nbPrevForm === candFirstDominant; // current :: (N-1)-back
+      const truth = candConn.eval(subClaim1, subClaim2);
+      if (truth === wantTarget || attempt === 11) {
+        firstDominant = candFirstDominant;
+        connective = candConn;
+        isValid = truth;
+        break;
+      }
+    }
+    hasConclusion = true;
+  } else {
+    firstDominant = Math.random() < 0.5;
+  }
+
+  const family = ANALOGY_FAMILIES[Math.floor(Math.random() * ANALOGY_FAMILIES.length)];
+  const rel = firstDominant ? family.pos : family.neg;
+  const premise = { a: ent1, rel, b: ent2 };
+
+  const nextChain = {
+    family: 'meta_relation',
+    pairs: [...(chain.pairs || []), [ent1, ent2]],
+    forms: [...(chain.forms || []), { firstDominant, family: family.name }],
+  };
+
+  if (haveDeepHistory) {
+    const nbPair    = nextChain.pairs[idx - n];
+    const nbForm    = nextChain.forms[idx - n];
+    const nbPrevPair = nextChain.pairs[idx - n - 1];
+    const nbPrevForm = nextChain.forms[idx - n - 1];
+    conclusion = {
+      currentPair: [ent1, ent2],
+      currentRel: rel,
+      // Sub-claim A: current :: N-back
+      claimA: { tgtA: nbPair[0], tgtB: nbPair[1], tgtFamily: nbForm.family, tgtFirstDominant: nbForm.firstDominant },
+      // Sub-claim B: current :: (N+1)-back
+      claimB: { tgtA: nbPrevPair[0], tgtB: nbPrevPair[1], tgtFamily: nbPrevForm.family, tgtFirstDominant: nbPrevForm.firstDominant },
+      connectiveSym: connective.sym,
+      connectiveName: connective.name,
+    };
+  } else if (idx >= n) {
+    // Not enough history for boolean — degrade to plain analogy claim.
+    hasConclusion = true;
+    const nbPair = nextChain.pairs[idx - n];
+    const nbForm = nextChain.forms[idx - n];
+    const sameForm = nbForm.firstDominant === firstDominant;
+    isValid = sameForm;
+    conclusion = {
+      currentPair: [ent1, ent2],
+      currentRel: rel,
+      // Single-claim fallback uses the same shape as analogy
+      claimA: { tgtA: nbPair[0], tgtB: nbPair[1], tgtFamily: nbForm.family, tgtFirstDominant: nbForm.firstDominant },
+      claimB: null,
+      connectiveSym: null,
+      connectiveName: null,
+    };
+  }
+
+  return { chain: nextChain, premise, conclusion, hasConclusion, isValid, family: 'meta_relation' };
+}
+
 // ─── Public dispatch ─────────────────────────────────────────────────────────
 // Routes to the right family generator based on chain.family. If chain is
 // empty / family-less, falls back to distinction.
 export function nextRSTTurn(chain, n, matchChance = 0.4) {
   const family = chain?.family || 'distinction';
   switch (family) {
-    case 'comparison': return nextComparisonTurn(chain, n, matchChance);
-    case 'analogy':    return nextAnalogyTurn(chain, n, matchChance);
+    case 'comparison':    return nextComparisonTurn(chain, n, matchChance);
+    case 'analogy':       return nextAnalogyTurn(chain, n, matchChance);
+    case 'meta_relation': return nextMetaRelationTurn(chain, n, matchChance);
     case 'distinction':
-    default:           return nextDistinctionTurn(chain, n, matchChance);
+    default:              return nextDistinctionTurn(chain, n, matchChance);
   }
 }

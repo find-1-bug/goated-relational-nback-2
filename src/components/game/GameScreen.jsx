@@ -114,7 +114,7 @@ function mergeHistoricalWithProgress(historicalState, progressState, streamCount
   };
 }
 
-export default function GameScreen({ nLevel, modes, relationshipPool, totalRounds, stimulusDuration, extraStreams, streamA, alienSettings, carouselSettings, nrintEnabledFlags, nrintHideLegend, rstDifficulty = 'easy', noobMode, autopilot, phaseTitle, onFinish, onExit }) {
+export default function GameScreen({ nLevel, modes, relationshipPool, totalRounds, stimulusDuration, extraStreams, streamA, alienSettings, carouselSettings, nrintEnabledFlags, nrintHideLegend, rstDifficulty = 'easy', noobMode, autopilot, phaseTitle, coachPickedPhaseIndex = null, coachPickReason = null, onFinish, onExit }) {
   // extraStreams: [{ key, label, keyDisplay, positionKey, positionKeyDisplay }]
   const getStimulusDuration = useCallback(() => {
     if (modes.includes('adaptive_closed_loop') && gameStateRef.current?.adaptiveSpeedMs) {
@@ -158,6 +158,8 @@ export default function GameScreen({ nLevel, modes, relationshipPool, totalRound
     const state = createGameState({ nLevel, modes, relationshipPool, totalRounds, extraStreams: extraStreams || [], alienSettings, streamA, nrintEnabledFlags, nrintHideLegend, rstDifficulty, initialSpeedMs: stimulusDuration === 'random' ? 2800 : (stimulusDuration || 2800) });
     state.autopilot = autopilot;
     state.phaseTitle = phaseTitle;
+    state.coachPickedPhaseIndex = coachPickedPhaseIndex;
+    state.coachPickReason = coachPickReason;
     return state;
   });
   const [phase, setPhase] = useState('stimulus');
@@ -746,7 +748,35 @@ export default function GameScreen({ nLevel, modes, relationshipPool, totalRound
                     )}
                     {/* Conclusion / claim */}
                     {s.stimulus._rst.hasConclusion ? (
-                      s.stimulus._rst.family === 'analogy' ? (
+                      s.stimulus._rst.family === 'meta_relation' ? (
+                        // Meta-relation: boolean combination of TWO analogy claims
+                        // "(current :: N-back) [AND / OR / AND¬ / IFF] (current :: (N-1)-back)"
+                        (() => {
+                          const c = s.stimulus._rst.conclusion;
+                          const formLabel = (form, firstDom) => firstDom
+                            ? (form === 'temporal' ? 'after' : form === 'magnitude' ? 'heavier' : form === 'hierarchy' ? 'above' : 'more')
+                            : (form === 'temporal' ? 'before' : form === 'magnitude' ? 'lighter' : form === 'hierarchy' ? 'below' : 'less');
+                          return (
+                            <>
+                              <span className="text-rose-300 text-sm sm:text-base font-bold leading-none">::</span>
+                              <span className="font-bold text-amber-300 text-sm sm:text-base leading-none drop-shadow-[0_0_6px_rgba(251,191,36,0.6)]">
+                                {c.claimA.tgtA}
+                                <span className="text-violet-200/80 mx-0.5 text-xs italic">{formLabel(c.claimA.tgtFamily, c.claimA.tgtFirstDominant)}</span>
+                                {c.claimA.tgtB}
+                              </span>
+                              {c.claimB ? (
+                                <>
+                                  <span className="text-rose-300 text-base sm:text-lg font-bold leading-none px-0.5">{c.connectiveSym}</span>
+                                  <span className="font-bold text-amber-300 text-sm sm:text-base leading-none drop-shadow-[0_0_6px_rgba(251,191,36,0.6)]">
+                                    ({c.claimB.tgtA}<span className="text-violet-200/80 mx-0.5 text-xs italic">{formLabel(c.claimB.tgtFamily, c.claimB.tgtFirstDominant)}</span>{c.claimB.tgtB})
+                                  </span>
+                                </>
+                              ) : null}
+                              <span className="text-rose-300 text-xs sm:text-sm italic">valid?</span>
+                            </>
+                          );
+                        })()
+                      ) : s.stimulus._rst.family === 'analogy' ? (
                         // Analogy: show "current pair :: N-back pair?"
                         <>
                           <span className="text-violet-300 text-sm sm:text-base font-bold leading-none">::</span>

@@ -30,6 +30,8 @@ export default function Game() {
   const [noobMode, setNoobMode] = useState(false);
   const [autopilot, setAutopilot] = useState(false);
   const [phaseTitle, setPhaseTitle] = useState('');
+  const [coachPickedPhaseIndex, setCoachPickedPhaseIndex] = useState(null);
+  const [coachPickReason, setCoachPickReason] = useState(null);
   const [startTime, setStartTime] = useState(null);
   const [gameRunId, setGameRunId] = useState(0);
   const [showStudies, setShowStudies] = useState(false);
@@ -60,6 +62,9 @@ export default function Game() {
     setNoobMode(noob || false);
     setAutopilot(!!extraSettings?.autopilot);
     setPhaseTitle(extraSettings?.phaseTitle || '');
+    // Mastery scheduler attribution — which phase this session is being scored against
+    setCoachPickedPhaseIndex(extraSettings?.coachPickedPhaseIndex ?? null);
+    setCoachPickReason(extraSettings?.coachPickReason || null);
     setStartTime(Date.now());
     setGameRunId(id => id + 1);
 
@@ -163,6 +168,8 @@ export default function Game() {
           noobMode={noobMode}
           autopilot={autopilot}
           phaseTitle={phaseTitle}
+          coachPickedPhaseIndex={coachPickedPhaseIndex}
+          coachPickReason={coachPickReason}
           onFinish={handleFinish}
           onExit={handleBack}
         />

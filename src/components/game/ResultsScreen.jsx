@@ -3,6 +3,7 @@ import { Button } from '@/components/ui/button';
 import { Brain, RotateCcw, ArrowLeft, TrendingUp } from 'lucide-react';
 import { motion } from 'framer-motion';
 import { calculateResults, computeNextNLevel } from '@/lib/gameEngine';
+import { migrateCoachState, updateMastery, MASTERY_INTERVALS } from '@/lib/coachMastery';
 import { COACH_PHASES } from '@/lib/gameConstants';
 
 function StatBlock({ label, value, suffix = '', color = 'text-foreground' }) {
@@ -100,76 +101,61 @@ export default function ResultsScreen({ gameState, onRestart, onBack }) {
   React.useEffect(() => {
     try {
       const saved = localStorage.getItem('goated_coach_state');
-      const coach = saved ? JSON.parse(saved) : {
-        nLevel: 2,
-        rounds: 20,
-        speedMs: 3200,
-        rankName: "Initiate (Rank I)",
-        consecutiveSuccesses: 0,
-        consecutiveFailures: 0,
-        phaseIndex: 0
-      };
-      if (coach.phaseIndex === undefined) coach.phaseIndex = 0;
+      let coach = saved ? JSON.parse(saved) : {};
+      coach = migrateCoachState(coach);
 
+      // Only mutate coach state when this was an autopilot run with enough trials.
+      // Manual mode sessions don't move the mastery needle.
+      const playedAutopilot = !!gameState.autopilot;
+      const playedPhaseIndex = (gameState.coachPickedPhaseIndex != null)
+        ? gameState.coachPickedPhaseIndex
+        : coach.phaseIndex;
       const accuracy = results.overall.accuracy;
-      if (results.overall.total >= 8) {
-        if (accuracy >= 75) {
-          coach.consecutiveSuccesses += 1;
-          coach.consecutiveFailures = 0;
 
-          if (coach.consecutiveSuccesses >= 2) {
-            if (coach.phaseIndex < COACH_PHASES.length - 1) {
-              coach.phaseIndex += 1;
-              setPhaseUpgradeState('up');
-              setCoachProgressionText(`🚀 COGNITIVE LEAP! Advanced to ${COACH_PHASES[coach.phaseIndex].title}!`);
-            } else {
-              // Peak level! Dynamically upgrade base fields:
-              coach.nLevel = Math.min(20, coach.nLevel + 1);
-              setCoachProgressionText(`🔥 MAX CURRICULUM UPGRADE: N bumped to N=${coach.nLevel}!`);
-            }
-            coach.consecutiveSuccesses = 0;
-          } else {
-            setCoachProgressionText(`Coach calibration: ${2 - coach.consecutiveSuccesses} more success needed to rank up.`);
-          }
-        } else if (accuracy < 55) {
-          coach.consecutiveFailures += 1;
-          coach.consecutiveSuccesses = 0;
+      if (playedAutopilot && results.overall.total >= 8) {
+        const before = coach;
+        const after = updateMastery(coach, playedPhaseIndex, accuracy, COACH_PHASES.length);
+        const beforeM = before.phaseMastery?.[playedPhaseIndex];
+        const afterM = after.phaseMastery[playedPhaseIndex];
+        const beforeLvl = beforeM?.masteryLevel ?? 0;
+        const afterLvl = afterM.masteryLevel;
+        const beforeFrontier = before.phaseIndex || 0;
+        const afterFrontier = after.phaseIndex || 0;
 
-          if (coach.consecutiveFailures >= 2) {
-            if (coach.phaseIndex > 0) {
-              coach.phaseIndex -= 1;
-              setPhaseUpgradeState('down');
-              setCoachProgressionText(`⚠️ Dialing back to match pace: De-escalated to ${COACH_PHASES[coach.phaseIndex].title}.`);
-            }
-            coach.consecutiveFailures = 0;
-          } else {
-            setCoachProgressionText(`Coach calibration: 1 more fallback warning until phase de-escalation.`);
-          }
+        if (afterFrontier > beforeFrontier) {
+          setPhaseUpgradeState('up');
+          setCoachProgressionText(`🚀 Phase ${playedPhaseIndex + 1} mastered (Lvl ${afterLvl}). Frontier advanced to ${COACH_PHASES[afterFrontier].title}.`);
+        } else if (afterLvl > beforeLvl) {
+          setCoachProgressionText(`✓ Mastery Lvl ${afterLvl} on Phase ${playedPhaseIndex + 1}. Next review in ${MASTERY_INTERVALS[afterLvl]} sessions.`);
+        } else if (afterLvl < beforeLvl) {
+          setPhaseUpgradeState('down');
+          setCoachProgressionText(`↓ Mastery slipped to Lvl ${afterLvl} on Phase ${playedPhaseIndex + 1}. Will resurface sooner.`);
         } else {
-          setCoachProgressionText(`Coach calibration: Solid holding pattern. Keep training in this phase!`);
+          setCoachProgressionText(`Hold pattern on Phase ${playedPhaseIndex + 1} (Lvl ${afterLvl}). Next review in ${Math.max(0, (afterM.nextReviewN || 0) - (after.sessionCount || 0))} sessions.`);
         }
 
-        // Apply updated parameters from current phase to keep coach object fully in sync!
-        const p = COACH_PHASES[coach.phaseIndex] || COACH_PHASES[0];
-        // If not already overridden at max level:
-        if (coach.phaseIndex < COACH_PHASES.length - 1) {
-          coach.nLevel = p.nLevel;
-        }
-        coach.speedMs = p.speedMs;
-        coach.rounds = p.rounds;
+        // Mirror current frontier's parameters onto coach for legacy display fields
+        const p = COACH_PHASES[after.phaseIndex] || COACH_PHASES[0];
+        after.nLevel = p.nLevel;
+        after.speedMs = p.speedMs;
+        after.rounds = p.rounds;
 
+        // Rank still derived from frontier index (purely cosmetic)
         const ranks = [
-          "Initiate (Rank I)", 
-          "Apprentice (Rank II)", 
-          "Specialist (Rank III)", 
-          "Elite Specialist (Rank IV)", 
+          "Initiate (Rank I)",
+          "Apprentice (Rank II)",
+          "Specialist (Rank III)",
+          "Elite Specialist (Rank IV)",
           "Quantum Operator (Rank V)",
           "GOATED Focus Master (Rank VI)"
         ];
         const step = Math.max(1, COACH_PHASES.length / ranks.length);
-        const rankIdx = Math.min(ranks.length - 1, Math.floor(coach.phaseIndex / step));
-        coach.rankName = ranks[rankIdx];
+        const rankIdx = Math.min(ranks.length - 1, Math.floor((after.phaseIndex || 0) / step));
+        after.rankName = ranks[rankIdx];
 
+        localStorage.setItem('goated_coach_state', JSON.stringify(after));
+      } else {
+        // Non-autopilot or low-trial session: persist migration without scoring
         localStorage.setItem('goated_coach_state', JSON.stringify(coach));
       }
     } catch (e) {
