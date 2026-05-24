@@ -130,7 +130,21 @@ export function generateRINTStimulus(rintState, pool, effectiveN, matchChance) {
     const chain = facts.slice(-effectiveN);
     const conclusion = tryChainFacts(chain);
     if (conclusion) {
-      const stim = makeRINTStim(conclusion.entityA, conclusion.rel, conclusion.entityB);
+      const famIdx = REL_TO_FAMILY.get(conclusion.rel);
+      const family = TRANSITIVE_FAMILIES[famIdx];
+      const invRel = family?.inv?.[conclusion.rel];
+      
+      let finalA = conclusion.entityA;
+      let finalRel = conclusion.rel;
+      let finalB = conclusion.entityB;
+      
+      if (invRel && Math.random() < 0.5) {
+        finalA = conclusion.entityB;
+        finalRel = invRel;
+        finalB = conclusion.entityA;
+      }
+      
+      const stim = makeRINTStim(finalA, finalRel, finalB);
       // Don't add the conclusion to facts — it's a derived truth, not a new assertion
       return {
         stim,
@@ -141,15 +155,38 @@ export function generateRINTStimulus(rintState, pool, effectiveN, matchChance) {
   }
 
   // Generate a new non-target fact. When extending a chain, keep the same
-  // relation direction so later RINT targets are logically derivable.
+  // relation direction or cycle within the same transitive family!
   let rel = pickRandom(transitivePool);
   let entityA, entityB;
-  if (facts.length > 0 && Math.random() < 0.6) {
+  if (facts.length > 0 && Math.random() < 0.7) {
     const lastFact = facts[facts.length - 1];
-    if (transitivePool.includes(lastFact.rel)) {
-      rel = lastFact.rel;
-      entityA = lastFact.entityB;
-      entityB = pickRandomExcluding(ENTITIES, entityA, lastFact.entityA);
+    const lastFamIdx = REL_TO_FAMILY.get(lastFact.rel);
+    if (lastFamIdx !== undefined) {
+      const family = TRANSITIVE_FAMILIES[lastFamIdx];
+      const familyPool = family.rels.filter(r => transitivePool.includes(r));
+      if (familyPool.length > 0) {
+        rel = pickRandom(familyPool);
+        const lastCanonical = family.rels[0];
+        const lastInverse = family.rels[1];
+        let lastChild;
+        if (lastFact.rel === lastCanonical) {
+          lastChild = lastFact.entityB;
+        } else if (lastInverse && lastFact.rel === lastInverse) {
+          lastChild = lastFact.entityA;
+        } else {
+          lastChild = lastFact.entityB;
+        }
+        
+        if (rel === lastCanonical || !lastInverse) {
+          entityA = lastChild;
+          entityB = pickRandomExcluding(ENTITIES, entityA, lastFact.entityA, lastFact.entityB);
+        } else {
+          entityB = lastChild;
+          entityA = pickRandomExcluding(ENTITIES, entityB, lastFact.entityA, lastFact.entityB);
+        }
+      } else {
+        [entityA, entityB] = pickTwoEntities();
+      }
     } else {
       [entityA, entityB] = pickTwoEntities();
     }
@@ -160,11 +197,15 @@ export function generateRINTStimulus(rintState, pool, effectiveN, matchChance) {
   let newFact = { entityA, rel, entityB };
   const existingConclusion = tryChainFacts(facts.slice(-effectiveN));
   if (factsEqual(existingConclusion, newFact)) {
-    newFact = { ...newFact, entityB: pickRandomExcluding(ENTITIES, newFact.entityA, newFact.entityB) };
+    if (newFact.entityA === entityA) {
+      newFact = { ...newFact, entityB: pickRandomExcluding(ENTITIES, newFact.entityA, newFact.entityB) };
+    } else {
+      newFact = { ...newFact, entityA: pickRandomExcluding(ENTITIES, newFact.entityB, newFact.entityA) };
+    }
   }
   const nextFacts = [...facts, newFact];
   const nextChainLog = nextFacts.slice(-Math.max(effectiveN + 1, 4));
-  const stim = makeRINTStim(entityA, rel, entityB);
+  const stim = makeRINTStim(newFact.entityA, newFact.rel, newFact.entityB);
 
   return {
     stim,
@@ -184,13 +225,74 @@ function pickTwoEntities() {
 // Try to chain an array of facts transitively; returns conclusion or null
 function tryChainFacts(chain) {
   if (chain.length < 2) return null;
-  let current = chain[0];
+  
+  // Ensure all facts belong to the same family
+  const firstFamIdx = REL_TO_FAMILY.get(chain[0].rel);
+  if (firstFamIdx === undefined) return null;
   for (let i = 1; i < chain.length; i++) {
-    const derived = deriveConclusion(current, chain[i]);
-    if (!derived) return null;
-    current = derived;
+    if (REL_TO_FAMILY.get(chain[i].rel) !== firstFamIdx) return null;
   }
-  return current;
+  
+  const family = TRANSITIVE_FAMILIES[firstFamIdx];
+  const canonical = family.rels[0];
+  const inverse = family.rels[1]; // might be undefined for non-invertible families
+  
+  // Build adjacency list for Greater-Than relations: parent -> child
+  // also collect all unique entities
+  const adj = {};
+  const inDegree = {};
+  const allEntities = new Set();
+  
+  function addEdge(u, v) {
+    if (!adj[u]) adj[u] = [];
+    adj[u].push(v);
+    inDegree[v] = (inDegree[v] || 0) + 1;
+    if (inDegree[u] === undefined) inDegree[u] = 0;
+    allEntities.add(u);
+    allEntities.add(v);
+  }
+  
+  for (const fact of chain) {
+    const { entityA, rel, entityB } = fact;
+    if (rel === canonical) {
+      addEdge(entityA, entityB);
+    } else if (inverse && rel === inverse) {
+      addEdge(entityB, entityA);
+    } else {
+      // Single direction or symmetric
+      addEdge(entityA, entityB);
+    }
+  }
+  
+  // To have a single complete chain, we need exactly one source (in-degree 0) 
+  // and all nodes connected in a single line.
+  const sources = [];
+  for (const ent of allEntities) {
+    if (!inDegree[ent]) {
+      sources.push(ent);
+    }
+  }
+  
+  if (sources.length !== 1) return null;
+  
+  let current = sources[0];
+  const visited = new Set([current]);
+  
+  // Follow the single path
+  while (adj[current] && adj[current].length === 1) {
+    current = adj[current][0];
+    if (visited.has(current)) {
+      return null;
+    }
+    visited.add(current);
+  }
+  
+  // If we visited all entities in the chain, we have a complete path!
+  if (visited.size === allEntities.size) {
+    return { entityA: sources[0], rel: canonical, entityB: current };
+  }
+  
+  return null;
 }
 
 function factsEqual(a, b) {
@@ -200,7 +302,21 @@ function factsEqual(a, b) {
 export function isRINTConclusion(rintState, stim, effectiveN) {
   if (!rintState || !stim || !stim.wordA || !stim.wordB || effectiveN < RINT_MIN_N) return false;
   const conclusion = tryChainFacts((rintState.facts || []).slice(-effectiveN));
-  return factsEqual(conclusion, { entityA: stim.wordA, rel: stim.rel, entityB: stim.wordB });
+  if (!conclusion) return false;
+  
+  const canonicalMatch = factsEqual(conclusion, { entityA: stim.wordA, rel: stim.rel, entityB: stim.wordB });
+  if (canonicalMatch) return true;
+  
+  const famIdx = REL_TO_FAMILY.get(conclusion.rel);
+  if (famIdx !== undefined) {
+    const family = TRANSITIVE_FAMILIES[famIdx];
+    const invRel = family.inv?.[conclusion.rel];
+    if (invRel && conclusion.entityA === stim.wordB && invRel === stim.rel && conclusion.entityB === stim.wordA) {
+      return true;
+    }
+  }
+  
+  return false;
 }
 
 // Make a stimulus object for RINT (verbal-style with entity names as tokens)
