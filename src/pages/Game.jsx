@@ -187,6 +187,9 @@ export default function Game() {
             >
               Studies
             </button>
+            <Link to="/insight" className="px-2.5 sm:px-3 py-1.5 rounded-lg bg-amber-500/15 border border-amber-500/50 text-amber-400 hover:bg-amber-500/25 hover:border-amber-500 text-xs font-mono font-semibold transition-colors">
+              Insight
+            </Link>
             <Link to="/tutorial" className="px-2.5 sm:px-3 py-1.5 rounded-lg bg-accent/15 border border-accent/50 text-accent hover:bg-accent/25 hover:border-accent text-xs font-mono font-semibold transition-colors">
               Tutorial
             </Link>
