@@ -262,7 +262,7 @@ export default function Tutorial() {
                       </div>
                       <div>
                         <strong className="text-accent block font-mono uppercase tracking-wider">RINT (Relational Integration)</strong>
-                        <span>Chains facts logically using transitive deductions (e.g., Trial 1: "A &gt; B", Trial 2: "B &gt; C" proving "A &gt; C" matches). Forces inference mapping in working memory. Requires N&ge;2.</span>
+                        <span>Chains facts logically using transitive deductions across the last N trials. Both <em>directions</em> within a relation family can appear in the same chain — e.g. Trial 1: "A &gt; B", Trial 2: "C &lt; B", target = "A &gt; C" (player must mentally invert C&lt;B into B&gt;C to chain). Conclusions render in either direction (A&gt;C or C&lt;A) interchangeably. Forces directional binding plus inference mapping. Requires N&ge;2.</span>
                       </div>
                       <div>
                         <strong className="text-accent block font-mono uppercase tracking-wider">Nonverbal RINT</strong>

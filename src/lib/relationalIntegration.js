@@ -62,30 +62,6 @@ function pickRandomExcluding(arr, ...excl) {
   return filtered.length > 0 ? pickRandom(filtered) : pickRandom(arr);
 }
 
-// Get the canonical forward relation for a family (first in rels list)
-function canonicalRel(familyIdx) {
-  return TRANSITIVE_FAMILIES[familyIdx].rels[0];
-}
-
-// Given A rel B and B rel C (same relation direction), derive A rel C.
-// Mixed directions like A > B and B < C do not imply a valid conclusion.
-function deriveConclusion(factA, factB) {
-  const famIdxA = REL_TO_FAMILY.get(factA.rel);
-  const famIdxB = REL_TO_FAMILY.get(factB.rel);
-  if (famIdxA === undefined || famIdxB !== famIdxA) return null;
-  if (factA.entityB === factB.entityA && factA.rel === factB.rel) {
-    return { entityA: factA.entityA, rel: factA.rel, entityB: factB.entityB };
-  }
-
-  const family = TRANSITIVE_FAMILIES[famIdxA];
-  const inverseRel = family.inv?.[factA.rel];
-  if (inverseRel && factA.entityA === factB.entityB && factB.rel === factA.rel) {
-    return { entityA: factA.entityB, rel: inverseRel, entityB: factB.entityA };
-  }
-
-  return null;
-}
-
 // ─── State ────────────────────────────────────────────────────────────────────
 
 export function createRINTState() {
