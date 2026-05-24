@@ -817,7 +817,9 @@ export default function GameScreen({ nLevel, modes, relationshipPool, totalRound
                   </div>
                 )}
                 {explicitFeedback && phase === 'feedback' && (() => {
-                  // Per-stream relation verdict (and position verdict if applicable)
+                  // Per-stream relation verdict + diagnostic hint (Bjork "desirable
+                  // difficulty" framing: when wrong, point at the dimension that
+                  // got misjudged without naming the answer — preserve discovery).
                   const records = (progressStateRef.current?.allTrials || [])
                     .filter(t => t.trialNumber === gameState.round && t.streamLabel === STREAM_LABELS[idx]);
                   const rel = records.find(t => (t.responseType || 'relation') === 'relation');
@@ -831,32 +833,79 @@ export default function GameScreen({ nLevel, modes, relationshipPool, totalRound
                     if (!rec.isTarget && rec.userResponded) return { tag: 'FALSE ALARM', cls: 'text-amber-300 bg-amber-500/20 border-amber-400/60' };
                     return { tag: 'CORRECT REJECTION', cls: 'text-cyan-300 bg-cyan-500/15 border-cyan-400/50' };
                   };
+                  // Hint diagnostic — only for MISS / FALSE ALARM (not for HIT/CR).
+                  // Points at the *dimension* that was misjudged, not the answer.
+                  const diagnose = (rec) => {
+                    if (!rec || rec.isTarget === !!rec.userResponded) return null;
+                    const type = rec.responseType || 'relation';
+                    const mode = rec.trialMode || 'normal';
+                    const isMiss = rec.isTarget && !rec.userResponded;
+                    const stim = rec.stimulus || {};
+                    if (type === 'position') {
+                      return isMiss ? 'position matched N back' : 'position differed from N back';
+                    }
+                    if (type === 'cct') {
+                      return isMiss ? 'candidate = current digit + N-back digit' : 'candidate didn\'t equal current + N-back';
+                    }
+                    if (type === 'rst') {
+                      return isMiss ? 'conclusion followed from the chain' : 'conclusion didn\'t follow from the chain';
+                    }
+                    // type === 'relation' — branch by trial mode
+                    if (mode === 'analogy') {
+                      if (isMiss) return 'different token, same form class — analogous';
+                      // FA: either same-token (excluded) or different form class
+                      const nbStim = (gameState.historyA || [])[gameState.historyA.length - (rec.nBackValue || gameState.nLevel)];
+                      if (nbStim && nbStim.rel === stim.rel) return 'same-token isn\'t analogy';
+                      return 'different form class';
+                    }
+                    if (mode === 'rint') {
+                      return isMiss ? 'valid logical conclusion from the chain' : 'conclusion not derivable from the chain';
+                    }
+                    if (mode === 'nrint') {
+                      return isMiss ? 'attrs reachable from a subset of last N' : 'attrs not reachable from any subset';
+                    }
+                    if (mode === 'cct') {
+                      return isMiss ? 'result = current + N-back digit' : 'result didn\'t equal current + N-back';
+                    }
+                    if (mode === 'type') {
+                      return isMiss ? 'this rel appeared N times in its own history' : 'rel hasn\'t hit the N count in its own history';
+                    }
+                    if (mode === 'hierarchical') {
+                      return isMiss ? 'same category as N back' : 'different category from N back';
+                    }
+                    // normal n-back: check lure / negation flavors
+                    if (!isMiss && stim._isLure) {
+                      const off = stim._lureOffset > 0 ? `+${stim._lureOffset}` : `${stim._lureOffset}`;
+                      return `lure at N${off} — not N`;
+                    }
+                    if (!isMiss && modes.includes('negation') && stim._negated !== undefined) {
+                      const nbStim = (gameState.historyA || [])[gameState.historyA.length - (rec.nBackValue || gameState.nLevel)];
+                      if (nbStim && stim.rel === nbStim.rel && !!stim._negated !== !!nbStim._negated) {
+                        return 'rel matched but ¬ flag differs';
+                      }
+                    }
+                    return isMiss ? 'this rel matched N back' : 'different rel from N back';
+                  };
                   const relV = verdict(rel);
                   const posV = verdict(pos);
                   const cctV = verdict(cct);
                   const rstV = verdict(rst);
+                  const relHint = diagnose(rel);
+                  const posHint = diagnose(pos);
+                  const cctHint = diagnose(cct);
+                  const rstHint = diagnose(rst);
+                  const HintRow = ({ label, verd, hint }) => verd && (
+                    <div className={`px-3 py-1.5 rounded-lg border font-mono text-xs font-semibold tracking-wide flex flex-col items-center gap-0.5 ${verd.cls}`}>
+                      <span>{label} · {verd.tag}</span>
+                      {hint && <span className="text-[10px] font-normal opacity-90 italic">{hint}</span>}
+                    </div>
+                  );
                   return (
                     <div className="absolute inset-0 bg-background/70 backdrop-blur-sm rounded-xl flex flex-col items-center justify-center gap-2 px-3">
-                      {relV && (
-                        <div className={`px-3 py-1.5 rounded-lg border font-mono text-xs font-semibold tracking-wide ${relV.cls}`}>
-                          REL · {relV.tag}
-                        </div>
-                      )}
-                      {posV && (
-                        <div className={`px-3 py-1.5 rounded-lg border font-mono text-xs font-semibold tracking-wide ${posV.cls}`}>
-                          POS · {posV.tag}
-                        </div>
-                      )}
-                      {cctV && (
-                        <div className={`px-3 py-1.5 rounded-lg border font-mono text-xs font-semibold tracking-wide ${cctV.cls}`}>
-                          CCT · {cctV.tag}
-                        </div>
-                      )}
-                      {rstV && (
-                        <div className={`px-3 py-1.5 rounded-lg border font-mono text-xs font-semibold tracking-wide ${rstV.cls}`}>
-                          RST · {rstV.tag}
-                        </div>
-                      )}
+                      <HintRow label="REL" verd={relV} hint={relHint} />
+                      <HintRow label="POS" verd={posV} hint={posHint} />
+                      <HintRow label="CCT" verd={cctV} hint={cctHint} />
+                      <HintRow label="RST" verd={rstV} hint={rstHint} />
                       {rel?.relationship && (
                         <div className="font-mono text-xs text-muted-foreground/80 mt-1">
                           {rel.relationship.replace(/_/g, ' ').toLowerCase()}

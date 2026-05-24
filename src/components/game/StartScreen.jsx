@@ -64,6 +64,41 @@ const MODE_OPTIONS = [
 // CCT is intentionally *not* in any exclusive group anymore — it's a stream
 // type, not a core matching rule, so it freely blends with type_nback / rint /
 // mixed / binary_logic / alien-modes via the per-stream REL/CCT toggle.
+// Plain-English rule reminders — surfaced on the StartScreen before launch
+// so the player knows what category of structure they're about to face.
+// This is NOT instruction during play (which would defeat discovery) — it's
+// a pre-flight "you're about to train: X" briefing. The actual figuring-out
+// still has to happen during trials.
+const MODE_RULE_BRIEFS = {
+  type_nback: 'Match by relation TYPE — fires when this rel appeared N times in its own history (not by trial distance).',
+  rint: 'Logical chain — fires when current is a VALID transitive conclusion from the last N facts (A>B, B>C → A>C).',
+  nonverbal_rint: 'Composite attrs — fires when current attribute set equals the UNION of some subset of the last N stims.',
+  cct: 'Arithmetic — fires when candidate result equals current digit + the digit from N back.',
+  cct_overlay: 'CCT side-task layered on relation streams — same arithmetic rule, separate response key.',
+  rst_overlay: 'Deduction side-task — premise per trial; from trial N a candidate conclusion appears. Press R if valid.',
+  binary_logic: 'Two N-back rules combined per trial with AND/OR/XOR/AND_NOT — match when the boolean is true.',
+  analogy_nback: 'Form-class analogy — fires when current and N-back relations share a STRUCTURAL FORM (different tokens). Same-token = NOT a match.',
+  mixed_nback: 'Per-trial random rule (Normal or Type) — can\'t pre-commit to one strategy.',
+  mixed_rint: 'Per-trial random rule (Normal / Type / RINT) — three-way uncertainty.',
+  impossible: 'Each stream picks Normal / Type / RINT independently per trial — chaos by design.',
+  hierarchical: 'Match by relation CATEGORY (Spatial, Trait, …) — fires when category matches N back.',
+  lures: '~1/5 of non-targets are near-misses at N-1 or N+1. Loose counting = false alarms.',
+  negation: '~30% of trials are flipped to ¬ (red badge). Match requires BOTH the rel AND the negation flag to agree.',
+  alien_cube: 'Each stream sits in a rotating 3D cube. Position is a SECOND response axis with its own key.',
+  alien_square: 'Each stream sits in a rotating 3×3 square. Position is a SECOND response axis with its own key.',
+  alien_tesseract: 'Each stream sits in a 4D tesseract. Position includes hyperspace layer plus cube cell.',
+  wrapper_morph: 'Visual theme + active category pool morph mid-session (blocks of 5 or per-trial).',
+  token_blending: 'Verbal / alphanumeric / emoji tokens blend inside relation grids — defeats surface shortcuts.',
+  variable_n: 'N shifts ±1 each trial around your chosen N.',
+  adaptive: 'N auto-adjusts between sessions based on overall accuracy.',
+  adaptive_closed_loop: 'Speed + lure rate + negation rate scale mid-session based on your live performance.',
+  distractors: 'Near-match stims from the same category inject interference.',
+  feedback_per_trial: 'After every trial, each stream flashes HIT / MISS / FA / CR with a one-line hint.',
+  stress_glitch: 'Visual glitch filter fires ~25% of trials. Distraction stress.',
+  stress_shake: 'Screen shake fires ~35% of trials. Stability stress.',
+  timer_panic: 'Shrinking countdown bar above each stream — urgency stress.',
+};
+
 const EXCLUSIVE_GROUPS = [
   ['type_nback', 'mixed_nback', 'mixed_rint', 'impossible', 'nonverbal_rint', 'analogy_nback'],
   ['rint', 'mixed_rint', 'impossible', 'nonverbal_rint', 'analogy_nback'],
@@ -341,6 +376,8 @@ export default function StartScreen({ onStart, suggestedN, lastSettings }) {
   // index. Cleared when user clicks "Reset to my progress".
   const [testPhaseIndex, setTestPhaseIndex] = React.useState(null);
   const effectivePhaseIndex = testPhaseIndex !== null ? testPhaseIndex : (coachState.phaseIndex || 0);
+  // Pre-session rule briefing toggle — default expanded; veterans can collapse.
+  const [showRuleBrief, setShowRuleBrief] = React.useState(true);
 
   const [nLevel, setNLevel] = React.useState(suggestedN || lastSettings?.n || coachState.nLevel);
   const [modes, setModes] = React.useState(() => [...new Set(lastSettings?.modes || [])]);
@@ -1470,6 +1507,55 @@ export default function StartScreen({ onStart, suggestedN, lastSettings }) {
             />
           </button>
         </div>
+
+        {/* Pre-session rule briefing — surfaces the rule for each currently
+            active mode (either user's manual selection OR the test phase's
+            modes if test override is on). Collapsible; default expanded so
+            new users see it, easy to dismiss for veterans. */}
+        {(() => {
+          const effectiveModes = testPhaseIndex !== null
+            ? (COACH_PHASES[effectivePhaseIndex]?.modes || [])
+            : modes;
+          const briefedModes = effectiveModes.filter(m => MODE_RULE_BRIEFS[m]);
+          if (briefedModes.length === 0) return null;
+          return (
+            <div className="rounded-lg bg-emerald-500/5 border border-emerald-500/30">
+              <button
+                onClick={() => setShowRuleBrief(v => !v)}
+                className="w-full flex items-center justify-between px-3 py-2 text-left"
+              >
+                <span className="text-[10px] font-mono uppercase tracking-widest font-semibold text-emerald-300 flex items-center gap-1.5">
+                  <Brain className="w-3.5 h-3.5" /> You're about to train ({briefedModes.length} active {briefedModes.length === 1 ? 'rule' : 'rules'})
+                </span>
+                <span className="text-[10px] font-mono text-emerald-400/70">
+                  {showRuleBrief ? '▼ hide' : '▶ show'}
+                </span>
+              </button>
+              <AnimatePresence>
+                {showRuleBrief && (
+                  <motion.div
+                    initial={{ height: 0, opacity: 0 }}
+                    animate={{ height: 'auto', opacity: 1 }}
+                    exit={{ height: 0, opacity: 0 }}
+                    className="overflow-hidden border-t border-emerald-500/20"
+                  >
+                    <div className="px-3 py-2 space-y-1.5 max-h-48 overflow-y-auto">
+                      {briefedModes.map(m => (
+                        <div key={m} className="text-[11px] font-mono leading-relaxed">
+                          <span className="text-emerald-300 font-semibold">{m.replace(/_/g, ' ')}:</span>{' '}
+                          <span className="text-foreground/85">{MODE_RULE_BRIEFS[m]}</span>
+                        </div>
+                      ))}
+                      <p className="text-[10px] font-mono text-muted-foreground/60 italic pt-1 border-t border-emerald-500/10 mt-1">
+                        Rules are surfaced here, not during play — discovery still happens at the trial.
+                      </p>
+                    </div>
+                  </motion.div>
+                )}
+              </AnimatePresence>
+            </div>
+          );
+        })()}
 
         {/* Start */}
         {soundOnlySelection && (
