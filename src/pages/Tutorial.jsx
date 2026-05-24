@@ -290,7 +290,12 @@ export default function Tutorial() {
                       </div>
                       <div>
                         <strong className="text-amber-300 block font-mono uppercase tracking-wider">Insight Mode (separate page · no WM load)</strong>
-                        <span>Pure relational inference, isolated from n-back. Single-puzzle format: 4 panels (Odd-One-Out) or 3-shown + 4-candidates (Analogy Completion). Player has unlimited time and all panels in front of them. Trains the relational <strong>inference operation itself</strong> without piggybacking on working memory. Closest paradigm match to Raven's matrix reasoning. Access via the <Link to="/insight" className="underline text-amber-400">Insight</Link> nav button on the main dashboard. Direct response to the "WM-strain vs direct-logic" critique — solves the indirect-only problem.</span>
+                        <span>Pure relational inference, isolated from n-back. <strong>Four puzzle types</strong> rotated randomly to avoid surface overfitting to one test format:
+                          <br/>• <em>Odd-One-Out</em>: 3–6 panels, all but one share a form class. Layout varies (grid / linear / scatter) each puzzle.
+                          <br/>• <em>Reverse Sort</em>: form-class label given, pick all matching panels from a pool. Inverts inference direction.
+                          <br/>• <em>Analogy Completion</em>: 3 shown share a form, pick the candidate that belongs.
+                          <br/>• <em>Verbal Analogy</em>: text-only ("α inside β :: γ ? δ" with 4 candidates) — cross-modality construct test.
+                          <br/>No timer. All panels visible. Trains the relational <strong>inference operation itself</strong>. Access via the <Link to="/insight" className="underline text-amber-400">Insight</Link> nav button. Designed to have <em>distant similarity</em> to matrix tests — same construct, varied surface — to avoid test-format overfitting.</span>
                       </div>
                       <div>
                         <strong className="text-violet-300 block font-mono uppercase tracking-wider">Analogy N-Back (4-place visual)</strong>

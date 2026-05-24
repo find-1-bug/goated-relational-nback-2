@@ -76,57 +76,156 @@ function eligibleClasses(minMembers = 3, excludeRels = []) {
 }
 
 // ─── Odd-one-out puzzle ──────────────────────────────────────────────────────
-// 4 panels. 3 share a form class (e.g. containment), 1 is from a different
-// form class. Player clicks the odd one.
+// N panels (3–6, randomized). All but 1 share a form class. Player clicks
+// the odd one. Layout cycles between grid / linear / scattered so the
+// surface format isn't a Raven's-clone signature.
 //
-// Difficulty knobs (passed via opts):
-//   - excludeRels: relations to avoid (player can rule out specific tokens)
-//   - hard: if true, picks the odd-out from a "near" form class (one the
-//     player might confuse with the target). v1 just picks any other class.
-export function generateOddOneOut({ excludeRels = [] } = {}) {
-  const classes = eligibleClasses(3, excludeRels);
+// sokuichi's critique: Insight puzzles should have *distant similarity* to
+// matrix tests — same construct, varied surface. We vary panel count and
+// layout each puzzle so the brain can't overfit to "4-panel pick-one".
+export function generateOddOneOut({ excludeRels = [], panelCount = null, layout = null } = {}) {
+  const totalPanels = panelCount || pickRandom([3, 4, 5, 6]);
+  const sharedCount = totalPanels - 1;
+  const classes = eligibleClasses(sharedCount, excludeRels);
   if (classes.length < 2) return null;
   const sharedClass = pickRandom(classes);
   const oddClass = pickRandomExcluding(classes, [sharedClass]);
   const sharedPool = CLASS_TO_RELATIONS[sharedClass].filter(r => !excludeRels.includes(r));
   const oddPool = CLASS_TO_RELATIONS[oddClass].filter(r => !excludeRels.includes(r));
-  const sharedRels = pickShuffle(sharedPool, 3);
+  const sharedRels = pickShuffle(sharedPool, sharedCount);
   const oddRel = pickRandom(oddPool);
 
-  // 4 panels in random positions; track which one is the odd out
-  const panels = sharedRels.map((rel, i) => ({
-    id: i,
+  const panels = sharedRels.map(rel => ({
     relation: rel,
     stimulus: makeInsightStimulus(rel),
     isOdd: false,
     formClass: sharedClass,
   }));
   panels.push({
-    id: 3,
     relation: oddRel,
     stimulus: makeInsightStimulus(oddRel),
     isOdd: true,
     formClass: oddClass,
   });
-  // Shuffle so the odd is in a random slot
   for (let i = panels.length - 1; i > 0; i--) {
     const j = Math.floor(Math.random() * (i + 1));
     [panels[i], panels[j]] = [panels[j], panels[i]];
   }
-  // Reassign ids in new positions for stable UI keys
   panels.forEach((p, i) => { p.id = i; });
   const correctId = panels.findIndex(p => p.isOdd);
 
   return {
     type: 'odd_one_out',
-    prompt: 'Three of these panels share a structural form. Pick the ODD one out.',
+    prompt: `${sharedCount} of these panels share a structural form. Pick the ODD one out.`,
     panels,
     correctId,
     sharedClass,
     oddClass,
-    hint: `Three are ${sharedClass.replace(/_/g, ' ')}; one is ${oddClass.replace(/_/g, ' ')}.`,
+    layout: layout || pickRandom(['grid', 'linear', 'scatter']),
+    hint: `${sharedCount} are ${sharedClass.replace(/_/g, ' ')}; one is ${oddClass.replace(/_/g, ' ')}.`,
   };
 }
+
+// ─── Reverse Sort puzzle ─────────────────────────────────────────────────────
+// Given a form class LABEL, pick all panels that match it from a mixed pool.
+// Inverts the direction of inference — instead of inferring the form class
+// from examples, the player applies the form class to candidate examples.
+// Different surface format from matrix-test style; same underlying construct.
+export function generateReverseSort({ excludeRels = [] } = {}) {
+  const classes = eligibleClasses(3, excludeRels);
+  if (classes.length < 2) return null;
+  const targetClass = pickRandom(classes);
+  const targetPool = CLASS_TO_RELATIONS[targetClass].filter(r => !excludeRels.includes(r));
+  const targetCount = pickRandom([2, 3]); // 2 or 3 correct answers
+  const targets = pickShuffle(targetPool, targetCount);
+
+  // Fill with distractors from different classes
+  const distractorClasses = classes.filter(c => c !== targetClass);
+  const distractorCount = 6 - targetCount; // total 6 panels
+  const distractors = [];
+  for (let i = 0; i < distractorCount; i++) {
+    const cls = pickRandom(distractorClasses);
+    const pool = CLASS_TO_RELATIONS[cls];
+    distractors.push({ rel: pickRandom(pool), cls });
+  }
+
+  const panels = [
+    ...targets.map(rel => ({ relation: rel, stimulus: makeInsightStimulus(rel), isTarget: true, formClass: targetClass })),
+    ...distractors.map(d => ({ relation: d.rel, stimulus: makeInsightStimulus(d.rel), isTarget: false, formClass: d.cls })),
+  ];
+  for (let i = panels.length - 1; i > 0; i--) {
+    const j = Math.floor(Math.random() * (i + 1));
+    [panels[i], panels[j]] = [panels[j], panels[i]];
+  }
+  panels.forEach((p, i) => { p.id = i; });
+  const correctIds = panels.filter(p => p.isTarget).map(p => p.id);
+
+  return {
+    type: 'reverse_sort',
+    prompt: `Pick ALL panels showing the "${targetClass.replace(/_/g, ' ')}" form.`,
+    panels,
+    correctIds,
+    targetCount,
+    sharedClass: targetClass,
+    hint: `${targetCount} panels match. Look for the structural pattern of "${targetClass.replace(/_/g, ' ')}".`,
+  };
+}
+
+// ─── Verbal Analogy puzzle ───────────────────────────────────────────────────
+// Pure text-only relational analogy: "α [REL_A] β :: γ [?] δ". Player picks
+// the missing relation from 4 candidates. No rendered shape panels — tests
+// the same form-class construct in a completely different surface modality.
+// Counters the visual-overfitting risk of the panel-based puzzles.
+const ENTITY_TOKENS = ['α', 'β', 'γ', 'δ', 'ε', 'ζ', 'η', 'θ', 'λ', 'μ'];
+
+function readableRel(rel) {
+  return rel.replace(/_/g, ' ').toLowerCase();
+}
+
+export function generateVerbalAnalogy({ excludeRels = [] } = {}) {
+  const classes = eligibleClasses(2, excludeRels);
+  if (classes.length < 4) return null;
+  const sharedClass = pickRandom(classes);
+  const sharedPool = CLASS_TO_RELATIONS[sharedClass].filter(r => !excludeRels.includes(r));
+  if (sharedPool.length < 2) return generateVerbalAnalogy({ excludeRels }); // re-roll
+  const [shownRel, correctRel] = pickShuffle(sharedPool, 2);
+
+  const otherClasses = classes.filter(c => c !== sharedClass);
+  const distractorClasses = pickShuffle(otherClasses, 3);
+  const distractors = distractorClasses.map(cls => pickRandom(CLASS_TO_RELATIONS[cls]));
+
+  const candidates = [
+    { id: 'c-0', relation: correctRel, isCorrect: true, formClass: sharedClass },
+    ...distractors.map((rel, i) => ({
+      id: `c-${i + 1}`,
+      relation: rel,
+      isCorrect: false,
+      formClass: distractorClasses[i],
+    })),
+  ];
+  for (let i = candidates.length - 1; i > 0; i--) {
+    const j = Math.floor(Math.random() * (i + 1));
+    [candidates[i], candidates[j]] = [candidates[j], candidates[i]];
+  }
+  const correctIndex = candidates.findIndex(c => c.isCorrect);
+
+  // Pick fresh entity pairs for both sides of the analogy
+  const tokens = pickShuffle(ENTITY_TOKENS, 4);
+  const a = tokens[0], b = tokens[1], c = tokens[2], d = tokens[3];
+
+  return {
+    type: 'verbal_analogy',
+    prompt: 'Pick the relation that completes the analogy.',
+    base: { a, rel: readableRel(shownRel), b },
+    question: { c, d },
+    candidates: candidates.map(cand => ({ ...cand, label: readableRel(cand.relation) })),
+    correctIndex,
+    sharedClass,
+    hint: `Both sides share the "${sharedClass.replace(/_/g, ' ')}" form. The relation token differs.`,
+  };
+}
+
+// ─── Analogy completion puzzle ───────────────────────────────────────────────
 
 // ─── Analogy completion puzzle ───────────────────────────────────────────────
 // "Three panels share a form class. From 4 candidates, pick the one that
@@ -182,11 +281,17 @@ export function generateAnalogyCompletion({ excludeRels = [] } = {}) {
   };
 }
 
-// Public: pick a random puzzle type and generate it.
+// Public: pick a random puzzle type and generate it. Weights matter — we
+// over-sample the formats that diverge most from matrix-test conventions
+// (verbal_analogy, reverse_sort) so the surface variety is felt.
+export const INSIGHT_TYPES = ['odd_one_out', 'analogy_completion', 'reverse_sort', 'verbal_analogy'];
+
 export function generateInsightPuzzle({ type = 'random', excludeRels = [] } = {}) {
   const t = type === 'random'
-    ? (Math.random() < 0.5 ? 'odd_one_out' : 'analogy_completion')
+    ? pickRandom(INSIGHT_TYPES)
     : type;
-  if (t === 'odd_one_out') return generateOddOneOut({ excludeRels });
-  return generateAnalogyCompletion({ excludeRels });
+  if (t === 'reverse_sort') return generateReverseSort({ excludeRels });
+  if (t === 'verbal_analogy') return generateVerbalAnalogy({ excludeRels });
+  if (t === 'analogy_completion') return generateAnalogyCompletion({ excludeRels });
+  return generateOddOneOut({ excludeRels });
 }

@@ -63,29 +63,39 @@ function PuzzlePanel({ panel, onClick, state, label }) {
 export default function Insight() {
   const [puzzle, setPuzzle] = useState(() => generateInsightPuzzle());
   const [selectedId, setSelectedId] = useState(null);
-  const [resolved, setResolved] = useState(false); // true after a guess is locked in
+  // For multi-select puzzles (reverse_sort): track the player's set
+  const [selectedIds, setSelectedIds] = useState([]);
+  const [resolved, setResolved] = useState(false);
   const [showHint, setShowHint] = useState(false);
   const [stats, setStats] = useState(loadStats);
   const [startTime, setStartTime] = useState(() => Date.now());
   const containerRef = useRef(null);
 
-  // Persist stats whenever they change
   useEffect(() => { saveStats(stats); }, [stats]);
 
   const nextPuzzle = useCallback(() => {
     setPuzzle(generateInsightPuzzle());
     setSelectedId(null);
+    setSelectedIds([]);
     setResolved(false);
     setShowHint(false);
     setStartTime(Date.now());
   }, []);
 
-  const handleSelect = useCallback((id) => {
-    if (resolved || !puzzle) return;
-    setSelectedId(id);
-    setResolved(true);
-    const correctId = puzzle.type === 'odd_one_out' ? puzzle.correctId : puzzle.candidates[puzzle.correctIndex].id;
-    const isCorrect = id === correctId;
+  const isCorrectOf = useCallback((puz, sel, selSet) => {
+    if (puz.type === 'reverse_sort') {
+      const wanted = new Set(puz.correctIds);
+      const got = new Set(selSet);
+      if (wanted.size !== got.size) return false;
+      return [...wanted].every(id => got.has(id));
+    }
+    const correctId = puz.type === 'odd_one_out'
+      ? puz.correctId
+      : puz.candidates[puz.correctIndex].id;
+    return sel === correctId;
+  }, []);
+
+  const recordResult = useCallback((isCorrect) => {
     const rt = Date.now() - startTime;
     setStats(prev => {
       const byType = { ...(prev.byType || {}) };
@@ -103,7 +113,26 @@ export default function Insight() {
         lastRtMs: rt,
       };
     });
-  }, [resolved, puzzle, startTime]);
+  }, [puzzle, startTime]);
+
+  const handleSelect = useCallback((id) => {
+    if (resolved || !puzzle) return;
+    // reverse_sort: toggle the id in/out of the set; don't auto-resolve
+    if (puzzle.type === 'reverse_sort') {
+      setSelectedIds(prev => prev.includes(id) ? prev.filter(x => x !== id) : [...prev, id]);
+      return;
+    }
+    setSelectedId(id);
+    setResolved(true);
+    recordResult(isCorrectOf(puzzle, id, []));
+  }, [resolved, puzzle, recordResult, isCorrectOf]);
+
+  // Reverse-sort explicit submit (since selection is multi-step)
+  const handleSubmit = useCallback(() => {
+    if (resolved || !puzzle) return;
+    setResolved(true);
+    recordResult(isCorrectOf(puzzle, null, selectedIds));
+  }, [resolved, puzzle, recordResult, selectedIds, isCorrectOf]);
 
   if (!puzzle) {
     return (
@@ -113,11 +142,27 @@ export default function Insight() {
     );
   }
 
+  // Derive correct-id targets depending on puzzle type
   const correctId = puzzle.type === 'odd_one_out'
     ? puzzle.correctId
-    : puzzle.candidates[puzzle.correctIndex].id;
+    : puzzle.type === 'analogy_completion' || puzzle.type === 'verbal_analogy'
+      ? puzzle.candidates[puzzle.correctIndex].id
+      : null; // reverse_sort uses correctIds array
+
+  const correctIdSet = puzzle.type === 'reverse_sort'
+    ? new Set(puzzle.correctIds)
+    : null;
 
   const panelState = (id) => {
+    if (puzzle.type === 'reverse_sort') {
+      const isSelected = selectedIds.includes(id);
+      if (!resolved) return isSelected ? 'selected_correct' : 'idle'; // pre-submit: green for chosen
+      const inAnswer = correctIdSet.has(id);
+      if (isSelected && inAnswer) return 'selected_correct';
+      if (isSelected && !inAnswer) return 'selected_wrong';
+      if (!isSelected && inAnswer) return 'revealed_correct';
+      return 'idle';
+    }
     if (!resolved) return 'idle';
     if (id === selectedId && id === correctId) return 'selected_correct';
     if (id === selectedId && id !== correctId) return 'selected_wrong';
@@ -182,16 +227,108 @@ export default function Insight() {
             transition={{ duration: 0.18 }}
             className="space-y-5"
           >
-            {puzzle.type === 'odd_one_out' && (
-              <div className="grid grid-cols-2 gap-3 sm:gap-4 max-w-md mx-auto">
-                {puzzle.panels.map(p => (
-                  <PuzzlePanel
-                    key={p.id}
-                    panel={p}
-                    state={panelState(p.id)}
-                    onClick={resolved ? null : () => handleSelect(p.id)}
-                  />
-                ))}
+            {puzzle.type === 'odd_one_out' && (() => {
+              // Layout varies per puzzle: grid / linear / scatter
+              const n = puzzle.panels.length;
+              const layout = puzzle.layout || 'grid';
+              const cols = layout === 'linear'
+                ? `repeat(${n}, minmax(0, 1fr))`
+                : layout === 'scatter'
+                  ? `repeat(${Math.min(n, 3)}, minmax(0, 1fr))`
+                  : n <= 4 ? 'repeat(2, minmax(0, 1fr))' : `repeat(${Math.min(n, 3)}, minmax(0, 1fr))`;
+              const containerCls = layout === 'linear'
+                ? 'max-w-2xl mx-auto'
+                : layout === 'scatter'
+                  ? 'max-w-lg mx-auto'
+                  : 'max-w-md mx-auto';
+              return (
+                <div className={containerCls}>
+                  <div className="text-[10px] font-mono uppercase tracking-widest text-muted-foreground/60 text-center mb-2">{n} panels · {layout} layout</div>
+                  <div className="grid gap-3 sm:gap-4" style={{ gridTemplateColumns: cols }}>
+                    {puzzle.panels.map(p => (
+                      <PuzzlePanel
+                        key={p.id}
+                        panel={p}
+                        state={panelState(p.id)}
+                        onClick={resolved ? null : () => handleSelect(p.id)}
+                      />
+                    ))}
+                  </div>
+                </div>
+              );
+            })()}
+
+            {puzzle.type === 'reverse_sort' && (
+              <div className="max-w-2xl mx-auto space-y-3">
+                <div className="text-center">
+                  <div className="text-[10px] font-mono uppercase tracking-widest text-muted-foreground/60 mb-1">target form</div>
+                  <div className="inline-block px-3 py-1.5 rounded-lg bg-violet-500/20 border border-violet-400/60 text-violet-200 font-mono text-sm font-bold uppercase tracking-wider">
+                    {puzzle.sharedClass.replace(/_/g, ' ')}
+                  </div>
+                </div>
+                <div className="grid grid-cols-2 sm:grid-cols-3 gap-2 sm:gap-3">
+                  {puzzle.panels.map(p => (
+                    <PuzzlePanel
+                      key={p.id}
+                      panel={p}
+                      state={panelState(p.id)}
+                      onClick={resolved ? null : () => handleSelect(p.id)}
+                    />
+                  ))}
+                </div>
+                {!resolved && (
+                  <div className="text-center">
+                    <Button
+                      onClick={handleSubmit}
+                      disabled={selectedIds.length === 0}
+                      className="font-mono text-xs gap-1.5 bg-violet-500 text-white hover:bg-violet-500/90 disabled:opacity-40"
+                    >
+                      Submit ({selectedIds.length} selected · target {puzzle.targetCount})
+                    </Button>
+                  </div>
+                )}
+              </div>
+            )}
+
+            {puzzle.type === 'verbal_analogy' && (
+              <div className="max-w-xl mx-auto space-y-5">
+                <div className="rounded-xl border-2 border-border bg-secondary/30 p-5 text-center font-mono">
+                  <div className="text-[10px] uppercase tracking-widest text-muted-foreground/60 mb-3">complete the analogy</div>
+                  <div className="text-base sm:text-lg text-foreground/90 leading-relaxed space-y-2">
+                    <div>
+                      <span className="text-cyan-300 font-bold">{puzzle.base.a}</span>
+                      <span className="text-muted-foreground mx-2 italic">{puzzle.base.rel}</span>
+                      <span className="text-cyan-300 font-bold">{puzzle.base.b}</span>
+                    </div>
+                    <div className="text-violet-300/70 text-xs">∷</div>
+                    <div>
+                      <span className="text-amber-300 font-bold">{puzzle.question.c}</span>
+                      <span className="text-violet-300 mx-2 italic">?</span>
+                      <span className="text-amber-300 font-bold">{puzzle.question.d}</span>
+                    </div>
+                  </div>
+                </div>
+                <div className="grid grid-cols-2 gap-2 sm:gap-3">
+                  {puzzle.candidates.map((c, i) => {
+                    const state = panelState(c.id);
+                    const border = state === 'selected_correct' || state === 'revealed_correct'
+                      ? 'border-emerald-400 bg-emerald-500/15 text-emerald-200'
+                      : state === 'selected_wrong'
+                        ? 'border-red-400 bg-red-500/15 text-red-200'
+                        : 'border-border bg-secondary/40 text-foreground/85 hover:border-primary/60 hover:bg-secondary/70';
+                    return (
+                      <button
+                        key={c.id}
+                        onClick={resolved ? null : () => handleSelect(c.id)}
+                        disabled={resolved}
+                        className={`px-3 py-3 rounded-lg border-2 font-mono text-xs sm:text-sm text-left transition-all duration-150 ${border}`}
+                      >
+                        <span className="text-[10px] uppercase tracking-widest text-muted-foreground/60 mr-1.5">{String.fromCharCode(65 + i)}.</span>
+                        {c.label}
+                      </button>
+                    );
+                  })}
+                </div>
               </div>
             )}
 
@@ -236,11 +373,14 @@ export default function Insight() {
             </Button>
           ) : (
             <div className="text-xs font-mono">
-              {selectedId === correctId ? (
-                <span className="text-emerald-400 font-bold">✓ Correct — {puzzle.sharedClass.replace(/_/g, ' ')}</span>
-              ) : (
-                <span className="text-red-400 font-bold">✗ Wrong — answer was {puzzle.sharedClass.replace(/_/g, ' ')}</span>
-              )}
+              {(() => {
+                const isCorrect = puzzle.type === 'reverse_sort'
+                  ? (selectedIds.length === puzzle.correctIds.length && selectedIds.every(id => puzzle.correctIds.includes(id)))
+                  : selectedId === correctId;
+                return isCorrect
+                  ? <span className="text-emerald-400 font-bold">✓ Correct — {puzzle.sharedClass.replace(/_/g, ' ')}</span>
+                  : <span className="text-red-400 font-bold">✗ Wrong — answer was {puzzle.sharedClass.replace(/_/g, ' ')}</span>;
+              })()}
             </div>
           )}
           <Button
