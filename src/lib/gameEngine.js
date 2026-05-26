@@ -28,8 +28,15 @@ import {
   LANDSCAPE_PATHS,
   getRelationFormClass,
   relationsAreAnalogous,
+  TJN_NODE_REL,
+  TJN_LEARN_TRIALS,
+  TJN_DEFAULT_NODES,
+  TJN_DEFAULT_TOPOLOGY,
+  TJN_DEFAULT_TIER,
+  TJN_HARD_K,
 } from './gameConstants';
 import { createRSTChain, nextRSTTurn, pickRSTFamily, isHeavyFamily } from './syllogimousAdapter.js';
+import { buildTopology, planRandomWalk, evalTJNTarget, shortestPath } from './graphTopologies.js';
 
 import { createRINTState, createRINTStates, generateRINTStimulus, isRINTConclusion, RINT_MIN_N } from './relationalIntegration.js';
 export { calculateResults, computeNextNLevel } from './gameStats.js';
@@ -119,6 +126,27 @@ function pickNegationFlag(negationMode, rate = NEGATION_RATE) {
 
 function evaluateStimulusForMode({ stim, mode, history, typeHistory, rintState, effectiveN, hierHistory }) {
   if (!stim) return false;
+  if (mode === 'tjn') {
+    if (history.length < effectiveN) return false;
+    const tjn = stim?._tjn;
+    if (!tjn || !tjn.graph) return false;
+    const past = history[history.length - effectiveN];
+    const pastTJN = past?._tjn;
+    if (!pastTJN) return false;
+    // Schema transfer (TEM): if the N-back was on a different block, the
+    // surface graph differs and the test would be ill-defined. Targets fire
+    // only when N-back and current are in the same block. The first N
+    // trials after a block change naturally fall through this branch.
+    if (tjn.schemaMode && pastTJN.blockIndex !== tjn.blockIndex) return false;
+    return evalTJNTarget({
+      tier: tjn.tier,
+      currentNode: tjn.node,
+      nBackNode: pastTJN.node,
+      graph: tjn.graph,
+      K: tjn.K,
+      goalNode: tjn.goal,
+    });
+  }
   if (mode === 'rint') return isRINTConclusion(rintState, stim, effectiveN);
   if (mode === 'cct') return isCCTTarget(history, stim, effectiveN);
   if (mode === 'nrint') {
@@ -732,7 +760,8 @@ function randomBinaryConfig(effectiveN) {
 
 // ─── State Creation ──────────────────────────────────────────────────────────
 
-export function createGameState({ nLevel, modes, relationshipPool, totalRounds, extraStreams = [], alienSettings = {}, streamA = null, nrintEnabledFlags = null, nrintHideLegend = false, initialSpeedMs = 2800, wrapperMorphStyle = 'shift', rstDifficulty = 'easy' }) {
+export function createGameState({ nLevel, modes, relationshipPool, totalRounds, extraStreams = [], alienSettings = {}, streamA = null, nrintEnabledFlags = null, nrintHideLegend = false, initialSpeedMs = 2800, wrapperMorphStyle = 'shift', rstDifficulty = 'easy', tjnTier = TJN_DEFAULT_TIER, tjnTopology = TJN_DEFAULT_TOPOLOGY, tjnNodes = TJN_DEFAULT_NODES, tjnK = TJN_HARD_K, tjnSchemaMode = false, tjnSchemaBlocks = 3 } = {}) {
+  const opts = { tjnSchemaMode, tjnSchemaBlocks };
   const numExtra = extraStreams.length;
   const totalStreams = 1 + numExtra;
   // Per-stream type: 'relation' (default) or 'cct'. Falls back to global 'cct'
@@ -744,9 +773,69 @@ export function createGameState({ nLevel, modes, relationshipPool, totalRounds, 
     ...extraStreams.map(s => s?.streamType || defaultType),
   ];
 
+  // ── TJN / TEM setup: pre-build "blocks". Each block has its own graph +
+  // walk. For plain TJN there is exactly 1 block covering the whole
+  // session. For Schema Transfer (TEM), 2-4 blocks share the same topology
+  // family but use FRESH graphs and themes — testing whether the player
+  // encoded the abstract schema and can apply it to a new surface instance.
+  const tjnActive = (modes || []).includes('trajectory_nback');
+  const tjnSchemaModeEffective = !!opts.tjnSchemaMode;
+  const tjnSchemaBlocksEffective = Math.max(2, Math.min(5, opts.tjnSchemaBlocks || 3));
+  let tjnState = null;
+  if (tjnActive) {
+    const rounds = (totalRounds || TOTAL_ROUNDS) + 4;
+    const blockCount = tjnSchemaModeEffective ? tjnSchemaBlocksEffective : 1;
+    const baseLen = Math.ceil(rounds / blockCount);
+    const blocks = [];
+    const BLOCK_THEMES = [
+      { label: 'Map α', color: '#22d3ee' },   // cyan
+      { label: 'Map β', color: '#22c55e' },   // emerald
+      { label: 'Map γ', color: '#a855f7' },   // violet
+      { label: 'Map δ', color: '#f59e0b' },   // amber
+      { label: 'Map ε', color: '#ec4899' },   // pink
+    ];
+    for (let b = 0; b < blockCount; b++) {
+      const graph = buildTopology(tjnTopology, { nodes: tjnNodes });
+      const walk = planRandomWalk(graph, baseLen + 2);
+      const goals = walk.map(node => {
+        if (graph.nodes.length < 3) return null;
+        let g = node;
+        for (let i = 0; i < 12 && g === node; i++) {
+          g = graph.nodes[Math.floor(Math.random() * graph.nodes.length)];
+        }
+        return g;
+      });
+      blocks.push({
+        graph, walk, goals,
+        startTrial: b * baseLen,
+        endTrial: b * baseLen + baseLen,
+        blockIndex: b,
+        label: BLOCK_THEMES[b]?.label || `Map ${b + 1}`,
+        color: BLOCK_THEMES[b]?.color || '#94a3b8',
+      });
+    }
+    tjnState = {
+      blocks,
+      tier: tjnTier,
+      K: tjnK,
+      topology: tjnTopology,
+      nodes: tjnNodes,
+      schemaMode: tjnSchemaModeEffective,
+      schemaBlocks: tjnSchemaBlocksEffective,
+    };
+  }
+
   return {
     nLevel,
     modes,
+    tjnActive,
+    tjnState,
+    tjnTier,
+    tjnTopology,
+    tjnNodes,
+    tjnK,
+    tjnSchemaMode,
+    tjnSchemaBlocks,
     alienSettings,
     wrapperMorphStyle,
     relationshipPool: relationshipPool || ALL_RELATIONSHIPS,
@@ -867,12 +956,73 @@ export function generateNextStimulus(state) {
   } = state;
 
   const isNRINT = modes.includes('nonverbal_rint');
+  const isTJN = modes.includes('trajectory_nback');
   const hasDistractors = modes.includes('distractors');
   const hasLures = modes.includes('lures');
   const negationMode = modes.includes('negation');
   const isImpossible = modes.includes('impossible');
   const relationModes = (modes || []).filter(m => m !== 'cct');
   const stypeOf = (idx) => (streamTypes && streamTypes[idx]) || 'relation';
+
+  // ── Trajectory N-Back / Schema Transfer: full short-circuit. Look up
+  // which block this trial belongs to and consume that block's pre-planned
+  // walk node. In TJN mode there's only one block. In TEM (schemaMode),
+  // blocks share topology family but use independent graphs/themes.
+  if (isTJN && state.tjnState) {
+    const { blocks, tier, K, schemaMode } = state.tjnState;
+    // Find the block this trial belongs to.
+    const block = blocks.find(b => round >= b.startTrial && round < b.endTrial) || blocks[blocks.length - 1];
+    const localIndex = round - block.startTrial;
+    const node = block.walk[localIndex] != null ? block.walk[localIndex] : block.graph.nodes[0];
+    const goal = block.goals?.[localIndex] ?? null;
+    // Map-fading is per-block in schema mode: the player gets a short
+    // re-learn window each time the surface changes.
+    const learnPhase = localIndex < TJN_LEARN_TRIALS;
+    const stim = {
+      rel: TJN_NODE_REL,
+      _tjn: {
+        node, tier, K, goal, learnPhase,
+        graph: block.graph,
+        blockIndex: block.blockIndex,
+        blockLabel: block.label,
+        blockColor: block.color,
+        schemaMode: !!schemaMode,
+      },
+      // dummy visual props so any generic renderer doesn't crash
+      shapeA: 'circle', shapeB: 'circle',
+      colorA: COLORS[0], colorB: COLORS[1],
+      renderMode: 0,
+    };
+    const effectiveNTJN = nLevel;
+    const isTarget = evaluateStimulusForMode({
+      stim, mode: 'tjn', history: historyA, typeHistory: typeHistoryA, rintState: null,
+      effectiveN: effectiveNTJN, hierHistory: [],
+    });
+    return {
+      stimA: stim,
+      relA: TJN_NODE_REL,
+      isTargetA: isTarget,
+      isPositionTargetA: false,
+      isCCTTargetA: false,
+      isRSTTargetA: false,
+      extraCCTTargets: [],
+      extraRSTTargets: [],
+      categoryA: 'TJN',
+      isDistractor: false,
+      effectiveN: effectiveNTJN,
+      trialMode: 'tjn',
+      extraTrialModes: [],
+      extraStimuli: [],
+      extraIsTargets: [],
+      extraPositionTargets: [],
+      nextRINTStates: rintStates || [],
+      nextRSTChainA: state.rstChainA,
+      nextExtraRSTChains: state.extraRSTChains || [],
+      trialBinaryConfigs: state.trialBinaryConfigs,
+      audioStreamIndexes: [],
+      allCategories: ['TJN'],
+    };
+  }
 
   // ── Wrapper Morphing Integration ──
   const isMorph = modes.includes('wrapper_morph');

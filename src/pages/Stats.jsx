@@ -1,8 +1,8 @@
 import React, { useState, useEffect } from 'react';
 import { motion, AnimatePresence } from 'framer-motion';
 import { Button } from '@/components/ui/button';
-import { 
-  BarChart3, Download, Upload, Trash2, Eye, TrendingUp, Zap, Activity, Award, Layers
+import {
+  BarChart3, Download, Upload, Trash2, Eye, TrendingUp, Zap, Activity, Award, Layers, Compass
 } from 'lucide-react';
 import { Link } from 'react-router-dom';
 import { getSessions, deleteSession, exportData, importData } from '@/lib/localStorageManager';
@@ -155,6 +155,7 @@ export default function Stats() {
           {[
             { id: 'overview', label: 'Overview Metrics', icon: Activity },
             { id: 'coach', label: 'Coach Autopilot', icon: Zap },
+            { id: 'trajectory', label: 'Predictive Map (SR/TEM)', icon: Compass },
             { id: 'stressors', label: 'Stressor Analytics', icon: Layers }
           ].map(tab => {
             const Icon = tab.icon;
@@ -426,7 +427,166 @@ export default function Stats() {
           </div>
         )}
 
-        {/* TAB C: STRESSOR ANALYTICS */}
+        {/* TAB C: TRAJECTORY N-BACK ANALYTICS (SR / TEM) */}
+        {activeTab === 'trajectory' && (() => {
+          const tjnSessions = sessions.filter(s => s.modes?.includes('trajectory_nback'));
+          const tjnCount = tjnSessions.length;
+          const tjnAvgAcc = tjnCount > 0
+            ? Math.round(tjnSessions.reduce((a, x) => a + (x.accuracy || 0), 0) / tjnCount)
+            : 0;
+          const tjnBestAcc = tjnCount > 0
+            ? Math.max(...tjnSessions.map(s => s.accuracy || 0))
+            : 0;
+          // Tier accuracy — tier label embedded in phaseTitle when launched via Coach
+          const tierFromTitle = (s) => {
+            const t = (s.phaseTitle || '').toLowerCase();
+            if (t.includes('easy')) return 'easy';
+            if (t.includes('medium') || t.includes('neighbour')) return 'medium';
+            if (t.includes('hard') || t.includes('successor')) return 'hard';
+            if (t.includes('extreme') || t.includes('revaluation')) return 'extreme';
+            return null;
+          };
+          const tierGroups = ['easy', 'medium', 'hard', 'extreme'].map(tier => {
+            const matched = tjnSessions.filter(s => tierFromTitle(s) === tier);
+            const avg = matched.length > 0
+              ? Math.round(matched.reduce((a, x) => a + (x.accuracy || 0), 0) / matched.length)
+              : null;
+            return { tier, count: matched.length, avg };
+          });
+          // Schema vs single — uses phaseTitle "Schema Transfer" presence
+          const schemaSessions = tjnSessions.filter(s => /schema|transfer|cross-topology/i.test(s.phaseTitle || ''));
+          const singleSessions = tjnSessions.filter(s => !/schema|transfer|cross-topology/i.test(s.phaseTitle || ''));
+          const schemaAvg = schemaSessions.length > 0
+            ? Math.round(schemaSessions.reduce((a, x) => a + (x.accuracy || 0), 0) / schemaSessions.length)
+            : null;
+          const singleAvg = singleSessions.length > 0
+            ? Math.round(singleSessions.reduce((a, x) => a + (x.accuracy || 0), 0) / singleSessions.length)
+            : null;
+          // Transfer cost: drop from single-graph to schema-transfer at the same tier ladder
+          const transferCost = (schemaAvg != null && singleAvg != null) ? (singleAvg - schemaAvg) : null;
+
+          return (
+            <div className="space-y-6">
+              {/* Top metric strip */}
+              <div className="rounded-xl bg-indigo-500/5 border border-indigo-500/30 p-4 space-y-3">
+                <div className="flex items-center justify-between flex-wrap gap-2">
+                  <div className="flex items-center gap-2">
+                    <Compass className="w-5 h-5 text-indigo-400" />
+                    <h3 className="text-sm font-mono font-bold uppercase tracking-widest text-indigo-300">Predictive Map Training</h3>
+                  </div>
+                  <span className="text-[10px] font-mono text-indigo-400/70">Stachenfeld 2017 (SR) · Behrens 2020 (TEM)</span>
+                </div>
+                <p className="text-[11px] font-mono text-muted-foreground/80 leading-relaxed">
+                  Hippocampal / entorhinal training — distinct from PFC working memory. Tracks graph-traversal n-back performance across tiers and across schema-transfer variants.
+                </p>
+                {tjnCount === 0 ? (
+                  <p className="text-[11px] font-mono text-muted-foreground italic">
+                    No Trajectory N-Back sessions yet. Enable <strong className="text-indigo-300">Trajectory N-Back</strong> in the start screen, or run Coach Phase 26+.
+                  </p>
+                ) : (
+                  <div className="grid grid-cols-2 md:grid-cols-4 gap-3">
+                    {[
+                      { label: 'Total Sessions', value: tjnCount, color: 'text-primary' },
+                      { label: 'Average Accuracy', value: `${tjnAvgAcc}%`, color: 'text-emerald-400' },
+                      { label: 'Peak Accuracy', value: `${tjnBestAcc}%`, color: 'text-accent' },
+                      { label: 'Schema Transfer Cost', value: transferCost == null ? '—' : `${transferCost > 0 ? '+' : ''}${transferCost}%`, color: transferCost == null ? 'text-muted-foreground' : transferCost > 8 ? 'text-rose-400' : 'text-emerald-400', sub: 'single − schema avg' },
+                    ].map((s, i) => (
+                      <div key={i} className="rounded-xl bg-background/40 border border-indigo-500/20 p-3 text-center">
+                        <div className={`text-xl font-mono font-bold ${s.color}`}>{s.value}</div>
+                        <div className="text-[10px] font-mono text-foreground font-semibold mt-1">{s.label}</div>
+                        {s.sub && <div className="text-[9px] font-mono text-muted-foreground mt-0.5">{s.sub}</div>}
+                      </div>
+                    ))}
+                  </div>
+                )}
+              </div>
+
+              {/* Tier breakdown */}
+              {tjnCount > 0 && (
+                <div className="rounded-xl bg-secondary/35 border border-border/80 p-4 space-y-3">
+                  <h3 className="text-xs font-mono font-bold uppercase tracking-widest text-foreground flex items-center gap-2">
+                    <Activity className="w-3.5 h-3.5 text-indigo-400" /> Tier Accuracy
+                  </h3>
+                  <p className="text-[10px] font-mono text-muted-foreground">
+                    From Coach-launched sessions only (manual launches don't tag tier in phaseTitle).
+                  </p>
+                  <div className="grid grid-cols-2 md:grid-cols-4 gap-3">
+                    {tierGroups.map(g => {
+                      const accColor = g.avg == null ? 'text-muted-foreground'
+                        : g.avg >= 80 ? 'text-emerald-400'
+                        : g.avg >= 60 ? 'text-amber-400' : 'text-rose-400';
+                      return (
+                        <div key={g.tier} className="rounded-lg bg-background/40 border border-border p-3">
+                          <div className="text-[10px] font-mono uppercase tracking-widest text-indigo-300">{g.tier}</div>
+                          <div className={`text-2xl font-mono font-bold mt-1 ${accColor}`}>{g.avg != null ? `${g.avg}%` : '—'}</div>
+                          <div className="text-[9px] font-mono text-muted-foreground">{g.count} session{g.count === 1 ? '' : 's'}</div>
+                        </div>
+                      );
+                    })}
+                  </div>
+                </div>
+              )}
+
+              {/* Schema vs Single (TEM transfer) */}
+              {tjnCount > 0 && (schemaAvg != null || singleAvg != null) && (
+                <div className="rounded-xl bg-secondary/35 border border-border/80 p-4 space-y-3">
+                  <h3 className="text-xs font-mono font-bold uppercase tracking-widest text-foreground flex items-center gap-2">
+                    <Award className="w-3.5 h-3.5 text-indigo-400" /> Schema Transfer (TEM) vs Single-Graph
+                  </h3>
+                  <p className="text-[10px] font-mono text-muted-foreground leading-relaxed">
+                    Behrens 2020 prediction: a player who encoded the abstract <em>schema</em> rather than the concrete map should perform comparably across both variants. A large gap (single &gt; schema by &gt;8%) suggests surface-level memorization rather than schema abstraction.
+                  </p>
+                  <div className="grid grid-cols-2 gap-3">
+                    <div className="rounded-lg bg-background/40 border border-border p-3">
+                      <div className="text-[10px] font-mono uppercase tracking-widest text-cyan-300">Single-Graph</div>
+                      <div className="text-2xl font-mono font-bold mt-1 text-emerald-400">{singleAvg != null ? `${singleAvg}%` : '—'}</div>
+                      <div className="text-[9px] font-mono text-muted-foreground">{singleSessions.length} session{singleSessions.length === 1 ? '' : 's'}</div>
+                    </div>
+                    <div className="rounded-lg bg-background/40 border border-border p-3">
+                      <div className="text-[10px] font-mono uppercase tracking-widest text-violet-300">Schema Transfer (TEM)</div>
+                      <div className="text-2xl font-mono font-bold mt-1 text-emerald-400">{schemaAvg != null ? `${schemaAvg}%` : '—'}</div>
+                      <div className="text-[9px] font-mono text-muted-foreground">{schemaSessions.length} session{schemaSessions.length === 1 ? '' : 's'}</div>
+                    </div>
+                  </div>
+                  {transferCost != null && (
+                    <div className={`text-[11px] font-mono rounded-lg px-3 py-2 border ${transferCost > 8 ? 'bg-rose-500/10 border-rose-500/30 text-rose-300' : 'bg-emerald-500/10 border-emerald-500/30 text-emerald-300'}`}>
+                      {transferCost > 8
+                        ? `Transfer cost = ${transferCost}%. You're encoding maps surface-deep — practice schema mode more to abstract the topology.`
+                        : transferCost > 0
+                          ? `Transfer cost = ${transferCost}%. Mild surface dependency, mostly schema-encoded.`
+                          : `Transfer cost = ${transferCost}%. Schema transfer is at parity or better than single-graph — strong evidence of abstract schema encoding.`}
+                    </div>
+                  )}
+                </div>
+              )}
+
+              {/* Recent TJN sessions list */}
+              {tjnCount > 0 && (
+                <div className="rounded-xl bg-secondary/35 border border-border/80 p-4">
+                  <h3 className="text-xs font-mono font-bold uppercase tracking-widest text-foreground mb-3 flex items-center gap-2">
+                    <TrendingUp className="w-3.5 h-3.5 text-indigo-400" /> Recent TJN Sessions
+                  </h3>
+                  <div className="space-y-1.5 max-h-64 overflow-y-auto pr-1">
+                    {tjnSessions.slice(-10).reverse().map((s, i) => {
+                      const tier = tierFromTitle(s) || '?';
+                      const accColor = (s.accuracy || 0) >= 75 ? 'text-emerald-400'
+                        : (s.accuracy || 0) >= 55 ? 'text-amber-400' : 'text-rose-400';
+                      return (
+                        <div key={i} className="flex items-center justify-between gap-2 px-2 py-1.5 rounded bg-background/40 border border-border/60 font-mono text-[11px]">
+                          <span className="text-foreground/85 truncate flex-1">{s.phaseTitle || 'Manual TJN'}</span>
+                          <span className="text-[10px] uppercase tracking-wider text-indigo-300 shrink-0">{tier}</span>
+                          <span className={`font-bold shrink-0 ${accColor}`}>{Math.round(s.accuracy || 0)}%</span>
+                        </div>
+                      );
+                    })}
+                  </div>
+                </div>
+              )}
+            </div>
+          );
+        })()}
+
+        {/* TAB D: STRESSOR ANALYTICS */}
         {activeTab === 'stressors' && (
           <div className="space-y-6">
             {/* N-Level Accuracy Breakdown Bar Chart */}

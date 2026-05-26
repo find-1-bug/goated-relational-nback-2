@@ -2,10 +2,10 @@ import React from 'react';
 import { Link } from 'react-router-dom';
 import { motion, AnimatePresence } from 'framer-motion';
 import { Button } from '@/components/ui/button';
-import { 
-  ChevronLeft, Brain, Zap, Layers, Gamepad2, 
-  GitBranch, Eye, Volume2, ShieldAlert, 
-  Sparkles, Menu, X, Play, Settings2 
+import {
+  ChevronLeft, Brain, Zap, Layers, Gamepad2,
+  GitBranch, Eye, Volume2, ShieldAlert,
+  Sparkles, Menu, X, Play, Settings2, Compass
 } from 'lucide-react';
 import { COACH_PHASES } from '@/lib/gameConstants';
 
@@ -305,6 +305,62 @@ export default function Tutorial() {
                         <strong className="text-violet-300 block font-mono uppercase tracking-wider">Analogy N-Back (4-place visual)</strong>
                         <span>A target fires when the current relation shares structural <strong>form class</strong> with the N-back relation, even if the relation tokens differ (e.g. ABOVE_BELOW ≈ BIGGER_THAN ≈ STACKED — all "directional asymmetric"). Same-token repeats are NOT matches — you must abstract the form. This is the Halford 4-place rung in visual form: the cognitive operation that Raven's Progressive Matrices specifically measures at the high-difficulty end. Requires N&ge;2.</span>
                       </div>
+                      <div>
+                        <strong className="text-indigo-300 block font-mono uppercase tracking-wider">Trajectory N-Back — Predictive Map (SR) + Schema Transfer (TEM)</strong>
+                        <span>
+                          <strong>First mode in the app that trains the hippocampus instead of DLPFC.</strong> Every session pre-generates a small graph (ring · ring+shortcuts · tree · lattice · random); you play as a random walker visiting one node per trial. For the first six trials the edges are visible so you can encode the topology. After that, edges <strong>fade out</strong> — you must recall the structure from memory. Without map fading the task would be visual edge-checking, not Successor Representation learning.<br/>
+                          <br/>
+                          <strong className="text-indigo-200">Four tiers, increasing abstraction:</strong>
+                          <br/>• <em>Easy</em> — current node IS the N-back node (pure WM on positions).
+                          <br/>• <em>Medium</em> — current is a direct <em>neighbour</em> of the N-back node. Requires edge memory.
+                          <br/>• <em>Hard</em> — current is reachable in EXACTLY K steps from the N-back node (predictive map / SR core, Stachenfeld 2017).
+                          <br/>• <em>Extreme</em> — current node lies on the shortest path from N-back to a per-trial goal (★). Zero-shot revaluation / pathfinding.
+                          <br/>
+                          <br/>
+                          <strong className="text-indigo-200">Schema Transfer (TEM toggle)</strong> activates Behrens et al. 2020 mode: the session contains 2–4 graphs sharing the same topology <em>family</em> but with fresh node identities and themes ("Map α", "Map β", …). The player must encode the <em>abstract schema</em> ("this is always a ring with 1 shortcut") rather than memorize one specific map — tested by re-applying it instantly when the surface swaps mid-session. Cross-block matches are never targets, so the first N trials of each new block are non-scoring.<br/>
+                          <br/>
+                          <strong>Why this matters more than n-back capacity:</strong> Place cells in the hippocampus and grid cells in entorhinal cortex aren't location detectors — they're the <em>eigenstructure of a Successor Representation</em>. By directly training the map-building system, we target a brain network none of the other modes touch (DLPFC-heavy modes train PFC; this trains medial temporal lobe). Theoretically closer to fluid intelligence than working memory because Raven's matrices are essentially "predict the next element in an abstract relational topology" — the SR operation, applied to non-spatial structure. Untested in human RCTs for IQ transfer; the app is the experiment.<br/>
+                          <br/>
+                          References: Stachenfeld, Botvinick &amp; Gershman 2017 (<em>Nature Neuroscience</em>); Behrens et al. 2020 (<em>Cell</em>); Park, Miller, Boorman &amp; Behrens 2020 (<em>Neuron</em> — same machinery for social hierarchies). Requires N&ge;2.
+                        </span>
+                      </div>
+                    </div>
+
+                    {/* Trajectory N-Back · Worked Example */}
+                    <div className="mt-6 pt-4 border-t border-indigo-500/30 bg-indigo-500/5 rounded-lg p-4 space-y-3">
+                      <h3 className="text-xs font-bold uppercase tracking-widest text-indigo-300 flex items-center gap-2">
+                        <Compass className="w-3.5 h-3.5" /> Trajectory N-Back · Worked Example (N=2, Hard tier, K=2)
+                      </h3>
+                      <p className="text-[11px] text-muted-foreground font-mono leading-relaxed">
+                        Pretend the session built a 6-node ring graph A–B–C–D–E–F with one extra shortcut A↔C. So adjacency:
+                        <br/><strong className="text-indigo-300">A: B, F, C</strong> · <strong className="text-indigo-300">B: A, C</strong> · <strong className="text-indigo-300">C: B, D, A</strong> · <strong className="text-indigo-300">D: C, E</strong> · <strong className="text-indigo-300">E: D, F</strong> · <strong className="text-indigo-300">F: E, A</strong>
+                      </p>
+                      <div className="overflow-x-auto rounded-lg border border-indigo-500/30 bg-background/40">
+                        <table className="w-full text-[10px] sm:text-[11px] font-mono">
+                          <thead>
+                            <tr className="border-b border-indigo-500/30 bg-secondary/40">
+                              <th className="text-left p-2 text-indigo-300 uppercase tracking-wider font-bold">Trial</th>
+                              <th className="text-left p-2 text-indigo-300 uppercase tracking-wider font-bold">Visit</th>
+                              <th className="text-left p-2 text-indigo-300 uppercase tracking-wider font-bold">N-back (t-2)</th>
+                              <th className="text-left p-2 text-indigo-300 uppercase tracking-wider font-bold">K=2 reach from N-back</th>
+                              <th className="text-left p-2 text-indigo-300 uppercase tracking-wider font-bold">Verdict</th>
+                            </tr>
+                          </thead>
+                          <tbody className="text-foreground/85">
+                            <tr className="border-b border-indigo-500/20"><td className="p-2">1</td><td className="p-2">A</td><td className="p-2 text-muted-foreground/60">—</td><td className="p-2 text-muted-foreground/60">—</td><td className="p-2 text-muted-foreground">no target yet (need 2 trials of history)</td></tr>
+                            <tr className="border-b border-indigo-500/20"><td className="p-2">2</td><td className="p-2">C</td><td className="p-2 text-muted-foreground/60">—</td><td className="p-2 text-muted-foreground/60">—</td><td className="p-2 text-muted-foreground">no target yet</td></tr>
+                            <tr className="border-b border-indigo-500/20"><td className="p-2">3</td><td className="p-2">B</td><td className="p-2">A</td><td className="p-2">{'{A, B, F, C}'}</td><td className="p-2 text-emerald-300 font-semibold">✓ TARGET (B ∈ K=2 reach of A)</td></tr>
+                            <tr className="border-b border-indigo-500/20"><td className="p-2">4</td><td className="p-2">A</td><td className="p-2">C</td><td className="p-2">{'{A, B, C, D}'}</td><td className="p-2 text-emerald-300 font-semibold">✓ TARGET (A ∈ K=2 reach of C)</td></tr>
+                            <tr className="border-b border-indigo-500/20"><td className="p-2">5</td><td className="p-2">F</td><td className="p-2">B</td><td className="p-2">{'{A, B, C, F}'}</td><td className="p-2 text-emerald-300 font-semibold">✓ TARGET (F ∈ K=2 reach of B via A)</td></tr>
+                            <tr><td className="p-2">6</td><td className="p-2">E</td><td className="p-2">A</td><td className="p-2">{'{A, B, F, C}'}</td><td className="p-2 text-rose-300 font-semibold">✗ NOT a target (E unreachable in 2 from A)</td></tr>
+                          </tbody>
+                        </table>
+                      </div>
+                      <p className="text-[11px] text-muted-foreground font-mono leading-relaxed">
+                        <strong className="text-indigo-200">What this tests:</strong> by trial 6, the edges are still visible (we're inside the learning phase). From trial 7+ they fade. You then have to remember that A↔C is a shortcut to reason about K=2 reachability without seeing the lines.
+                        <br/>
+                        <strong className="text-indigo-200">Schema Transfer twist:</strong> in TEM mode, at trial ~10 the graph swaps to a fresh ring-plus-shortcuts (different node positions, different theme color) — same family. The first N=2 trials in the new block are non-scoring (cross-block N-back). From trial 12+ the same K=2 reasoning applies: a player who encoded the schema ("ring + 1 chord") rather than the specific map can perform without re-learning.
+                      </p>
                     </div>
 
                     {/* Analogy Form Class Table — the exact rule of the mode */}

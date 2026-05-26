@@ -1,8 +1,8 @@
 import React from 'react';
 import { Button } from '@/components/ui/button';
-import { Brain, Zap, TrendingUp, Layers, GitBranch, Shuffle, ChevronDown, ChevronUp, Plus, Minus, Eye } from 'lucide-react';
+import { Brain, Zap, TrendingUp, Layers, GitBranch, Shuffle, ChevronDown, ChevronUp, Plus, Minus, Eye, Compass } from 'lucide-react';
 import { motion, AnimatePresence } from 'framer-motion';
-import { RELATIONSHIP_CATEGORIES, setTokenWeights, getTokenWeights, filterTransitiveRelationships, COACH_PHASES } from '@/lib/gameConstants';
+import { RELATIONSHIP_CATEGORIES, setTokenWeights, getTokenWeights, filterTransitiveRelationships, COACH_PHASES, TJN_TIERS, TJN_TIER_META, TJN_TOPOLOGY_LABELS, TJN_DEFAULT_TIER, TJN_DEFAULT_TOPOLOGY, TJN_DEFAULT_NODES, TJN_HARD_K } from '@/lib/gameConstants';
 import { migrateCoachState, pickNextPhase, masteryLabel } from '@/lib/coachMastery';
 import { NRINT_FLAGS, NRINT_FLAG_META } from '@/lib/gameEngine';
 
@@ -50,6 +50,7 @@ const MODE_OPTIONS = [
   { id: 'token_blending',icon: Brain,      label: 'Cross-Modal Token Blending', desc: 'Blends verbal words, alphanumeric code letters, and emoji tokens directly inside spatial, trait, and quantitative relationships. Overloads the Episodic Buffer.', phase: "Phase C: Memory Integration & Dynamic Rules" },
   { id: 'binary_logic',  icon: GitBranch,  label: 'Binary Logic',      desc: 'Each trial, each stream is assigned a random pair: <NBack type> <OP> <NBack type> (e.g. NRM AND NOT RINT). A match fires only when the combined boolean condition is true. Shown as live badges on each stream. Requires N≥2.', minN: 2, phase: "Phase C: Memory Integration & Dynamic Rules" },
   { id: 'analogy_nback', icon: GitBranch,  label: 'Analogy N-Back (4-place)', desc: 'Visual 4-place analogy match. The N-back target fires when the CURRENT relation shares a STRUCTURAL FORM with the N-back relation, even if the relation tokens differ (e.g. ABOVE_BELOW ≈ BIGGER_THAN ≈ STACKED — all "directional asymmetric"). Same-token repeats are NOT matches — you have to abstract the form. This is the Halford 4-place rung in visual form — closest mode to what Raven\'s actually measures. Requires N≥2.', minN: 2, phase: "Phase C: Memory Integration & Dynamic Rules" },
+  { id: 'trajectory_nback', icon: Compass, label: 'Trajectory N-Back (SR / TEM)', desc: 'Predictive map training — Stachenfeld 2017 + Behrens 2020. Each session generates one or more graphs; you walk through them as random walks. Four tiers progress from pure WM (same node N back) → adjacency → K-step successor → revaluation. Map edges fade after a learning phase forcing you to internalize the topology from memory (true hippocampal SR). Toggle Schema Transfer to enable TEM: multiple graphs share topology family but with fresh surfaces — tests whether you abstract the schema. Targets the hippocampus + entorhinal cortex, a system no other mode in the app trains. Requires N≥2.', minN: 2, phase: "Phase C: Memory Integration & Dynamic Rules" },
 
   // Spatial & Stress Overloads (Alien Dimensions & Distractors)
   { id: 'alien_square',    icon: Layers,     label: 'Alien Square Mode',    desc: 'Each stream appears inside a rotating 3×3 square. Relation and square position can be answered with separate keys.', phase: "Phase D: Spatial Overloads & Stress Resilience" },
@@ -79,6 +80,7 @@ const MODE_RULE_BRIEFS = {
   rst_overlay: 'Deduction side-task — premise per trial; from trial N a candidate conclusion appears. Press R if valid.',
   binary_logic: 'Two N-back rules combined per trial with AND/OR/XOR/AND_NOT — match when the boolean is true.',
   analogy_nback: 'Form-class analogy — fires when current and N-back relations share a STRUCTURAL FORM (different tokens). Same-token = NOT a match.',
+  trajectory_nback: 'Graph traversal — each trial is a node visited during a random walk. Target rule depends on tier (Easy: identity, Medium: neighbour, Hard: K-step successor, Extreme: shortest-path). Map edges fade after the learn phase. Schema mode = multiple graphs share topology with fresh surfaces (TEM transfer test).',
   mixed_nback: 'Per-trial random rule (Normal or Type) — can\'t pre-commit to one strategy.',
   mixed_rint: 'Per-trial random rule (Normal / Type / RINT) — three-way uncertainty.',
   impossible: 'Each stream picks Normal / Type / RINT independently per trial — chaos by design.',
@@ -101,11 +103,15 @@ const MODE_RULE_BRIEFS = {
 };
 
 const EXCLUSIVE_GROUPS = [
-  ['type_nback', 'mixed_nback', 'mixed_rint', 'impossible', 'nonverbal_rint', 'analogy_nback'],
-  ['rint', 'mixed_rint', 'impossible', 'nonverbal_rint', 'analogy_nback'],
+  ['type_nback', 'mixed_nback', 'mixed_rint', 'impossible', 'nonverbal_rint', 'analogy_nback', 'trajectory_nback'],
+  ['rint', 'mixed_rint', 'impossible', 'nonverbal_rint', 'analogy_nback', 'trajectory_nback'],
   // binary_logic overrides the primary nback type selection per trial so conflicts with fixed-mode selectors
-  ['binary_logic', 'mixed_nback', 'mixed_rint', 'impossible', 'nonverbal_rint', 'analogy_nback'],
+  ['binary_logic', 'mixed_nback', 'mixed_rint', 'impossible', 'nonverbal_rint', 'analogy_nback', 'trajectory_nback'],
   ['alien_cube', 'alien_tesseract', 'alien_square'],
+  // TJN replaces the relation pool entirely — disallow combinations with
+  // overlay side-tasks that assume relation stims (CCT, RST, alien-positions,
+  // wrapper morph, token blending). Map-only mode.
+  ['trajectory_nback', 'cct', 'cct_overlay', 'rst_overlay', 'alien_cube', 'alien_tesseract', 'alien_square', 'wrapper_morph', 'token_blending'],
 ];
 
 const CATEGORY_META = {
@@ -444,6 +450,15 @@ export default function StartScreen({ onStart, suggestedN, lastSettings }) {
   // Medium = +Comparison, Hard = +Analogy (true 4-place). Family is picked
   // at session start from the difficulty pool and stays fixed for the run.
   const [rstDifficulty, setRstDifficulty] = React.useState(lastSettings?.rstDifficulty || 'easy');
+  // Trajectory N-Back (SR / TEM) configuration. Tier picks the target rule,
+  // topology picks the graph family, schemaMode enables TEM (multiple
+  // graphs sharing topology with fresh surfaces).
+  const [tjnTier, setTjnTier] = React.useState(lastSettings?.tjnTier || TJN_DEFAULT_TIER);
+  const [tjnTopology, setTjnTopology] = React.useState(lastSettings?.tjnTopology || TJN_DEFAULT_TOPOLOGY);
+  const [tjnNodes, setTjnNodes] = React.useState(lastSettings?.tjnNodes || TJN_DEFAULT_NODES);
+  const [tjnK, setTjnK] = React.useState(lastSettings?.tjnK || TJN_HARD_K);
+  const [tjnSchemaMode, setTjnSchemaMode] = React.useState(!!lastSettings?.tjnSchemaMode);
+  const [tjnSchemaBlocks, setTjnSchemaBlocks] = React.useState(lastSettings?.tjnSchemaBlocks || 3);
   const toggleNrintFlag = (flag) => {
     setNrintEnabledFlags(prev => {
       if (prev.includes(flag)) {
@@ -458,8 +473,11 @@ export default function StartScreen({ onStart, suggestedN, lastSettings }) {
   // are ignored. We grey them out (rather than hide) and add a small note
   // so the player can still see what they'd configured.
   const nrintActive = modes.includes('nonverbal_rint');
-  const poolIgnoredCls = nrintActive ? 'opacity-50' : '';
-  const poolIgnoredNote = nrintActive ? (
+  const tjnActive = modes.includes('trajectory_nback');
+  const poolIgnoredCls = (nrintActive || tjnActive) ? 'opacity-50' : '';
+  const poolIgnoredNote = tjnActive ? (
+    <span className="text-[10px] font-mono text-indigo-400 bg-indigo-500/10 border border-indigo-500/30 rounded px-1.5 py-0.5 whitespace-nowrap">ignored in Trajectory N-Back</span>
+  ) : nrintActive ? (
     <span className="text-[10px] font-mono text-fuchsia-400 bg-fuchsia-500/10 border border-fuchsia-500/30 rounded px-1.5 py-0.5 whitespace-nowrap">ignored in Nonverbal RINT</span>
   ) : null;
 
@@ -1271,6 +1289,111 @@ export default function StartScreen({ onStart, suggestedN, lastSettings }) {
           </div>
         )}
 
+        {/* Trajectory N-Back / Schema Transfer (SR + TEM) Settings */}
+        {tjnActive && (
+          <div className="space-y-3 rounded-lg bg-indigo-500/5 border border-indigo-500/30 p-3">
+            <div className="flex items-center justify-between flex-wrap gap-2">
+              <label className="text-xs font-mono text-indigo-300 uppercase tracking-widest">Trajectory N-Back · Predictive Map</label>
+              <span className="text-[10px] font-mono text-indigo-400/70">Stachenfeld 2017 · Behrens 2020</span>
+            </div>
+            <p className="text-xs font-mono text-muted-foreground/70 leading-relaxed">
+              Each session pre-generates a graph; you walk through it as a random walk. After a short learning phase the edges fade — you must internalize the topology from memory. Targets the hippocampus + entorhinal predictive map system, distinct from PFC working memory.
+            </p>
+
+            {/* Tier selector */}
+            <div className="space-y-1.5">
+              <div className="text-[10px] font-mono text-muted-foreground/80 uppercase tracking-widest">Tier (target rule)</div>
+              <div className="grid grid-cols-2 sm:grid-cols-4 gap-1.5">
+                {TJN_TIERS.map(t => {
+                  const meta = TJN_TIER_META[t];
+                  const on = tjnTier === t;
+                  return (
+                    <button key={t}
+                      onClick={() => setTjnTier(t)}
+                      title={meta.desc}
+                      className={`flex flex-col items-start gap-0.5 px-2.5 py-2 rounded text-left border transition-colors ${on
+                        ? 'bg-indigo-500/20 border-indigo-400 text-indigo-100 font-semibold'
+                        : 'bg-secondary/40 border-border text-muted-foreground hover:border-muted-foreground/50'}`}>
+                      <span className="text-xs font-mono uppercase tracking-wide">{meta.label}</span>
+                      <span className="text-[10px] font-mono text-muted-foreground/80 leading-tight">{meta.desc.split('(')[0].trim()}</span>
+                    </button>
+                  );
+                })}
+              </div>
+            </div>
+
+            {/* Topology selector */}
+            <div className="space-y-1.5">
+              <div className="text-[10px] font-mono text-muted-foreground/80 uppercase tracking-widest">Topology Family</div>
+              <div className="grid grid-cols-2 sm:grid-cols-5 gap-1.5">
+                {Object.entries(TJN_TOPOLOGY_LABELS).map(([id, label]) => {
+                  const on = tjnTopology === id;
+                  return (
+                    <button key={id}
+                      onClick={() => setTjnTopology(id)}
+                      className={`px-2 py-1.5 rounded text-xs font-mono border transition-colors ${on
+                        ? 'bg-indigo-500/20 border-indigo-400 text-indigo-200 font-semibold'
+                        : 'bg-secondary/40 border-border text-muted-foreground hover:border-muted-foreground/50'}`}>
+                      {label}
+                    </button>
+                  );
+                })}
+              </div>
+            </div>
+
+            {/* Node count + K knobs */}
+            <div className="grid grid-cols-2 gap-3">
+              <div className="space-y-1">
+                <div className="text-[10px] font-mono text-muted-foreground/80 uppercase tracking-widest">Nodes</div>
+                <div className="flex items-center gap-2">
+                  <button onClick={() => setTjnNodes(n => Math.max(4, n - 1))} className="px-2 py-1 rounded bg-secondary/40 border border-border text-foreground text-xs font-mono">−</button>
+                  <span className="text-sm font-mono font-bold text-indigo-200 min-w-[2ch] text-center">{tjnNodes}</span>
+                  <button onClick={() => setTjnNodes(n => Math.min(12, n + 1))} className="px-2 py-1 rounded bg-secondary/40 border border-border text-foreground text-xs font-mono">+</button>
+                </div>
+              </div>
+              {tjnTier === 'hard' && (
+                <div className="space-y-1">
+                  <div className="text-[10px] font-mono text-muted-foreground/80 uppercase tracking-widest">K (successor horizon)</div>
+                  <div className="flex items-center gap-2">
+                    <button onClick={() => setTjnK(k => Math.max(1, k - 1))} className="px-2 py-1 rounded bg-secondary/40 border border-border text-foreground text-xs font-mono">−</button>
+                    <span className="text-sm font-mono font-bold text-indigo-200 min-w-[2ch] text-center">{tjnK}</span>
+                    <button onClick={() => setTjnK(k => Math.min(4, k + 1))} className="px-2 py-1 rounded bg-secondary/40 border border-border text-foreground text-xs font-mono">+</button>
+                  </div>
+                </div>
+              )}
+            </div>
+
+            {/* Schema mode (TEM) toggle */}
+            <div className="flex items-center justify-between pt-2 border-t border-indigo-500/20 gap-3">
+              <div className="flex-1 min-w-0">
+                <span className="text-xs font-mono text-foreground">Schema Transfer (TEM)</span>
+                <p className="text-[10px] font-mono text-muted-foreground/70 leading-relaxed">
+                  Tolman-Eichenbaum mode: multiple graphs sharing topology family but with fresh node identities and themes. Tests whether you encoded the abstract schema (Behrens 2020).
+                </p>
+              </div>
+              <button
+                onClick={() => setTjnSchemaMode(v => !v)}
+                className={`relative w-12 h-6 rounded-full transition-colors shrink-0 ${tjnSchemaMode ? 'bg-indigo-500' : 'bg-secondary border border-border'}`}
+              >
+                <div
+                  className={`absolute w-5 h-5 rounded-full bg-foreground transition-transform ${tjnSchemaMode ? 'translate-x-6' : 'translate-x-0.5'}`}
+                  style={{ top: '2.5px' }}
+                />
+              </button>
+            </div>
+            {tjnSchemaMode && (
+              <div className="space-y-1">
+                <div className="text-[10px] font-mono text-muted-foreground/80 uppercase tracking-widest">Schema Blocks (graphs per session)</div>
+                <div className="flex items-center gap-2">
+                  <button onClick={() => setTjnSchemaBlocks(b => Math.max(2, b - 1))} className="px-2 py-1 rounded bg-secondary/40 border border-border text-foreground text-xs font-mono">−</button>
+                  <span className="text-sm font-mono font-bold text-indigo-200 min-w-[2ch] text-center">{tjnSchemaBlocks}</span>
+                  <button onClick={() => setTjnSchemaBlocks(b => Math.min(5, b + 1))} className="px-2 py-1 rounded bg-secondary/40 border border-border text-foreground text-xs font-mono">+</button>
+                </div>
+              </div>
+            )}
+          </div>
+        )}
+
         {/* RST Settings (only when RST Side-Task is enabled) */}
         {rstOverlayActive && (
           <div className="space-y-3 rounded-lg bg-violet-500/5 border border-violet-500/30 p-3">
@@ -1673,6 +1796,14 @@ export default function StartScreen({ onStart, suggestedN, lastSettings }) {
                   nrintEnabledFlags,
                   nrintHideLegend,
                   rstDifficulty: currentPhase.rstDifficulty || rstDifficulty,
+                  // Coach-phase TJN config overrides the manual selector when
+                  // a phase explicitly configures Trajectory N-Back.
+                  tjnTier: currentPhase.tjnTier || tjnTier,
+                  tjnTopology: currentPhase.tjnTopology || tjnTopology,
+                  tjnNodes: currentPhase.tjnNodes || tjnNodes,
+                  tjnK: currentPhase.tjnK || tjnK,
+                  tjnSchemaMode: 'tjnSchemaMode' in currentPhase ? currentPhase.tjnSchemaMode : tjnSchemaMode,
+                  tjnSchemaBlocks: currentPhase.tjnSchemaBlocks || tjnSchemaBlocks,
                   wrapperMorphStyle,
                   autopilot: true,
                   phaseTitle: currentPhase.title,
@@ -1703,7 +1834,7 @@ export default function StartScreen({ onStart, suggestedN, lastSettings }) {
                 rstKeyDisplay: KEY_OPTIONS.find(k => k.code === streamARSTKey)?.display || 'R',
                 streamType: streamAType,
               };
-              onStart(nLevel, modes, finalPool, rounds, speedMs, { catWeights, useCustomMix, rels: selectedRels, tokenWeights, streamA: streamAWithPosition, extraStreams, streams: [streamAWithPosition, ...extraStreams], alienSettings, carouselSettings, nrintEnabledFlags, nrintHideLegend, rstDifficulty, wrapperMorphStyle, autopilot: false }, noobMode);
+              onStart(nLevel, modes, finalPool, rounds, speedMs, { catWeights, useCustomMix, rels: selectedRels, tokenWeights, streamA: streamAWithPosition, extraStreams, streams: [streamAWithPosition, ...extraStreams], alienSettings, carouselSettings, nrintEnabledFlags, nrintHideLegend, rstDifficulty, tjnTier, tjnTopology, tjnNodes, tjnK, tjnSchemaMode, tjnSchemaBlocks, wrapperMorphStyle, autopilot: false }, noobMode);
             }}
             className="flex-1 h-12 px-6 font-mono font-semibold text-xs sm:text-sm tracking-wide bg-secondary hover:bg-secondary/85 text-foreground border border-border"
           >

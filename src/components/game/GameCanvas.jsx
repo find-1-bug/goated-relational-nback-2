@@ -1,5 +1,5 @@
 import React, { useRef, useEffect } from 'react';
-import { renderRelationship, renderAlienSquare, is3D } from '@/lib/relationshipRenderer';
+import { renderRelationship, renderAlienSquare, is3D, renderTrajectoryBoard } from '@/lib/relationshipRenderer';
 import { render3DRelationship, createSpatial3DSnapshot } from '@/lib/threeRenderer';
 
 export default function GameCanvas({ relationship, stimulus, clearCanvas, rintChain, streamCount = 1 }) {
@@ -27,6 +27,33 @@ export default function GameCanvas({ relationship, stimulus, clearCanvas, rintCh
           ctx.clearRect(0, 0, rect.width, rect.height);
         }
       }
+      return;
+    }
+
+    // Trajectory N-Back / Schema Transfer (SR + TEM): a graph-traversal stim,
+    // not a relation. Route to the dedicated trajectory board renderer
+    // before any 3D/square/relation logic kicks in. Map fading is handled
+    // by the renderer based on stimulus._tjn.learnPhase.
+    if (stimulus?._tjn) {
+      if (cleanupRef.current) {
+        cleanupRef.current();
+        cleanupRef.current = null;
+      }
+      const canvas = canvasRef.current;
+      const container = containerRef.current;
+      if (!canvas) return;
+      if (container) {
+        container.querySelectorAll('canvas[data-three-canvas="true"]').forEach(node => node.remove());
+        if (canvas.parentElement !== container) container.appendChild(canvas);
+      }
+      canvas.style.display = 'block';
+      const ctx = canvas.getContext('2d');
+      const dpr = window.devicePixelRatio || 1;
+      const rect = canvas.getBoundingClientRect();
+      canvas.width = rect.width * dpr;
+      canvas.height = rect.height * dpr;
+      ctx.scale(dpr, dpr);
+      renderTrajectoryBoard(ctx, rect.width, rect.height, stimulus);
       return;
     }
 

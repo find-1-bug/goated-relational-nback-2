@@ -785,6 +785,38 @@ export function randomBetween(min, max) {
   return min + Math.random() * (max - min);
 }
 
+// ─── Trajectory N-Back (Successor Representation training) ──────────────────
+// TJN is a graph-based n-back: each trial = a node visited during a random
+// walk over a session-generated graph. The target rule depends on tier, and
+// some tiers force the player to internalize the graph topology (map fading).
+//
+// Map fading: for the first TJN_LEARN_TRIALS, the graph edges are rendered
+// so the player learns the topology. After that, edges fade out — the
+// player must recall the structure from memory to evaluate targets. Without
+// fading, the task becomes visual edge-checking, not successor learning.
+export const TJN_NODE_REL = 'TJN_NODE';
+export const TJN_LEARN_TRIALS = 6;
+export const TJN_DEFAULT_NODES = 6;
+export const TJN_DEFAULT_TOPOLOGY = 'small_world';
+export const TJN_DEFAULT_TIER = 'easy';
+export const TJN_HARD_K = 2; // K-step successor horizon for the Hard tier
+
+export const TJN_TIERS = ['easy', 'medium', 'hard', 'extreme'];
+export const TJN_TIER_META = {
+  easy:    { label: 'Easy',    desc: 'Same node as N-back (pure WM on positions)' },
+  medium: { label: 'Medium',  desc: 'Current is a neighbour of N-back (needs edge memory)' },
+  hard:    { label: 'Hard',    desc: 'Current is a valid K-step successor of N-back (predictive map)' },
+  extreme: { label: 'Extreme', desc: 'Current lies on the shortest path from N-back to the goal (revaluation)' },
+};
+
+export const TJN_TOPOLOGY_LABELS = {
+  ring:        'Ring (cycle)',
+  small_world: 'Ring + Shortcuts (small-world)',
+  tree:        'Tree (hierarchical)',
+  lattice:     'Lattice (grid)',
+  random:      'Random (Erdős–Rényi)',
+};
+
 export const COACH_PHASES = [
   {
     title: "Phase A: Classic N-1 Warm-up",
@@ -1060,6 +1092,106 @@ export const COACH_PHASES = [
     modes: ['distractors', 'lures', 'negation', 'adaptive_closed_loop', 'alien_tesseract', 'stress_glitch', 'stress_shake', 'timer_panic', 'impossible', 'wrapper_morph', 'token_blending'],
     desc: "The ultimate boss level of human working memory: 3 parallel streams at N=4 inside a rotating 4D tesseract under extreme Glitch/Shake noise and full rule shifting!",
     streamsCount: 3
+  },
+  // ── Trajectory N-Back curriculum (Successor Representation training) ──────
+  // A separate cognitive system from everything above. Targets hippocampus +
+  // entorhinal predictive maps, not DLPFC working memory. Map fading forces
+  // true internalization of the graph rather than visual edge-checking.
+  {
+    title: "Phase 26: Map Encoding (TJN Easy)",
+    nLevel: 2,
+    speedMs: 2800,
+    rounds: 22,
+    modes: ['trajectory_nback', 'feedback_per_trial'],
+    tjnTier: 'easy',
+    tjnTopology: 'ring',
+    tjnNodes: 6,
+    desc: "Trajectory N-Back at the easiest tier on a 6-node ring. Target = current node is the same as the N-back node. Edges fade after a short learning phase to force hippocampal map encoding.",
+    streamsCount: 1
+  },
+  {
+    title: "Phase 27: Neighbour Recall (TJN Medium)",
+    nLevel: 2,
+    speedMs: 2600,
+    rounds: 24,
+    modes: ['trajectory_nback', 'feedback_per_trial'],
+    tjnTier: 'medium',
+    tjnTopology: 'small_world',
+    tjnNodes: 6,
+    desc: "Adjacency check on a small-world graph (ring + shortcuts). Target = current node is a direct neighbour of the N-back node. Requires recalling the edge set after map fading.",
+    streamsCount: 1
+  },
+  {
+    title: "Phase 28: Successor Prediction (TJN Hard)",
+    nLevel: 2,
+    speedMs: 2400,
+    rounds: 26,
+    modes: ['trajectory_nback', 'feedback_per_trial'],
+    tjnTier: 'hard',
+    tjnTopology: 'small_world',
+    tjnNodes: 6,
+    tjnK: 2,
+    desc: "K-step successor prediction. Target = current node is reachable in EXACTLY 2 steps from the N-back node. This is the heart of Successor Representation: predicting future occupancy.",
+    streamsCount: 1
+  },
+  {
+    title: "Phase 29: Goal Revaluation (TJN Extreme)",
+    nLevel: 2,
+    speedMs: 2400,
+    rounds: 28,
+    modes: ['trajectory_nback', 'feedback_per_trial'],
+    tjnTier: 'extreme',
+    tjnTopology: 'lattice',
+    tjnNodes: 6,
+    desc: "Zero-shot pathfinding under revaluation. Target = current node lies on the shortest path from the N-back node to a per-trial goal star. Forces flexible re-planning over an internalized map.",
+    streamsCount: 1
+  },
+  // ── Schema Transfer (Tolman-Eichenbaum Machine) curriculum ───────────────
+  // Same TJN engine, multiple graphs per session sharing topology family but
+  // with fresh surfaces (themed maps α/β/γ). Tests whether the player encoded
+  // the abstract schema rather than a specific map. Behrens et al. 2020.
+  {
+    title: "Phase 30: Schema Transfer — Easy (TEM)",
+    nLevel: 2,
+    speedMs: 2600,
+    rounds: 27,
+    modes: ['trajectory_nback', 'feedback_per_trial'],
+    tjnTier: 'easy',
+    tjnTopology: 'ring',
+    tjnNodes: 6,
+    tjnSchemaMode: true,
+    tjnSchemaBlocks: 3,
+    desc: "Tolman-Eichenbaum Machine training: 3 ring graphs, same topology family but fresh node identities and themes. The player must internalize the abstract schema (it's always a 6-cycle) and re-apply it when the surface swaps mid-session.",
+    streamsCount: 1
+  },
+  {
+    title: "Phase 31: Schema Transfer — Successor (TEM)",
+    nLevel: 2,
+    speedMs: 2400,
+    rounds: 27,
+    modes: ['trajectory_nback', 'feedback_per_trial'],
+    tjnTier: 'hard',
+    tjnTopology: 'small_world',
+    tjnNodes: 6,
+    tjnSchemaMode: true,
+    tjnSchemaBlocks: 3,
+    tjnK: 2,
+    desc: "Schema transfer at the predictive-map tier: 3 small-world graphs (ring + shortcuts) share the structural family but swap surface. Target = 2-step successor of N-back. Combined Behrens TEM × Stachenfeld SR.",
+    streamsCount: 1
+  },
+  {
+    title: "Phase 32: Cross-Topology Schema Crucible",
+    nLevel: 2,
+    speedMs: 2300,
+    rounds: 30,
+    modes: ['trajectory_nback', 'feedback_per_trial'],
+    tjnTier: 'medium',
+    tjnTopology: 'lattice',
+    tjnNodes: 6,
+    tjnSchemaMode: true,
+    tjnSchemaBlocks: 4,
+    desc: "Maximum schema-transfer challenge: 4 lattice graphs, neighbour-prediction tier. The player must extract grid-structure once, then apply it to four distinct surfaces with no relearning between blocks.",
+    streamsCount: 1
   }
 ];
 

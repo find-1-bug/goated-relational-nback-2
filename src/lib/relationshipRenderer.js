@@ -1754,3 +1754,170 @@ if (typeof window !== 'undefined') {
   window.drawScrapToken = drawScrapToken;
   window.drawVoronoiToken = drawVoronoiToken;
 }
+
+// ── Trajectory N-Back / Schema Transfer board ──────────────────────────────
+// Draws the graph as nodes (circles) and edges (lines), with the player's
+// current position highlighted. Edges fade out after the learning phase so
+// the player must internalize the topology rather than reading it off-screen.
+//
+//   stimulus._tjn = {
+//     node, tier, K, goal, learnPhase, graph,
+//     blockIndex, blockLabel, blockColor, schemaMode
+//   }
+//   graph = { nodes[], adjacency[][], positions[{x,y}] (in [0,1]^2), label, family }
+export function renderTrajectoryBoard(ctx, canvasW, canvasH, stimulus) {
+  const tjn = stimulus?._tjn;
+  if (!tjn || !tjn.graph) return;
+  const { graph, node: currentNode, tier, K, goal, learnPhase, blockLabel, blockColor, schemaMode } = tjn;
+
+  // Background — themed per block so schema-transfer mode reads as "new world"
+  ctx.clearRect(0, 0, canvasW, canvasH);
+  ctx.save();
+  const bg = ctx.createLinearGradient(0, 0, canvasW, canvasH);
+  bg.addColorStop(0, 'rgba(8, 12, 22, 0.96)');
+  bg.addColorStop(1, 'rgba(15, 23, 42, 0.92)');
+  ctx.fillStyle = bg;
+  ctx.fillRect(0, 0, canvasW, canvasH);
+  ctx.restore();
+
+  // Block badge (top-left) — only in schema mode where it carries info
+  if (schemaMode && blockLabel) {
+    ctx.save();
+    ctx.fillStyle = blockColor || '#22d3ee';
+    ctx.font = 'bold 14px monospace';
+    ctx.textBaseline = 'top';
+    ctx.fillText(blockLabel, 18, 18);
+    ctx.font = '10px monospace';
+    ctx.fillStyle = 'rgba(148, 163, 184, 0.85)';
+    ctx.fillText('schema instance — same topology, new surface', 18, 36);
+    ctx.restore();
+  }
+
+  // Tier badge (top-right)
+  ctx.save();
+  ctx.font = 'bold 12px monospace';
+  ctx.textAlign = 'right';
+  ctx.textBaseline = 'top';
+  ctx.fillStyle = '#fbbf24';
+  ctx.fillText(`TJN · ${String(tier || 'easy').toUpperCase()}${tier === 'hard' ? ` · K=${K || 2}` : ''}`, canvasW - 18, 18);
+  if (learnPhase) {
+    ctx.fillStyle = '#34d399';
+    ctx.font = 'bold 10px monospace';
+    ctx.fillText('MAP LEARNING — edges visible', canvasW - 18, 36);
+  } else {
+    ctx.fillStyle = 'rgba(244, 114, 182, 0.85)';
+    ctx.font = 'bold 10px monospace';
+    ctx.fillText('MAP FADED — recall topology from memory', canvasW - 18, 36);
+  }
+  ctx.restore();
+
+  // Layout: center the graph in the canvas with margins
+  const marginX = Math.min(canvasW * 0.14, 90);
+  const marginY = Math.min(canvasH * 0.18, 90);
+  const boardW = canvasW - 2 * marginX;
+  const boardH = canvasH - 2 * marginY;
+  const px = (p) => marginX + p.x * boardW;
+  const py = (p) => marginY + p.y * boardH;
+
+  // Edges
+  const edgeAlpha = learnPhase ? 0.55 : 0.07; // fade after learning phase
+  const edgeColor = `rgba(148, 163, 184, ${edgeAlpha})`;
+  ctx.save();
+  ctx.strokeStyle = edgeColor;
+  ctx.lineWidth = learnPhase ? 2.2 : 1.0;
+  for (let i = 0; i < graph.adjacency.length; i++) {
+    const from = graph.positions[i];
+    for (const j of graph.adjacency[i]) {
+      if (j <= i) continue;
+      const to = graph.positions[j];
+      ctx.beginPath();
+      ctx.moveTo(px(from), py(from));
+      ctx.lineTo(px(to), py(to));
+      ctx.stroke();
+    }
+  }
+  ctx.restore();
+
+  // Goal highlight (Extreme tier)
+  if (tier === 'extreme' && goal != null) {
+    const gp = graph.positions[goal];
+    ctx.save();
+    ctx.beginPath();
+    ctx.arc(px(gp), py(gp), 36, 0, Math.PI * 2);
+    ctx.strokeStyle = 'rgba(250, 204, 21, 0.6)';
+    ctx.lineWidth = 2;
+    ctx.setLineDash([4, 4]);
+    ctx.stroke();
+    ctx.setLineDash([]);
+    // Goal star marker
+    ctx.fillStyle = '#facc15';
+    ctx.font = 'bold 22px sans-serif';
+    ctx.textAlign = 'center';
+    ctx.textBaseline = 'middle';
+    ctx.fillText('★', px(gp), py(gp) - 30);
+    ctx.restore();
+  }
+
+  // Nodes
+  for (let i = 0; i < graph.nodes.length; i++) {
+    const p = graph.positions[i];
+    const isCurrent = i === currentNode;
+    const isGoal = tier === 'extreme' && i === goal;
+    const r = isCurrent ? 30 : 22;
+
+    ctx.save();
+    // Fill
+    ctx.beginPath();
+    ctx.arc(px(p), py(p), r, 0, Math.PI * 2);
+    if (isCurrent) {
+      const grad = ctx.createRadialGradient(px(p), py(p), 4, px(p), py(p), r);
+      grad.addColorStop(0, blockColor || '#22d3ee');
+      grad.addColorStop(1, 'rgba(15, 23, 42, 0.9)');
+      ctx.fillStyle = grad;
+    } else if (isGoal) {
+      ctx.fillStyle = 'rgba(250, 204, 21, 0.18)';
+    } else {
+      ctx.fillStyle = 'rgba(30, 41, 59, 0.85)';
+    }
+    ctx.fill();
+    // Ring
+    ctx.lineWidth = isCurrent ? 3 : 1.5;
+    ctx.strokeStyle = isCurrent
+      ? (blockColor || '#22d3ee')
+      : (isGoal ? 'rgba(250, 204, 21, 0.9)' : 'rgba(148, 163, 184, 0.45)');
+    ctx.stroke();
+    // Label inside node
+    ctx.fillStyle = isCurrent ? '#fff' : 'rgba(226, 232, 240, 0.85)';
+    ctx.font = `bold ${isCurrent ? 16 : 13}px monospace`;
+    ctx.textAlign = 'center';
+    ctx.textBaseline = 'middle';
+    ctx.fillText(String.fromCharCode(65 + i), px(p), py(p));
+    ctx.restore();
+  }
+
+  // "You are here" arrow above the current node
+  const cp = graph.positions[currentNode];
+  if (cp) {
+    ctx.save();
+    ctx.fillStyle = blockColor || '#22d3ee';
+    ctx.font = 'bold 11px monospace';
+    ctx.textAlign = 'center';
+    ctx.textBaseline = 'bottom';
+    ctx.fillText('▼ YOU', px(cp), py(cp) - 36);
+    ctx.restore();
+  }
+
+  // Bottom hint strip — explains tier rule briefly so cold-start players
+  // can attempt the task without needing the tutorial.
+  ctx.save();
+  ctx.font = '11px monospace';
+  ctx.fillStyle = 'rgba(148, 163, 184, 0.8)';
+  ctx.textAlign = 'center';
+  ctx.textBaseline = 'bottom';
+  const rule = tier === 'easy'    ? 'TARGET = current node IS the N-back node'
+             : tier === 'medium'  ? 'TARGET = current node is a NEIGHBOUR of the N-back node'
+             : tier === 'hard'    ? `TARGET = current node is reachable in EXACTLY ${K || 2} steps from N-back`
+             :                      'TARGET = current node lies on the shortest path N-back → ★ goal';
+  ctx.fillText(rule, canvasW / 2, canvasH - 14);
+  ctx.restore();
+}

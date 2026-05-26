@@ -27,6 +27,12 @@ export default function Game() {
   const [nrintEnabledFlags, setNrintEnabledFlags] = useState(null);
   const [nrintHideLegend, setNrintHideLegend] = useState(false);
   const [rstDifficulty, setRstDifficulty] = useState('easy');
+  const [tjnTier, setTjnTier] = useState('easy');
+  const [tjnTopology, setTjnTopology] = useState('small_world');
+  const [tjnNodes, setTjnNodes] = useState(6);
+  const [tjnK, setTjnK] = useState(2);
+  const [tjnSchemaMode, setTjnSchemaMode] = useState(false);
+  const [tjnSchemaBlocks, setTjnSchemaBlocks] = useState(3);
   const [noobMode, setNoobMode] = useState(false);
   const [autopilot, setAutopilot] = useState(false);
   const [phaseTitle, setPhaseTitle] = useState('');
@@ -59,6 +65,12 @@ export default function Game() {
     setNrintEnabledFlags(extraSettings?.nrintEnabledFlags || null);
     setNrintHideLegend(!!extraSettings?.nrintHideLegend);
     setRstDifficulty(extraSettings?.rstDifficulty || 'easy');
+    setTjnTier(extraSettings?.tjnTier || 'easy');
+    setTjnTopology(extraSettings?.tjnTopology || 'small_world');
+    setTjnNodes(extraSettings?.tjnNodes || 6);
+    setTjnK(extraSettings?.tjnK || 2);
+    setTjnSchemaMode(!!extraSettings?.tjnSchemaMode);
+    setTjnSchemaBlocks(extraSettings?.tjnSchemaBlocks || 3);
     setNoobMode(noob || false);
     setAutopilot(!!extraSettings?.autopilot);
     setPhaseTitle(extraSettings?.phaseTitle || '');
@@ -84,6 +96,12 @@ export default function Game() {
         nrintEnabledFlags: extraSettings?.nrintEnabledFlags || null,
         nrintHideLegend: !!extraSettings?.nrintHideLegend,
         rstDifficulty: extraSettings?.rstDifficulty || 'easy',
+        tjnTier: extraSettings?.tjnTier || 'easy',
+        tjnTopology: extraSettings?.tjnTopology || 'small_world',
+        tjnNodes: extraSettings?.tjnNodes || 6,
+        tjnK: extraSettings?.tjnK || 2,
+        tjnSchemaMode: !!extraSettings?.tjnSchemaMode,
+        tjnSchemaBlocks: extraSettings?.tjnSchemaBlocks || 3,
         noobMode: noob || false,
       }
     };
@@ -165,6 +183,12 @@ export default function Game() {
           nrintEnabledFlags={nrintEnabledFlags}
           nrintHideLegend={nrintHideLegend}
           rstDifficulty={rstDifficulty}
+          tjnTier={tjnTier}
+          tjnTopology={tjnTopology}
+          tjnNodes={tjnNodes}
+          tjnK={tjnK}
+          tjnSchemaMode={tjnSchemaMode}
+          tjnSchemaBlocks={tjnSchemaBlocks}
           noobMode={noobMode}
           autopilot={autopilot}
           phaseTitle={phaseTitle}

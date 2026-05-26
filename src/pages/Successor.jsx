@@ -1,6 +1,6 @@
 import React, { useState, useEffect, useCallback, useMemo } from 'react';
 import { Link } from 'react-router-dom';
-import { GitBranch, Compass, Star, ChevronLeft, RefreshCw, Trophy, HelpCircle } from 'lucide-react';
+import { Compass, ChevronLeft, RefreshCw, Trophy } from 'lucide-react';
 import { motion, AnimatePresence } from 'framer-motion';
 import { Button } from '@/components/ui/button';
 
