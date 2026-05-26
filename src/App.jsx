@@ -11,6 +11,7 @@ import Tutorial from '@/pages/Tutorial';
 import Framework from '@/pages/Framework';
 import Diagnostics from '@/pages/Diagnostics';
 import Insight from '@/pages/Insight';
+import Successor from '@/pages/Successor';
 
 function App() {
   React.useEffect(() => {
@@ -27,6 +28,7 @@ function App() {
           <Route path="/framework" element={<Framework />} />
           <Route path="/diagnostics" element={<Diagnostics />} />
           <Route path="/insight" element={<Insight />} />
+          <Route path="/successor" element={<Successor />} />
           <Route path="/review/:sessionId" element={<Review />} />
           <Route path="*" element={<PageNotFound />} />
         </Routes>
