@@ -381,16 +381,26 @@ function generateCCTLayer(history, effectiveN, matchChance) {
 //
 // Each flag may be enabled or disabled by the player (per-session), letting
 // them use 2/3/etc. of the available modalities instead of all of them.
-export const NRINT_FLAGS = ['touching', 'hollow', 'size_mismatch', 'rotated', 'audio', 'pitch_high'];
+export const NRINT_FLAGS = [
+  // visual (8) — Grapist asked for more visual diversity beyond the original 4
+  'touching', 'hollow', 'size_mismatch', 'rotated',
+  'dashed_border', 'glow', 'mirrored', 'striped',
+  // audio (2)
+  'audio', 'pitch_high',
+];
 export const NRINT_FLAG_META = {
   touching:       { group: 'visual', label: 'Touching',     desc: 'shapes adjacent vs. apart' },
   hollow:         { group: 'visual', label: 'Hollow',       desc: 'left shape outline vs. filled' },
   size_mismatch:  { group: 'visual', label: 'Size != ',     desc: 'right shape smaller vs. equal' },
   rotated:        { group: 'visual', label: 'Rotated',      desc: 'one shape rotated ~30°' },
+  dashed_border:  { group: 'visual', label: 'Dashed',       desc: 'shapes have dashed outline vs solid' },
+  glow:           { group: 'visual', label: 'Glow',         desc: 'neon halo around the shapes' },
+  mirrored:       { group: 'visual', label: 'Mirrored',     desc: 'left shape horizontally flipped' },
+  striped:        { group: 'visual', label: 'Striped',      desc: 'right shape carries diagonal stripes' },
   audio:          { group: 'audio',  label: 'Tone',         desc: 'brief sine tone' },
   pitch_high:     { group: 'audio',  label: 'High pitch',   desc: 'higher-pitched chime' },
 };
-const NRINT_DEFAULT_FLAGS = ['touching', 'hollow', 'size_mismatch', 'audio'];
+const NRINT_DEFAULT_FLAGS = ['touching', 'hollow', 'size_mismatch', 'rotated', 'audio'];
 
 function emptyAttrs() {
   const o = {};

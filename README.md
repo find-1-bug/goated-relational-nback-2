@@ -63,7 +63,7 @@ A working-memory trainer that, instead of asking you to remember which letter or
 ### Phase C — Memory Integration & Dynamic Rules
 - **type_nback** — match by relation **type**, not trial distance. Each rel has its own n-back queue.
 - **rint** (N≥2) — Relational Integration. Persistent entities (α, β, γ…); target = current is a valid transitive conclusion from chaining the N most-recent facts. **Now with mixed direction within a chain** — e.g. `α > β`, `γ < β` requires mentally inverting to chain. Conclusions render in either direction (`A > C` or `C < A`).
-- **nonverbal_rint** (N≥2) — composite attributes across 6 flags (touching, hollow, size_mismatch, rotated, audio, pitch_high). Subset-union rule: current is a target iff its attrs equal the union of some non-empty subset of the last N stims.
+- **nonverbal_rint** (N≥2) — composite attributes across **10 flags** (visual: touching, hollow, size_mismatch, rotated, dashed_border, glow, mirrored, striped + audio: audio, pitch_high). Subset-union rule: current is a target iff its attrs equal the union of some non-empty subset of the last N stims.
 - **mixed_nback** — per-trial random: Normal or Type.
 - **mixed_rint** (N≥2) — per-trial random: Normal / Type / RINT.
 - **wrapper_morph** — visual theme + token category rotate mid-session.
@@ -144,7 +144,7 @@ Cumulative stats in localStorage. Optional hint button. Direct response to the *
 
 - **Relation library**: 86+ relations across 7 categories — SPATIAL · SPATIAL_3D · TRAIT · QUANT · VERBAL · SOUND · COMPLEX. 67 marked as transitive (used by RINT). Full inverse mapping (`BIGGER_THAN ↔ SMALLER_THAN` etc.) — see [src/lib/gameConstants.js](src/lib/gameConstants.js).
 - **Form-class taxonomy** for Analogy N-Back & Insight: 12 abstract structural classes covering ~150 relations.
-- **NRINT**: 6 attribute flags across visual + audio modalities; per-flag enable picker; hide-legend toggle for truly nonverbal play.
+- **NRINT**: 10 attribute flags across visual + audio modalities; per-flag enable picker; hide-legend toggle for truly nonverbal play.
 - **Hint-shaped feedback**: per-trial diagnostic on MISS/FA names the misjudged dimension (e.g. "same-token isn't analogy", "different form class") without giving away the answer.
 - **Pre-session rule briefing**: collapsible panel listing plain-English rules for currently-active modes before launch.
 - **Multi-stream**: 1–20 streams; carousel pagination when too many for one viewport; each stream has its own REL/CCT type + key bindings.

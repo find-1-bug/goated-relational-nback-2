@@ -1157,19 +1157,96 @@ function renderNRINTComposite(ctx, cx, cy, stimulus, scale = 1) {
   const sizeB = attrs.size_mismatch ? 30 * scale : 65 * scale;
   const gap = attrs.touching ? (sizeA + sizeB) / 2 - 8 * scale : (sizeA + sizeB) / 2 + 32 * scale;
 
-  // Shape A: rotated ~30° when the rotated flag is on, otherwise upright.
-  // Rotate around shape A's centre so it stays in place.
   const ax = cx - gap / 2;
-  if (attrs.rotated) {
+  const bx = cx + gap / 2;
+
+  // Apply optional glow halo to both shapes when the glow flag is on. Sits
+  // outside the save() blocks so it composites under the shape fill.
+  const drawGlow = (x, y, size, color) => {
+    if (!attrs.glow) return;
     ctx.save();
+    ctx.shadowColor = color;
+    ctx.shadowBlur = 28 * scale;
+    ctx.globalAlpha = 0.95;
+    drawShape(ctx, 'circle', x, y, size * 1.05, color, false);
+    ctx.restore();
+  };
+
+  // Dashed border on both shapes when the dashed_border flag is on. We do
+  // this by setting setLineDash before drawShape; drawShape uses ctx.stroke
+  // for hollow shapes so the dash visibly applies on those, and for filled
+  // shapes we layer a stroke pass on top of the fill.
+  const dashedStrokePass = (x, y, size, color, isShape) => {
+    if (!attrs.dashed_border) return;
+    ctx.save();
+    ctx.strokeStyle = color;
+    ctx.lineWidth = 2.6 * scale;
+    ctx.setLineDash([7 * scale, 5 * scale]);
+    drawShape(ctx, isShape, x, y, size, color, false); // outline pass
+    ctx.restore();
+  };
+
+  // SHAPE A — left
+  drawGlow(ax, cy, sizeA, v.colorA);
+  ctx.save();
+  if (attrs.rotated) {
     ctx.translate(ax, cy);
     ctx.rotate(Math.PI / 6); // 30°
+    if (attrs.mirrored) ctx.scale(-1, 1); // horizontal flip
     drawShape(ctx, v.shapeA, 0, 0, sizeA, v.colorA, !attrs.hollow);
     ctx.restore();
+    if (attrs.dashed_border) {
+      ctx.save();
+      ctx.translate(ax, cy);
+      ctx.rotate(Math.PI / 6);
+      if (attrs.mirrored) ctx.scale(-1, 1);
+      dashedStrokePass(0, 0, sizeA, v.colorA, v.shapeA);
+      ctx.restore();
+    }
   } else {
-    drawShape(ctx, v.shapeA, ax, cy, sizeA, v.colorA, !attrs.hollow);
+    if (attrs.mirrored) {
+      ctx.translate(ax, cy);
+      ctx.scale(-1, 1);
+      drawShape(ctx, v.shapeA, 0, 0, sizeA, v.colorA, !attrs.hollow);
+      ctx.restore();
+      if (attrs.dashed_border) {
+        ctx.save();
+        ctx.translate(ax, cy);
+        ctx.scale(-1, 1);
+        dashedStrokePass(0, 0, sizeA, v.colorA, v.shapeA);
+        ctx.restore();
+      }
+    } else {
+      ctx.restore();
+      drawShape(ctx, v.shapeA, ax, cy, sizeA, v.colorA, !attrs.hollow);
+      dashedStrokePass(ax, cy, sizeA, v.colorA, v.shapeA);
+    }
   }
-  drawShape(ctx, v.shapeB, cx + gap / 2, cy, sizeB, v.colorB, true);
+
+  // SHAPE B — right
+  drawGlow(bx, cy, sizeB, v.colorB);
+  drawShape(ctx, v.shapeB, bx, cy, sizeB, v.colorB, true);
+  dashedStrokePass(bx, cy, sizeB, v.colorB, v.shapeB);
+
+  // Diagonal stripes across shape B when the striped flag is on. Clip to
+  // a square bounding the shape, draw parallel lines, then restore.
+  if (attrs.striped) {
+    ctx.save();
+    ctx.beginPath();
+    ctx.rect(bx - sizeB / 2, cy - sizeB / 2, sizeB, sizeB);
+    ctx.clip();
+    ctx.strokeStyle = '#0d1117';
+    ctx.lineWidth = 2.2 * scale;
+    ctx.globalAlpha = 0.65;
+    const step = 7 * scale;
+    for (let i = -sizeB; i < sizeB * 2; i += step) {
+      ctx.beginPath();
+      ctx.moveTo(bx - sizeB / 2 + i, cy - sizeB / 2);
+      ctx.lineTo(bx - sizeB / 2 + i + sizeB, cy - sizeB / 2 + sizeB);
+      ctx.stroke();
+    }
+    ctx.restore();
+  }
 
   // Attribute legend along bottom — hidden when the session asks for a
   // truly nonverbal display (Grapist's "disable the words" request).
@@ -1180,12 +1257,16 @@ function renderNRINTComposite(ctx, cx, cy, stimulus, scale = 1) {
   ctx.textAlign = 'center';
   ctx.textBaseline = 'top';
   const flags = [
-    attrs.touching     ? { t: 'TOUCH',   c: '#22d3ee' } : null,
-    attrs.hollow       ? { t: 'HOLLOW',  c: '#a78bfa' } : null,
-    attrs.size_mismatch? { t: 'SIZE!=',  c: '#fbbf24' } : null,
-    attrs.rotated      ? { t: 'ROT',     c: '#f472b6' } : null,
-    attrs.audio        ? { t: 'AUDIO ♪', c: '#34d399' } : null,
-    attrs.pitch_high   ? { t: 'HIGH ♪',  c: '#fb7185' } : null,
+    attrs.touching      ? { t: 'TOUCH',   c: '#22d3ee' } : null,
+    attrs.hollow        ? { t: 'HOLLOW',  c: '#a78bfa' } : null,
+    attrs.size_mismatch ? { t: 'SIZE!=',  c: '#fbbf24' } : null,
+    attrs.rotated       ? { t: 'ROT',     c: '#f472b6' } : null,
+    attrs.dashed_border ? { t: 'DASH',    c: '#94a3b8' } : null,
+    attrs.glow          ? { t: 'GLOW',    c: '#fde68a' } : null,
+    attrs.mirrored      ? { t: 'MIRROR',  c: '#7dd3fc' } : null,
+    attrs.striped       ? { t: 'STRIPE',  c: '#fca5a5' } : null,
+    attrs.audio         ? { t: 'AUDIO ♪', c: '#34d399' } : null,
+    attrs.pitch_high    ? { t: 'HIGH ♪',  c: '#fb7185' } : null,
   ].filter(Boolean);
   if (flags.length > 0) {
     const spacing = Math.max(54, Math.min(70, 360 / flags.length)) * scale;

@@ -266,7 +266,7 @@ export default function Tutorial() {
                       </div>
                       <div>
                         <strong className="text-accent block font-mono uppercase tracking-wider">Nonverbal RINT</strong>
-                        <span>Stimuli carry a composite set of binary attributes across two modalities (Visual: touching, hollow, size-mismatch, rotated; Audio: Tone rhythm). Matches occur when the current composite can be resolved from the <strong>union of a subset</strong> of the last N trials. Disable individual flags under the custom nonverbal configurations drawer.</span>
+                        <span>Stimuli carry up to <strong>10 independent binary attributes</strong> across two modalities — Visual: touching, hollow, size-mismatch, rotated, dashed, glow, mirrored, striped (8); Audio: tone, high-pitch (2). A match fires when the current composite equals the <strong>union of a subset</strong> of the last N trials (e.g. trial 1 = {`{TOUCH, GLOW}`}, trial 2 = {`{HOLLOW}`} → current = {`{TOUCH, HOLLOW, GLOW}`} is a target since 1∪2 = current). Disable individual flags via the Nonverbal RINT settings panel that surfaces when this mode is on.</span>
                       </div>
                       <div>
                         <strong className="text-accent block font-mono uppercase tracking-wider">CCT (Cognitive Control arithmetic)</strong>
