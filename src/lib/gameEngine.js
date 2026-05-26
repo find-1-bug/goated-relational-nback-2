@@ -976,13 +976,28 @@ export function generateNextStimulus(state) {
     // Find the block this trial belongs to.
     const block = blocks.find(b => round >= b.startTrial && round < b.endTrial) || blocks[blocks.length - 1];
     const localIndex = round - block.startTrial;
-    const goal = block.goals?.[localIndex] ?? null;
+    let goal = block.goals?.[localIndex] ?? null;
     const learnPhase = localIndex < TJN_LEARN_TRIALS;
 
     // Decide the current node.
     let node;
     const past = historyA.length >= nLevel ? historyA[historyA.length - nLevel] : null;
     const pastInSameBlock = !!past?._tjn && past._tjn.blockIndex === block.blockIndex;
+    // Extreme tier: re-pick the goal so the shortest path nBackNode → goal
+    // has at least 1 intermediate node (path length ≥ 3). Otherwise on
+    // small / dense graphs most goals would yield empty path-intermediate
+    // sets and target rate would collapse to ~5%.
+    if (pastInSameBlock && tier === 'extreme') {
+      const nBackNode = past._tjn.node;
+      const farEnough = block.graph.nodes.filter(n => {
+        if (n === nBackNode) return false;
+        const p = shortestPath(block.graph, nBackNode, n);
+        return p && p.length >= 3;
+      });
+      if (farEnough.length > 0) {
+        goal = farEnough[Math.floor(Math.random() * farEnough.length)];
+      }
+    }
     if (pastInSameBlock) {
       // Compute the set of nodes that WOULD be targets per the tier rule,
       // then pick from the target set with probability MATCH_CHANCE and

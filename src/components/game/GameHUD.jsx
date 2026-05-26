@@ -1,11 +1,16 @@
 import React from 'react';
 
-export default function GameHUD({ round, totalRounds, nLevel, effectiveN, hitsA, missesA, falseAlarmsA, modes = [], numStreams }) {
+export default function GameHUD({ round, totalRounds, nLevel, effectiveN, hitsA, missesA, falseAlarmsA, correctRejectionsA = 0, modes = [], numStreams }) {
   const isImpossible = modes.includes('impossible');
   const isNRINT = modes.includes('nonverbal_rint');
+  const isTJN = modes.includes('trajectory_nback');
   const isCCT = modes.includes('cct');
   const explicitFeedback = modes.includes('feedback_per_trial');
   const progressPct = totalRounds > 0 ? Math.min(100, (round / totalRounds) * 100) : 0;
+  // Target count = trials that were targets (hits + misses). Useful for
+  // sanity-checking that targets are actually firing — especially for new
+  // modes like TJN where target rates depend on tier + topology.
+  const targetCount = (hitsA || 0) + (missesA || 0);
 
   return (
     <div className="flex flex-col gap-1 w-full">
@@ -35,6 +40,11 @@ export default function GameHUD({ round, totalRounds, nLevel, effectiveN, hitsA,
               <span className="font-mono text-[10px] sm:text-xs font-semibold text-fuchsia-400">NRINT</span>
             </div>
           )}
+          {isTJN && (
+            <div className="px-1.5 sm:px-2 py-0.5 rounded bg-indigo-500/10 border border-indigo-500/30 whitespace-nowrap">
+              <span className="font-mono text-[10px] sm:text-xs font-semibold text-indigo-400">TJN</span>
+            </div>
+          )}
           {isCCT && (
             <div className="px-1.5 sm:px-2 py-0.5 rounded bg-amber-500/10 border border-amber-500/40 whitespace-nowrap">
               <span className="font-mono text-[10px] sm:text-xs font-semibold text-amber-400">CCT</span>
@@ -49,9 +59,10 @@ export default function GameHUD({ round, totalRounds, nLevel, effectiveN, hitsA,
 
         {/* Right: Stats (Stream A counts) */}
         <div className="flex items-center gap-2 sm:gap-3 font-mono text-xs">
-          <span className="text-emerald-400">H{hitsA}</span>
-          <span className="text-amber-400">M{missesA}</span>
-          <span className="text-red-400">FA{falseAlarmsA}</span>
+          <span className="text-emerald-400" title="Hits">H{hitsA}</span>
+          <span className="text-amber-400" title="Misses">M{missesA}</span>
+          <span className="text-red-400" title="False Alarms">FA{falseAlarmsA}</span>
+          <span className="text-indigo-300" title="Targets so far (hits + misses)">T{targetCount}</span>
         </div>
       </div>
       {/* Progress bar — visible mostly on mobile to anchor where we are */}

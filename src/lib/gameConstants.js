@@ -1142,8 +1142,8 @@ export const COACH_PHASES = [
     modes: ['trajectory_nback', 'feedback_per_trial'],
     tjnTier: 'extreme',
     tjnTopology: 'lattice',
-    tjnNodes: 6,
-    desc: "Zero-shot pathfinding under revaluation. Target = current node lies on the shortest path from the N-back node to a per-trial goal star. Forces flexible re-planning over an internalized map.",
+    tjnNodes: 9,
+    desc: "Zero-shot pathfinding under revaluation on a 3×3 lattice. Target = current node lies on the shortest path from the N-back node to a per-trial goal star. The goal is auto-picked each trial to guarantee non-trivial paths (≥1 intermediate). Forces flexible re-planning over an internalized map.",
     streamsCount: 1
   },
   // ── Schema Transfer (Tolman-Eichenbaum Machine) curriculum ───────────────

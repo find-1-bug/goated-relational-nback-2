@@ -635,6 +635,7 @@ export default function GameScreen({ nLevel, modes, relationshipPool, totalRound
             hitsA={gameState.hitsA}
             missesA={gameState.missesA}
             falseAlarmsA={gameState.falseAlarmsA}
+            correctRejectionsA={gameState.correctRejectionsA}
             modes={modes}
             numStreams={allStreams.length}
           />
