@@ -902,6 +902,14 @@ export default function GameScreen({ nLevel, modes, relationshipPool, totalRound
                     if (mode === 'nrint') {
                       return isMiss ? 'attrs reachable from a subset of last N' : 'attrs not reachable from any subset';
                     }
+                    if (mode === 'tjn') {
+                      const tjn = stim?._tjn;
+                      const tier = tjn?.tier || 'easy';
+                      if (tier === 'easy') return isMiss ? 'current node IS the N-back node' : 'current ≠ N-back node';
+                      if (tier === 'medium') return isMiss ? 'current is a neighbour of N-back' : 'current is not a neighbour of N-back';
+                      if (tier === 'hard') return isMiss ? `current is reachable in ${tjn?.K || 2} steps from N-back` : `not reachable in ${tjn?.K || 2} steps from N-back`;
+                      if (tier === 'extreme') return isMiss ? 'on the shortest path N-back → ★ goal' : 'NOT on the shortest path N-back → ★';
+                    }
                     if (mode === 'cct') {
                       return isMiss ? 'result = current + N-back digit' : 'result didn\'t equal current + N-back';
                     }

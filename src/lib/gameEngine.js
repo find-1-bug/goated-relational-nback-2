@@ -965,19 +965,61 @@ export function generateNextStimulus(state) {
   const stypeOf = (idx) => (streamTypes && streamTypes[idx]) || 'relation';
 
   // ── Trajectory N-Back / Schema Transfer: full short-circuit. Look up
-  // which block this trial belongs to and consume that block's pre-planned
-  // walk node. In TJN mode there's only one block. In TEM (schemaMode),
-  // blocks share topology family but use independent graphs/themes.
+  // which block this trial belongs to. Once the N-back history is filled
+  // and we're in the same block, balance the node selection to roughly
+  // MATCH_CHANCE target rate — otherwise the natural random walk plus
+  // tier rules either floods targets (Hard / small graphs) or starves
+  // them (Easy / large graphs). Before history fills we just consume
+  // the pre-planned walk so the player sees a natural-looking sequence.
   if (isTJN && state.tjnState) {
     const { blocks, tier, K, schemaMode } = state.tjnState;
     // Find the block this trial belongs to.
     const block = blocks.find(b => round >= b.startTrial && round < b.endTrial) || blocks[blocks.length - 1];
     const localIndex = round - block.startTrial;
-    const node = block.walk[localIndex] != null ? block.walk[localIndex] : block.graph.nodes[0];
     const goal = block.goals?.[localIndex] ?? null;
-    // Map-fading is per-block in schema mode: the player gets a short
-    // re-learn window each time the surface changes.
     const learnPhase = localIndex < TJN_LEARN_TRIALS;
+
+    // Decide the current node.
+    let node;
+    const past = historyA.length >= nLevel ? historyA[historyA.length - nLevel] : null;
+    const pastInSameBlock = !!past?._tjn && past._tjn.blockIndex === block.blockIndex;
+    if (pastInSameBlock) {
+      // Compute the set of nodes that WOULD be targets per the tier rule,
+      // then pick from the target set with probability MATCH_CHANCE and
+      // from its complement otherwise. Keeps target rate near ~25-33%
+      // regardless of topology and tier.
+      const allNodes = block.graph.nodes;
+      const nBackNode = past._tjn.node;
+      let targetSet = new Set();
+      if (tier === 'easy') {
+        targetSet.add(nBackNode);
+      } else if (tier === 'medium') {
+        (block.graph.adjacency[nBackNode] || []).forEach(n => targetSet.add(n));
+      } else if (tier === 'hard') {
+        targetSet = new Set([...allNodes].filter(n => evalTJNTarget({ tier, currentNode: n, nBackNode, graph: block.graph, K })));
+      } else if (tier === 'extreme') {
+        if (goal != null && goal !== nBackNode) {
+          const path = shortestPath(block.graph, nBackNode, goal);
+          if (path && path.length >= 3) path.slice(1, -1).forEach(n => targetSet.add(n));
+        }
+      }
+      const nonTargetNodes = allNodes.filter(n => !targetSet.has(n));
+      const wantTarget = Math.random() < MATCH_CHANCE;
+      // Fall back to the other set if the desired one is empty (e.g. tier=easy
+      // when N-back uniquely targets one node and we want a non-target we
+      // pick anything else; if want a target the set is {nBackNode}).
+      let pool;
+      if (wantTarget && targetSet.size > 0) pool = [...targetSet];
+      else if (!wantTarget && nonTargetNodes.length > 0) pool = nonTargetNodes;
+      else if (targetSet.size > 0) pool = [...targetSet];
+      else pool = allNodes;
+      node = pool[Math.floor(Math.random() * pool.length)];
+    } else {
+      // Pre-target trials: consume the pre-planned walk so the player gets
+      // a natural-looking traversal during the learn-phase warm-up.
+      node = block.walk[localIndex] != null ? block.walk[localIndex] : block.graph.nodes[0];
+    }
+
     const stim = {
       rel: TJN_NODE_REL,
       _tjn: {
