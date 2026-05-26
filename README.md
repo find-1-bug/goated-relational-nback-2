@@ -142,7 +142,7 @@ Cumulative stats in localStorage. Optional hint button. Direct response to the *
 
 # Other systems
 
-- **Relation library**: 86+ relations across 7 categories — SPATIAL · SPATIAL_3D · TRAIT · QUANT · VERBAL · SOUND · COMPLEX. 67 marked as transitive (used by RINT). Full inverse mapping (`BIGGER_THAN ↔ SMALLER_THAN` etc.) — see [src/lib/gameConstants.js](src/lib/gameConstants.js).
+- **Relation library**: 92+ relations across 7 categories — SPATIAL · SPATIAL_3D · TRAIT · QUANT · VERBAL · SOUND (10: pitch / rhythm / volume / duration / timbre — all pair-asymmetric except timbre which is opposition) · COMPLEX. 67 marked as transitive (used by RINT). Full inverse mapping (`BIGGER_THAN ↔ SMALLER_THAN` etc.) — see [src/lib/gameConstants.js](src/lib/gameConstants.js).
 - **Form-class taxonomy** for Analogy N-Back & Insight: 12 abstract structural classes covering ~150 relations.
 - **NRINT**: 10 attribute flags across visual + audio modalities; per-flag enable picker; hide-legend toggle for truly nonverbal play.
 - **Hint-shaped feedback**: per-trial diagnostic on MISS/FA names the misjudged dimension (e.g. "same-token isn't analogy", "different form class") without giving away the answer.

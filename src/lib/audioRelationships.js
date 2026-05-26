@@ -16,7 +16,9 @@ function tokenFrequency(token) {
   return 240 + (total % 28) * 22;
 }
 
-function playTone(ctx, frequency, duration, pan, startTime, type = 'sine') {
+// Single-tone player. `peakGain` lets callers vary loudness independently
+// from frequency / duration — used by the new VOLUME_* sound relations.
+function playTone(ctx, frequency, duration, pan, startTime, type = 'sine', peakGain = 0.18) {
   const oscillator = ctx.createOscillator();
   const gain = ctx.createGain();
   const panner = ctx.createStereoPanner ? ctx.createStereoPanner() : null;
@@ -24,7 +26,7 @@ function playTone(ctx, frequency, duration, pan, startTime, type = 'sine') {
   oscillator.type = type;
   oscillator.frequency.setValueAtTime(frequency, startTime);
   gain.gain.setValueAtTime(0.0001, startTime);
-  gain.gain.exponentialRampToValueAtTime(0.18, startTime + 0.015);
+  gain.gain.exponentialRampToValueAtTime(Math.max(0.0005, peakGain), startTime + 0.015);
   gain.gain.exponentialRampToValueAtTime(0.0001, startTime + duration);
 
   if (panner) {
@@ -86,6 +88,40 @@ export function playSoundStimulus(stimulus, pan = 0, delaySeconds = 0) {
   }
   if (rel === 'RHYTHM_SLOWER') {
     [0, 0.24, 0.48].forEach(offset => playTone(ctx, 420, 0.09, pan, now + offset, 'sine'));
+    return;
+  }
+  // VOLUME — same pitch, different peak gains (loud vs quiet pair)
+  if (rel === 'VOLUME_LOUDER') {
+    playTone(ctx, 480, 0.20, pan, now,         'sine', 0.30);
+    playTone(ctx, 480, 0.20, pan, now + 0.30, 'sine', 0.06);
+    return;
+  }
+  if (rel === 'VOLUME_QUIETER') {
+    playTone(ctx, 480, 0.20, pan, now,         'sine', 0.06);
+    playTone(ctx, 480, 0.20, pan, now + 0.30, 'sine', 0.30);
+    return;
+  }
+  // DURATION — same pitch + volume, different sustain lengths
+  if (rel === 'DURATION_LONGER') {
+    playTone(ctx, 460, 0.45, pan, now,         'sine');
+    playTone(ctx, 460, 0.10, pan, now + 0.55, 'sine');
+    return;
+  }
+  if (rel === 'DURATION_SHORTER') {
+    playTone(ctx, 460, 0.10, pan, now,         'sine');
+    playTone(ctx, 460, 0.45, pan, now + 0.20, 'sine');
+    return;
+  }
+  // TIMBRE — same pitch + volume + duration, different waveforms.
+  // Sawtooth is the "bright" (rich-harmonic) one; sine is "warm" (pure).
+  if (rel === 'TIMBRE_BRIGHT') {
+    playTone(ctx, 500, 0.22, pan, now,         'sawtooth', 0.14);
+    playTone(ctx, 500, 0.22, pan, now + 0.32, 'sine',     0.18);
+    return;
+  }
+  if (rel === 'TIMBRE_WARM') {
+    playTone(ctx, 500, 0.22, pan, now,         'sine',     0.18);
+    playTone(ctx, 500, 0.22, pan, now + 0.32, 'sawtooth', 0.14);
     return;
   }
 

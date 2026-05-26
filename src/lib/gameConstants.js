@@ -60,6 +60,9 @@ export const RELATIONSHIP_CATEGORIES = {
   ],
   SOUND: [
     'PITCH_HIGHER', 'PITCH_LOWER', 'RHYTHM_FASTER', 'RHYTHM_SLOWER',
+    'VOLUME_LOUDER', 'VOLUME_QUIETER',
+    'DURATION_LONGER', 'DURATION_SHORTER',
+    'TIMBRE_BRIGHT', 'TIMBRE_WARM',
   ],
   // Higher-complexity composite relations — players must scan multiple groups
   // and find the odd one out, rather than just compare two shapes.
@@ -159,6 +162,12 @@ export const RELATION_FORM_CLASS = {
   PITCH_LOWER: 'asymmetric_directional',
   RHYTHM_FASTER: 'asymmetric_directional',
   RHYTHM_SLOWER: 'asymmetric_directional',
+  VOLUME_LOUDER: 'asymmetric_directional',
+  VOLUME_QUIETER: 'asymmetric_directional',
+  DURATION_LONGER: 'asymmetric_directional',
+  DURATION_SHORTER: 'asymmetric_directional',
+  TIMBRE_BRIGHT: 'opposition',
+  TIMBRE_WARM: 'opposition',
 
   // Containment — one element wholly inside another
   INSIDE: 'containment',
@@ -525,6 +534,17 @@ export const INVERSE_RELATIONSHIP = {
   CONTAINS:       'PART_OF',
   PART_OF:        'CONTAINS',
   BELONGS_TO:     'CONTAINS',
+  // Sound pairs — all asymmetric/inverse-able
+  PITCH_HIGHER:     'PITCH_LOWER',
+  PITCH_LOWER:      'PITCH_HIGHER',
+  RHYTHM_FASTER:    'RHYTHM_SLOWER',
+  RHYTHM_SLOWER:    'RHYTHM_FASTER',
+  VOLUME_LOUDER:    'VOLUME_QUIETER',
+  VOLUME_QUIETER:   'VOLUME_LOUDER',
+  DURATION_LONGER:  'DURATION_SHORTER',
+  DURATION_SHORTER: 'DURATION_LONGER',
+  TIMBRE_BRIGHT:    'TIMBRE_WARM',
+  TIMBRE_WARM:      'TIMBRE_BRIGHT',
 };
 
 // Given a relationship and its [wordA, wordB], produce the inverted form:
@@ -708,6 +728,12 @@ export function buildSoundDisplay(relationship, pair) {
     PITCH_LOWER: [a, 'lower pitch than', b],
     RHYTHM_FASTER: ['fast', 'rhythm', 'beat'],
     RHYTHM_SLOWER: ['slow', 'rhythm', 'beat'],
+    VOLUME_LOUDER: [a, 'louder than', b],
+    VOLUME_QUIETER: [a, 'quieter than', b],
+    DURATION_LONGER: [a, 'longer than', b],
+    DURATION_SHORTER: [a, 'shorter than', b],
+    TIMBRE_BRIGHT: ['bright', 'timbre', 'pure'],
+    TIMBRE_WARM: ['warm', 'timbre', 'pure'],
     SOUND_SAME_WORD: [a, 'same spoken word as', b],
     SOUND_DIFFERENT_WORD: [a, 'different word from', b],
     SOUND_SAME_LETTER: [a, 'same letter as', b],

@@ -175,6 +175,9 @@ const REL_DISPLAY = {
   // Sound
   PITCH_HIGHER: 'Pitch Higher', PITCH_LOWER: 'Pitch Lower',
   RHYTHM_FASTER: 'Rhythm Faster', RHYTHM_SLOWER: 'Rhythm Slower',
+  VOLUME_LOUDER: 'Volume Louder', VOLUME_QUIETER: 'Volume Quieter',
+  DURATION_LONGER: 'Duration Longer', DURATION_SHORTER: 'Duration Shorter',
+  TIMBRE_BRIGHT: 'Timbre Bright', TIMBRE_WARM: 'Timbre Warm',
 };
 
 const KEY_OPTIONS = [
