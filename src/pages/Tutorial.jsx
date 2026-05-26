@@ -5,7 +5,7 @@ import { Button } from '@/components/ui/button';
 import {
   ChevronLeft, Brain, Zap, Layers, Gamepad2,
   GitBranch, Eye, Volume2, ShieldAlert,
-  Sparkles, Menu, X, Play, Settings2, Compass
+  Sparkles, Menu, X, Play, Settings2, Compass, Award
 } from 'lucide-react';
 import { COACH_PHASES } from '@/lib/gameConstants';
 
