@@ -1267,6 +1267,10 @@ function renderNRINTComposite(ctx, cx, cy, stimulus, scale = 1) {
     attrs.striped       ? { t: 'STRIPE',  c: '#fca5a5' } : null,
     attrs.audio         ? { t: 'AUDIO ♪', c: '#34d399' } : null,
     attrs.pitch_high    ? { t: 'HIGH ♪',  c: '#fb7185' } : null,
+    attrs.audio_loud    ? { t: 'LOUD ♪',  c: '#fbbf24' } : null,
+    attrs.audio_long    ? { t: 'LONG ♪',  c: '#60a5fa' } : null,
+    attrs.audio_rhythmic? { t: 'RHYTHM ♪', c: '#c084fc' } : null,
+    attrs.audio_warm    ? { t: 'WARM ♪',  c: '#fb923c' } : null,
   ].filter(Boolean);
   if (flags.length > 0) {
     const spacing = Math.max(54, Math.min(70, 360 / flags.length)) * scale;

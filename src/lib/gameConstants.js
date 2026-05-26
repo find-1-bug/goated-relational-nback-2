@@ -922,7 +922,7 @@ export const COACH_PHASES = [
     speedMs: 2000,
     rounds: 28,
     modes: ['distractors', 'lures', 'negation', 'adaptive_closed_loop', 'nonverbal_rint'],
-    desc: "Tests cross-modal subset-unions across multiple sensory attributes.",
+    desc: "Tests cross-modal subset-unions across up to 14 binary attributes (8 visual + 6 audio). Each audio cue fires in its own time slot so multiple layer cleanly per trial.",
     streamsCount: 1
   },
   {

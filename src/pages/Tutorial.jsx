@@ -266,7 +266,7 @@ export default function Tutorial() {
                       </div>
                       <div>
                         <strong className="text-accent block font-mono uppercase tracking-wider">Nonverbal RINT</strong>
-                        <span>Stimuli carry up to <strong>10 independent binary attributes</strong> across two modalities — Visual: touching, hollow, size-mismatch, rotated, dashed, glow, mirrored, striped (8); Audio: tone, high-pitch (2). A match fires when the current composite equals the <strong>union of a subset</strong> of the last N trials (e.g. trial 1 = {`{TOUCH, GLOW}`}, trial 2 = {`{HOLLOW}`} → current = {`{TOUCH, HOLLOW, GLOW}`} is a target since 1∪2 = current). Disable individual flags via the Nonverbal RINT settings panel that surfaces when this mode is on.</span>
+                        <span>Stimuli carry up to <strong>14 independent binary attributes</strong> across two modalities — Visual: touching, hollow, size-mismatch, rotated, dashed, glow, mirrored, striped (8); Audio: tone, high-pitch, loud, long, rhythmic, warm (6). Each audio flag fires at its own time slot so multiple cues per trial layer without colliding. A match fires when the current composite equals the <strong>union of a subset</strong> of the last N trials (e.g. trial 1 = {`{TOUCH, GLOW}`}, trial 2 = {`{HOLLOW}`} → current = {`{TOUCH, HOLLOW, GLOW}`} is a target since 1∪2 = current). Disable individual flags via the Nonverbal RINT settings panel that surfaces when this mode is on.</span>
                       </div>
                       <div>
                         <strong className="text-accent block font-mono uppercase tracking-wider">CCT (Cognitive Control arithmetic)</strong>
@@ -513,14 +513,18 @@ export default function Tutorial() {
                   <div className="space-y-4 text-xs">
                     {/* Ex 1 */}
                     <div className="rounded-lg bg-secondary/20 border border-border/80 p-5 space-y-2">
-                      <strong className="text-fuchsia-300 block font-mono">Nonverbal RINT Subset-Union Rule (N = 2)</strong>
+                      <strong className="text-fuchsia-300 block font-mono">Nonverbal RINT Subset-Union Rule (N = 3)</strong>
                       <p className="text-muted-foreground leading-relaxed">
-                        Match is true when current flags equal the union of a subset of the previous 2 stims.
+                        Match is true when current flags equal the union of some non-empty subset of the previous N stims.
+                        Up to <strong>14 binary attributes</strong> available (8 visual + 6 audio).
+                        Key catch: <em>a past stim is only usable as a "summand" if ALL its flags are also in current</em> — you can't partially use a stim.
                       </p>
                       <div className="rounded bg-background/50 border border-border p-3 space-y-1 font-mono text-[11px]">
-                        <div>Trial 1: <span className="text-cyan-300">touching ✓</span> · <span className="text-emerald-300">audioBeat ✓</span></div>
-                        <div>Trial 2: <span className="text-violet-300">hollow ✓</span></div>
-                        <div>Trial 3: <span className="text-cyan-300">touching ✓</span> · <span className="text-violet-300">hollow ✓</span> · <span className="text-emerald-300">audioBeat ✓</span> &rarr; <span className="text-emerald-400 font-bold">TARGET</span> (combined Trial 1 + Trial 2)</div>
+                        <div>Trial 1: <span className="text-cyan-300">touching</span> · <span className="text-amber-300">glow</span> · <span className="text-emerald-300">audio ♪</span></div>
+                        <div>Trial 2: <span className="text-violet-300">hollow</span> · <span className="text-orange-300">warm ♪</span></div>
+                        <div>Trial 3: <span className="text-cyan-300">touching</span></div>
+                        <div>Trial 4 (current = <span className="text-cyan-300">touching</span> · <span className="text-amber-300">glow</span> · <span className="text-emerald-300">audio</span>) &rarr; <span className="text-emerald-400 font-bold">TARGET</span> — T1 is fully in current, T3 is fully in current, T1 ∪ T3 = current. (T2 excluded — has hollow + warm, neither in current.)</div>
+                        <div>Trial 5 (current = <span className="text-cyan-300">touching</span> · <span className="text-violet-300">hollow</span>) &rarr; <span className="text-rose-400 font-bold">not a target</span> — T2 has hollow (good) but also warm (not in current) → T2 excluded entirely. T1 has audio + glow (not in current) → excluded. Only T3 remains; T3 ∪ {`{}`} = {`{touching}`} ≠ current.</div>
                       </div>
                     </div>
 

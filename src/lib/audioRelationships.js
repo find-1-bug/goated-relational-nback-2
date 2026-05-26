@@ -47,10 +47,20 @@ function playTokenCue(ctx, token, pan, startTime) {
   });
 }
 
-// Brief cross-modal cues for the NRINT audio-modality flags. Reuses the
-// shared AudioContext + playTone so they inherit autoplay-policy handling.
-// The two cues use distinctly different pitches so they're easy to tell
-// apart even when both fire on the same trial.
+// Cross-modal cues for the NRINT audio-modality flags. Each fires in its
+// own time slot so multiple cues on the same trial layer without colliding.
+// All reuse the shared AudioContext + playTone so they inherit
+// autoplay-policy handling.
+//
+//   Flag           Slot offset   Synthesis
+//   audio          +0.03 s       480 Hz sine, normal gain, 0.18 s
+//   pitch_high     +0.03 s       980 Hz sine, normal gain, 0.18 s
+//   audio_loud     +0.25 s       480 Hz sine, HIGH gain (0.40), 0.18 s
+//   audio_long     +0.45 s       480 Hz sine, normal gain, LONG 0.45 s
+//   audio_rhythmic +0.75 s       720 Hz sine, three quick pulses (0.05 s × 3)
+//   audio_warm     +1.05 s       320 Hz sawtooth, normal gain, 0.22 s
+//
+// Slot offsets keep them clearly separable when 4+ fire on the same trial.
 export function playNRINTAudioCue(pan = 0) {
   const ctx = getAudioContext();
   if (!ctx) return;
@@ -60,6 +70,27 @@ export function playNRINTPitchHighCue(pan = 0) {
   const ctx = getAudioContext();
   if (!ctx) return;
   playTone(ctx, 980, 0.18, pan, ctx.currentTime + 0.03, 'sine');
+}
+export function playNRINTLoudCue(pan = 0) {
+  const ctx = getAudioContext();
+  if (!ctx) return;
+  playTone(ctx, 480, 0.18, pan, ctx.currentTime + 0.25, 'sine', 0.40);
+}
+export function playNRINTLongCue(pan = 0) {
+  const ctx = getAudioContext();
+  if (!ctx) return;
+  playTone(ctx, 480, 0.45, pan, ctx.currentTime + 0.45, 'sine');
+}
+export function playNRINTRhythmicCue(pan = 0) {
+  const ctx = getAudioContext();
+  if (!ctx) return;
+  const t0 = ctx.currentTime + 0.75;
+  [0, 0.08, 0.16].forEach(off => playTone(ctx, 720, 0.05, pan, t0 + off, 'sine'));
+}
+export function playNRINTWarmCue(pan = 0) {
+  const ctx = getAudioContext();
+  if (!ctx) return;
+  playTone(ctx, 320, 0.22, pan, ctx.currentTime + 1.05, 'sawtooth', 0.14);
 }
 
 export function playSoundStimulus(stimulus, pan = 0, delaySeconds = 0) {

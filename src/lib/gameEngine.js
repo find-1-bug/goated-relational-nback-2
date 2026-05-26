@@ -385,8 +385,8 @@ export const NRINT_FLAGS = [
   // visual (8) — Grapist asked for more visual diversity beyond the original 4
   'touching', 'hollow', 'size_mismatch', 'rotated',
   'dashed_border', 'glow', 'mirrored', 'striped',
-  // audio (2)
-  'audio', 'pitch_high',
+  // audio (6) — extended to balance the visual count
+  'audio', 'pitch_high', 'audio_loud', 'audio_long', 'audio_rhythmic', 'audio_warm',
 ];
 export const NRINT_FLAG_META = {
   touching:       { group: 'visual', label: 'Touching',     desc: 'shapes adjacent vs. apart' },
@@ -397,8 +397,12 @@ export const NRINT_FLAG_META = {
   glow:           { group: 'visual', label: 'Glow',         desc: 'neon halo around the shapes' },
   mirrored:       { group: 'visual', label: 'Mirrored',     desc: 'left shape horizontally flipped' },
   striped:        { group: 'visual', label: 'Striped',      desc: 'right shape carries diagonal stripes' },
-  audio:          { group: 'audio',  label: 'Tone',         desc: 'brief sine tone' },
-  pitch_high:     { group: 'audio',  label: 'High pitch',   desc: 'higher-pitched chime' },
+  audio:          { group: 'audio',  label: 'Tone',         desc: 'brief 480 Hz sine tone' },
+  pitch_high:     { group: 'audio',  label: 'High pitch',   desc: 'higher-pitched chime (980 Hz)' },
+  audio_loud:     { group: 'audio',  label: 'Loud',         desc: 'tone at high gain (same pitch)' },
+  audio_long:     { group: 'audio',  label: 'Long',         desc: 'sustained tone (~0.45 s)' },
+  audio_rhythmic: { group: 'audio',  label: 'Rhythmic',     desc: 'three quick staccato pulses' },
+  audio_warm:     { group: 'audio',  label: 'Warm',         desc: 'low sawtooth (warm timbre)' },
 };
 const NRINT_DEFAULT_FLAGS = ['touching', 'hollow', 'size_mismatch', 'rotated', 'audio'];
 

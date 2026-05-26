@@ -13,7 +13,11 @@ import {
   isSound,
   getAssetUrl,
 } from '@/lib/gameConstants';
-import { playSoundStimulus, playNRINTAudioCue, playNRINTPitchHighCue } from '@/lib/audioRelationships';
+import {
+  playSoundStimulus,
+  playNRINTAudioCue, playNRINTPitchHighCue,
+  playNRINTLoudCue, playNRINTLongCue, playNRINTRhythmicCue, playNRINTWarmCue,
+} from '@/lib/audioRelationships';
 
 function StreamModeBadge({ mode, alwaysShow }) {
   if (!mode) return null;
@@ -537,6 +541,10 @@ export default function GameScreen({ nLevel, modes, relationshipPool, totalRound
       const pan = nrintCueItems.length === 1 ? 0 : (i % 2 === 0 ? -0.6 : 0.6);
       if (item.stimulus?.attrs?.audio) playNRINTAudioCue(pan);
       if (item.stimulus?.attrs?.pitch_high) playNRINTPitchHighCue(pan);
+      if (item.stimulus?.attrs?.audio_loud) playNRINTLoudCue(pan);
+      if (item.stimulus?.attrs?.audio_long) playNRINTLongCue(pan);
+      if (item.stimulus?.attrs?.audio_rhythmic) playNRINTRhythmicCue(pan);
+      if (item.stimulus?.attrs?.audio_warm) playNRINTWarmCue(pan);
     });
   }, [phase, clearCanvas, gameState.round, gameState.audioStreamIndexes, gameState.currentRelationship, gameState.currentStimulusA, gameState.extraCurrentRels, gameState.extraCurrentStimuli]);
 
