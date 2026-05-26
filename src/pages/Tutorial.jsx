@@ -13,6 +13,7 @@ const TABS = [
   { id: 'intro',     label: 'Core Basics',     icon: Brain,        desc: 'N-Back introduction, play guide, and controls' },
   { id: 'settings',  label: 'Settings Guide',  icon: Settings2,    desc: 'Parameters, symbols, and custom token styles' },
   { id: 'modes',     label: 'Cognitive Modes', icon: Layers,       desc: 'Deep dive into transitive, nonverbal, and CCT logic' },
+  { id: 'trajectory',label: 'Predictive Map',  icon: Compass,      desc: 'Trajectory N-Back full guide (SR · TEM) per tier' },
   { id: 'features',  label: 'Special Tech',    icon: Sparkles,     desc: 'Synaesthesia maps, audiobeats, and stressors' },
   { id: 'autopilot', label: 'Autopilot Prep',  icon: Zap,          desc: 'Scientific 20-level progressive curriculum grid' },
   { id: 'examples',  label: 'Step Walkthroughs',icon: GitBranch,    desc: 'Worked trial examples for complex rules' },
@@ -460,6 +461,336 @@ export default function Tutorial() {
                       </div>
                     </div>
                   </div>
+                </div>
+              )}
+
+              {/* TRAJECTORY N-BACK · DEEP DIVE TAB */}
+              {activeTab === 'trajectory' && (
+                <div className="space-y-6 font-mono text-[12px] sm:text-[13px] leading-relaxed text-muted-foreground">
+
+                  {/* Section 1 — Why this mode exists */}
+                  <section className="rounded-lg bg-indigo-500/10 border border-indigo-500/30 p-5 space-y-3">
+                    <div className="flex items-center gap-2">
+                      <Compass className="w-5 h-5 text-indigo-400 animate-pulse" />
+                      <h3 className="text-xs font-bold uppercase tracking-wider text-indigo-300">Why Trajectory N-Back exists</h3>
+                    </div>
+                    <p>
+                      All the other modes in this app train the <strong>prefrontal cortex</strong> — working memory capacity (n-back), relational integration (RINT / RST / Analogy), set-shifting (Wrapper Morph), inhibition (Negation), arithmetic updating (CCT). Powerful, but they all live in the same neural neighbourhood (DLPFC + parietal). Trajectory N-Back targets a <strong>different brain network</strong>: the <span className="text-indigo-300">hippocampus + entorhinal cortex</span>, which builds <em>cognitive maps</em> — graph-structured predictions about what comes after what.
+                    </p>
+                    <p>
+                      Stachenfeld, Botvinick &amp; Gershman (2017, <em>Nature Neuroscience</em>) showed that hippocampal place cells aren't "I am here" detectors — they encode a <strong>Successor Representation</strong>: from each state, the expected discounted occupancy of all future states. The grid cells of the entorhinal cortex are the principal components (eigenvectors) of this SR matrix. Behrens et al. (2020, <em>Cell</em>) generalized this to abstract relational schemas (Tolman-Eichenbaum Machine — TEM): the same machinery that maps physical space also maps social hierarchies, conceptual networks, family trees.
+                    </p>
+                    <p>
+                      <strong className="text-indigo-200">What you train here:</strong> the ability to walk through a graph, internalize its structure from experience, and predict where you'll be next. After a short learning window, the edges fade — you must navigate from memory. Tiers add layers: first identity, then neighbours, then K-step prediction, then shortest-path revaluation. Schema Transfer (TEM mode) pushes further: multiple graphs with the same topology but fresh surfaces, testing whether you've grasped the underlying schema.
+                    </p>
+                  </section>
+
+                  {/* Section 2 — Anatomy of the Board */}
+                  <section className="rounded-lg bg-secondary/20 border border-border p-5 space-y-3">
+                    <h3 className="text-xs font-bold uppercase tracking-wider text-foreground flex items-center gap-2">
+                      <Eye className="w-4 h-4 text-indigo-400" /> Anatomy of the board
+                    </h3>
+                    <p>Every TJN trial draws the same graph on a dark canvas with these visual elements:</p>
+                    <ul className="list-disc list-inside pl-1 space-y-1.5">
+                      <li><strong className="text-indigo-200">Nodes (A, B, C…)</strong> — circles with letter labels (the graph's vertices). Position never changes within a block.</li>
+                      <li><strong className="text-indigo-200">Edges</strong> — lines between nodes; the topology. Visible during the learning phase, faded afterwards.</li>
+                      <li><strong className="text-indigo-200">Current node</strong> — large highlighted circle with a coloured ring + <span className="text-indigo-300">▼ YOU</span> arrow above. This is the only thing that changes per trial.</li>
+                      <li><strong className="text-indigo-200">Tier badge (top-right)</strong> — e.g. <span className="text-amber-300">TJN · HARD · K=2</span>. Tells you the active target rule.</li>
+                      <li><strong className="text-indigo-200">Phase indicator</strong> — green <em>"MAP LEARNING — edges visible"</em> for the first 6 trials, magenta <em>"MAP FADED — recall topology from memory"</em> after.</li>
+                      <li><strong className="text-indigo-200">Goal star ★</strong> — only in Extreme tier; yellow star floats above the goal node.</li>
+                      <li><strong className="text-indigo-200">Bottom hint strip</strong> — one-line restatement of the target rule for the active tier.</li>
+                      <li><strong className="text-indigo-200">Block badge (top-left, TEM only)</strong> — e.g. <span className="text-cyan-300">Map α</span> / <span className="text-emerald-300">Map β</span> / <span className="text-violet-300">Map γ</span>. Each block has a distinct colour theme.</li>
+                    </ul>
+                    <p>
+                      <strong className="text-indigo-200">HUD additions:</strong> the top-bar shows <strong>T<em>n</em></strong> alongside H / M / FA — that's <em>total targets fired this session</em> (hits + misses). Use it to verify targets are actually appearing; if T stays at 0 past trial 5, you may be on a sparse configuration (e.g. Extreme on a tiny graph). The indigo <strong>TJN</strong> badge confirms the mode is active.
+                    </p>
+                  </section>
+
+                  {/* Section 3 — Map Fading */}
+                  <section className="rounded-lg bg-secondary/20 border border-border p-5 space-y-3">
+                    <h3 className="text-xs font-bold uppercase tracking-wider text-foreground flex items-center gap-2">
+                      <Sparkles className="w-4 h-4 text-indigo-400" /> The Map Fading mechanic
+                    </h3>
+                    <p>
+                      For the first <strong className="text-indigo-200">6 trials</strong> of each block, the graph's edges are drawn solid (~55% opacity). This is the <strong>learning phase</strong> — your job is to memorize the topology while doing easy walks.
+                    </p>
+                    <p>
+                      From trial 7 onwards, the edges fade to ~7% opacity (barely visible — basically gone). You must now reason about adjacency / K-step reach / shortest paths <strong>from memory</strong> of the topology you encoded during learning.
+                    </p>
+                    <div className="bg-amber-500/10 border border-amber-500/30 rounded p-3 text-[12px]">
+                      <strong className="text-amber-300">Why this matters:</strong> Without map-fading, the task would degrade into pure visual edge-checking. You'd be reading the edges off the screen, not <em>thinking</em> about the structure. That's NOT Successor Representation training — it's a visual pattern-matching task. The fading window forces real hippocampal encoding: you actually have to <em>remember</em> the graph.
+                    </div>
+                    <p>
+                      <strong>In TEM mode:</strong> the 6-trial learning window <em>resets each block</em>. Every time the surface swaps to a new graph instance (Map α → Map β → Map γ), you get a fresh learning phase. But — and this is the whole point — if you've actually grasped the <em>schema</em> ("this is always a 6-cycle with one shortcut"), you don't really need the learning phase. You should be able to predict structure on Map β within 2-3 trials.
+                    </p>
+                  </section>
+
+                  {/* Section 4 — Tier 1: Easy */}
+                  <section className="rounded-lg bg-emerald-500/10 border border-emerald-500/30 p-5 space-y-3">
+                    <h3 className="text-xs font-bold uppercase tracking-wider text-emerald-300 flex items-center gap-2">
+                      <Award className="w-4 h-4" /> Tier 1 — Easy · Identity Matching
+                    </h3>
+                    <p className="text-[13px]">
+                      <strong className="text-emerald-200">Rule:</strong> Press the response key if the <em>current node</em> is <em>exactly</em> the same node as the one you were on <strong>N trials ago</strong>.
+                    </p>
+                    <p>
+                      This is essentially classic spatial n-back but on a labeled graph. You don't need to use the graph topology at all — you just have to remember "what letter was I on N trials ago?". Equivalent to remembering position in 6 numbered slots. It's a warm-up for the medium / hard tiers but still tests <em>positional working memory</em> on a graph substrate.
+                    </p>
+                    <div className="overflow-x-auto rounded border border-emerald-500/30 bg-background/40">
+                      <table className="w-full text-[11px]">
+                        <thead><tr className="bg-secondary/40 border-b border-emerald-500/30">
+                          <th className="text-left p-2 text-emerald-300">Trial</th>
+                          <th className="text-left p-2 text-emerald-300">Current</th>
+                          <th className="text-left p-2 text-emerald-300">N=2 back</th>
+                          <th className="text-left p-2 text-emerald-300">Same?</th>
+                          <th className="text-left p-2 text-emerald-300">Action</th>
+                        </tr></thead>
+                        <tbody className="text-foreground/85">
+                          <tr className="border-b border-emerald-500/20"><td className="p-2">1</td><td className="p-2">A</td><td className="p-2 text-muted-foreground/60">—</td><td className="p-2 text-muted-foreground/60">—</td><td className="p-2 text-muted-foreground">(no history, no press)</td></tr>
+                          <tr className="border-b border-emerald-500/20"><td className="p-2">2</td><td className="p-2">D</td><td className="p-2 text-muted-foreground/60">—</td><td className="p-2 text-muted-foreground/60">—</td><td className="p-2 text-muted-foreground">(no history, no press)</td></tr>
+                          <tr className="border-b border-emerald-500/20"><td className="p-2">3</td><td className="p-2">A</td><td className="p-2">A</td><td className="p-2 text-emerald-300">✓ yes</td><td className="p-2 text-emerald-300 font-semibold">PRESS</td></tr>
+                          <tr className="border-b border-emerald-500/20"><td className="p-2">4</td><td className="p-2">B</td><td className="p-2">D</td><td className="p-2 text-rose-300">✗ no</td><td className="p-2 text-rose-300">don't press</td></tr>
+                          <tr className="border-b border-emerald-500/20"><td className="p-2">5</td><td className="p-2">A</td><td className="p-2">A</td><td className="p-2 text-emerald-300">✓ yes</td><td className="p-2 text-emerald-300 font-semibold">PRESS</td></tr>
+                          <tr><td className="p-2">6</td><td className="p-2">C</td><td className="p-2">B</td><td className="p-2 text-rose-300">✗ no</td><td className="p-2 text-rose-300">don't press</td></tr>
+                        </tbody>
+                      </table>
+                    </div>
+                    <p><strong className="text-emerald-200">Strategy:</strong> Treat node labels as if they were any other n-back stimulus. The graph edges are a <em>distraction</em> at this tier — you can ignore them entirely. Focus only on the letter-level identity match.</p>
+                    <p><strong className="text-emerald-200">Common mistake:</strong> Trying to overthink and use the graph topology when it's not needed. If the question is "is current = N-back?", neighbours and successors are irrelevant.</p>
+                  </section>
+
+                  {/* Section 5 — Tier 2: Medium */}
+                  <section className="rounded-lg bg-cyan-500/10 border border-cyan-500/30 p-5 space-y-3">
+                    <h3 className="text-xs font-bold uppercase tracking-wider text-cyan-300 flex items-center gap-2">
+                      <Award className="w-4 h-4" /> Tier 2 — Medium · Neighbour Recall
+                    </h3>
+                    <p className="text-[13px]">
+                      <strong className="text-cyan-200">Rule:</strong> Press if the <em>current node</em> is a <strong>direct neighbour</strong> of the node you were on N trials ago — i.e. there exists an edge between them in the graph.
+                    </p>
+                    <p>
+                      Now the topology matters. You have to recall <em>which nodes are connected to which</em> AND the N-back position. After map-fading, you can't read the edges off the screen any more — you actually need to have memorized the adjacency structure.
+                    </p>
+                    <p><strong className="text-cyan-200">Example</strong> on a small-world graph (ring A-B-C-D-E-F-A with extra shortcut A↔C):</p>
+                    <p className="text-[11px] text-muted-foreground/80">Adjacency: A→{'{'}B, F, C{'}'}  ·  B→{'{'}A, C{'}'}  ·  C→{'{'}B, D, A{'}'}  ·  D→{'{'}C, E{'}'}  ·  E→{'{'}D, F{'}'}  ·  F→{'{'}E, A{'}'}</p>
+                    <div className="overflow-x-auto rounded border border-cyan-500/30 bg-background/40">
+                      <table className="w-full text-[11px]">
+                        <thead><tr className="bg-secondary/40 border-b border-cyan-500/30">
+                          <th className="text-left p-2 text-cyan-300">Trial</th>
+                          <th className="text-left p-2 text-cyan-300">Current</th>
+                          <th className="text-left p-2 text-cyan-300">N=2 back</th>
+                          <th className="text-left p-2 text-cyan-300">Neighbours of N-back</th>
+                          <th className="text-left p-2 text-cyan-300">Verdict</th>
+                        </tr></thead>
+                        <tbody className="text-foreground/85">
+                          <tr className="border-b border-cyan-500/20"><td className="p-2">3</td><td className="p-2">B</td><td className="p-2">A</td><td className="p-2">{'{B, F, C}'}</td><td className="p-2 text-emerald-300 font-semibold">✓ PRESS (B is in set)</td></tr>
+                          <tr className="border-b border-cyan-500/20"><td className="p-2">4</td><td className="p-2">D</td><td className="p-2">C</td><td className="p-2">{'{B, D, A}'}</td><td className="p-2 text-emerald-300 font-semibold">✓ PRESS</td></tr>
+                          <tr className="border-b border-cyan-500/20"><td className="p-2">5</td><td className="p-2">A</td><td className="p-2">B</td><td className="p-2">{'{A, C}'}</td><td className="p-2 text-emerald-300 font-semibold">✓ PRESS</td></tr>
+                          <tr><td className="p-2">6</td><td className="p-2">E</td><td className="p-2">D</td><td className="p-2">{'{C, E}'}</td><td className="p-2 text-emerald-300 font-semibold">✓ PRESS</td></tr>
+                        </tbody>
+                      </table>
+                    </div>
+                    <p><strong className="text-cyan-200">Strategy:</strong> During the learning phase, do <em>active rehearsal</em> of edges — every time the current node changes, mentally trace which other nodes it touches. By trial 6, you should be able to recite the full adjacency list. After map-fade, your mental list is your only reference.</p>
+                    <p><strong className="text-cyan-200">Common mistake:</strong> Memorizing only the walk path (the sequence you've traversed) instead of the underlying topology. You can be on A → C → B → D and still not realize that A connects to F too. Map-fading exposes this — you'll start missing targets that involve unused edges.</p>
+                  </section>
+
+                  {/* Section 6 — Tier 3: Hard */}
+                  <section className="rounded-lg bg-amber-500/10 border border-amber-500/30 p-5 space-y-3">
+                    <h3 className="text-xs font-bold uppercase tracking-wider text-amber-300 flex items-center gap-2">
+                      <Award className="w-4 h-4" /> Tier 3 — Hard · K-Step Successor (the SR core)
+                    </h3>
+                    <p className="text-[13px]">
+                      <strong className="text-amber-200">Rule:</strong> Press if the current node is reachable from the N-back node in <strong>exactly K steps</strong> (default K=2). "Reachable in K steps" means there exists at least one walk of length K from N-back-node to current.
+                    </p>
+                    <p>
+                      This is the heart of Successor Representation training. You're predicting future occupancy. Given that I was at X two trials ago, where am I likely to be NOW (after 2 steps of walk)?
+                    </p>
+                    <p>
+                      The K-step reachable set is computed by BFS over walks of length K. For K=2, from node X the reachable set is the union of neighbours-of-neighbours (revisits allowed).
+                    </p>
+                    <p><strong className="text-amber-200">Worked example</strong> (same small-world graph, N=2, K=2):</p>
+                    <div className="overflow-x-auto rounded border border-amber-500/30 bg-background/40">
+                      <table className="w-full text-[11px]">
+                        <thead><tr className="bg-secondary/40 border-b border-amber-500/30">
+                          <th className="text-left p-2 text-amber-300">Trial</th>
+                          <th className="text-left p-2 text-amber-300">Current</th>
+                          <th className="text-left p-2 text-amber-300">N=2 back</th>
+                          <th className="text-left p-2 text-amber-300">K=2 reach from N-back</th>
+                          <th className="text-left p-2 text-amber-300">Verdict</th>
+                        </tr></thead>
+                        <tbody className="text-foreground/85">
+                          <tr className="border-b border-amber-500/20"><td className="p-2">3</td><td className="p-2">B</td><td className="p-2">A</td><td className="p-2">A→B / A→F / A→C in 1 step → 2-step: B can be reached via A→C→B ✓ — set {'{A, B, F, C, D, E}'}</td><td className="p-2 text-emerald-300 font-semibold">✓ PRESS</td></tr>
+                          <tr className="border-b border-amber-500/20"><td className="p-2">4</td><td className="p-2">A</td><td className="p-2">C</td><td className="p-2">C neighbours: {'{B, D, A}'} → 2-step reach: {'{A, C, B, D, E}'} → A ∈ set</td><td className="p-2 text-emerald-300 font-semibold">✓ PRESS</td></tr>
+                          <tr className="border-b border-amber-500/20"><td className="p-2">5</td><td className="p-2">F</td><td className="p-2">B</td><td className="p-2">B→A in 1, B→C in 1 → 2-step: {'{B, C, F, D, A}'} → F ∈ set</td><td className="p-2 text-emerald-300 font-semibold">✓ PRESS</td></tr>
+                          <tr><td className="p-2">6</td><td className="p-2">E</td><td className="p-2">A</td><td className="p-2">A's 2-step reach is {'{A, B, F, C, D}'} — E NOT included</td><td className="p-2 text-rose-300 font-semibold">✗ don't press</td></tr>
+                        </tbody>
+                      </table>
+                    </div>
+                    <p><strong className="text-amber-200">Strategy:</strong> Don't try to compute K-step reach on the fly during a trial — too slow. Instead, during the learning phase, mentally precompute the <em>2-hop neighbours</em> of each node and remember those clusters. For a 6-node graph this is doable: just memorize "A reaches {'{B, F, C, D, E}'} in 2 steps" etc. You're caching the SR matrix in your head.</p>
+                    <p><strong className="text-amber-200">Common mistake:</strong> Confusing 1-step reach (medium tier rule) with 2-step reach. If current is a direct neighbour of N-back, it's <em>also</em> reachable in 2 steps (via any neighbour-of-neighbour that loops back). At K=2 the target set is much larger than at K=1.</p>
+                    <p><strong className="text-amber-200">K knob:</strong> the start-screen lets you set K from 1 to 4. K=1 collapses Hard tier back to Medium. K=3 or 4 covers most of the graph for small node counts — target rates climb toward 60-70%, which can feel trivial. K=2 is the design sweet spot.</p>
+                  </section>
+
+                  {/* Section 7 — Tier 4: Extreme */}
+                  <section className="rounded-lg bg-rose-500/10 border border-rose-500/30 p-5 space-y-3">
+                    <h3 className="text-xs font-bold uppercase tracking-wider text-rose-300 flex items-center gap-2">
+                      <Award className="w-4 h-4" /> Tier 4 — Extreme · Goal Revaluation
+                    </h3>
+                    <p className="text-[13px]">
+                      <strong className="text-rose-200">Rule:</strong> Each trial shows a goal node marked with a yellow ★ above it. Press if the current node sits on the <strong>shortest path</strong> from the N-back node to the goal (excluding the endpoints themselves).
+                    </p>
+                    <p>
+                      This is Stachenfeld's "revaluation" test: when the reward / goal changes location, can you re-plan an optimal path on-the-fly using your cached cognitive map? A pure model-free agent (cached value lookups) would need re-training. A pure model-based agent (full topology + planning) could do it but slowly. An SR-mapped agent computes shortcuts instantly.
+                    </p>
+                    <p>
+                      The engine auto-picks a goal each trial such that the shortest path from N-back to goal has at least one intermediate node (otherwise the test is trivial). On the 3×3 lattice this gives ~3-8 targets per 20 trials at MATCH_CHANCE.
+                    </p>
+                    <p><strong className="text-rose-200">Worked example</strong> (3×3 lattice, nodes A-I laid out in rows of 3, N=2):</p>
+                    <p className="text-[11px] text-muted-foreground/80">Lattice adjacency (row-major): A-B-C | D-E-F | G-H-I with vertical edges A-D, B-E, C-F, D-G, E-H, F-I and horizontal edges within rows.</p>
+                    <div className="overflow-x-auto rounded border border-rose-500/30 bg-background/40">
+                      <table className="w-full text-[11px]">
+                        <thead><tr className="bg-secondary/40 border-b border-rose-500/30">
+                          <th className="text-left p-2 text-rose-300">Trial</th>
+                          <th className="text-left p-2 text-rose-300">Current</th>
+                          <th className="text-left p-2 text-rose-300">N-back</th>
+                          <th className="text-left p-2 text-rose-300">Goal ★</th>
+                          <th className="text-left p-2 text-rose-300">Shortest path (intermediates)</th>
+                          <th className="text-left p-2 text-rose-300">Verdict</th>
+                        </tr></thead>
+                        <tbody className="text-foreground/85">
+                          <tr className="border-b border-rose-500/20"><td className="p-2">3</td><td className="p-2">B</td><td className="p-2">A</td><td className="p-2">C</td><td className="p-2">A→<strong className="text-rose-200">B</strong>→C  → {'{B}'}</td><td className="p-2 text-emerald-300 font-semibold">✓ PRESS</td></tr>
+                          <tr className="border-b border-rose-500/20"><td className="p-2">4</td><td className="p-2">F</td><td className="p-2">A</td><td className="p-2">I</td><td className="p-2">A→B→C→F→I → {'{B, C, F}'} (one of many 4-length paths)</td><td className="p-2 text-emerald-300 font-semibold">✓ PRESS</td></tr>
+                          <tr className="border-b border-rose-500/20"><td className="p-2">5</td><td className="p-2">H</td><td className="p-2">A</td><td className="p-2">E</td><td className="p-2">A→B→E or A→D→E → {'{B, D}'} (NOT H)</td><td className="p-2 text-rose-300 font-semibold">✗ don't press</td></tr>
+                          <tr><td className="p-2">6</td><td className="p-2">E</td><td className="p-2">B</td><td className="p-2">H</td><td className="p-2">B→<strong className="text-rose-200">E</strong>→H → {'{E}'}</td><td className="p-2 text-emerald-300 font-semibold">✓ PRESS</td></tr>
+                        </tbody>
+                      </table>
+                    </div>
+                    <p><strong className="text-rose-200">Strategy:</strong> Pre-compute a "shortest paths from A to everywhere" mental table during the learning phase. For small lattices this is just Manhattan distance plus a few diagonal alternatives. On non-lattice topologies you need to memorize the actual edge structure. The goal changes per trial, so you can't pre-cache — but you CAN pre-cache the metric (distance matrix), then compute the path on the fly.</p>
+                    <p><strong className="text-rose-200">Common mistake #1:</strong> Including the endpoints. The N-back node and the goal node are NOT targets even if current equals them — only <em>intermediate</em> nodes on the path count.</p>
+                    <p><strong className="text-rose-200">Common mistake #2:</strong> On graphs with multiple shortest paths (very common in lattices), the current only needs to be on <em>one</em> valid shortest path. The engine returns true if current ∈ <em>some</em> shortest path's intermediate set.</p>
+                  </section>
+
+                  {/* Section 8 — Topology Guide */}
+                  <section className="rounded-lg bg-secondary/20 border border-border p-5 space-y-3">
+                    <h3 className="text-xs font-bold uppercase tracking-wider text-foreground flex items-center gap-2">
+                      <GitBranch className="w-4 h-4 text-indigo-400" /> Topology guide — picking the right graph family
+                    </h3>
+                    <div className="overflow-x-auto rounded border border-border bg-background/40">
+                      <table className="w-full text-[11px]">
+                        <thead><tr className="bg-secondary/40 border-b border-border">
+                          <th className="text-left p-2 text-indigo-300">Family</th>
+                          <th className="text-left p-2 text-indigo-300">Structure</th>
+                          <th className="text-left p-2 text-indigo-300">Easy/Medium feel</th>
+                          <th className="text-left p-2 text-indigo-300">Hard/Extreme feel</th>
+                        </tr></thead>
+                        <tbody className="text-foreground/85">
+                          <tr className="border-b border-border/40"><td className="p-2 text-indigo-300 font-semibold">Ring</td><td className="p-2">Pure cycle (each node connects to 2 neighbours)</td><td className="p-2">Trivial — only 2 neighbours per node</td><td className="p-2">K=2 reach = 2 nodes (just the 2-hops); diameter grows large for big N</td></tr>
+                          <tr className="border-b border-border/40"><td className="p-2 text-indigo-300 font-semibold">Ring + Shortcuts (small-world)</td><td className="p-2">Cycle plus 1-2 random chords</td><td className="p-2">Slightly harder — must remember which chords exist</td><td className="p-2"><strong>Default</strong>. K=2 reach grows due to chord shortcuts. SR-like.</td></tr>
+                          <tr className="border-b border-border/40"><td className="p-2 text-indigo-300 font-semibold">Tree</td><td className="p-2">Hierarchical binary-ish tree</td><td className="p-2">Asymmetric — root has more neighbours than leaves</td><td className="p-2">Sparse paths; revaluation is interesting (always through parents)</td></tr>
+                          <tr className="border-b border-border/40"><td className="p-2 text-indigo-300 font-semibold">Lattice</td><td className="p-2">2D grid (2×3, 3×3, 3×4)</td><td className="p-2">Spatial intuition kicks in</td><td className="p-2">Manhattan-distance metric; multiple shortest paths common</td></tr>
+                          <tr><td className="p-2 text-indigo-300 font-semibold">Random</td><td className="p-2">Erdős-Rényi (rejection-sampled for connectedness)</td><td className="p-2">Unpredictable; no exploitable visual pattern</td><td className="p-2">Hardest to memorize; pure topology recall</td></tr>
+                        </tbody>
+                      </table>
+                    </div>
+                    <p>
+                      <strong className="text-indigo-200">Starter pick:</strong> Ring for Easy / Medium, Ring + Shortcuts for Hard, Lattice for Extreme. The Coach phases already do this for you (Phase 26 = ring · Phase 27-28 = small-world · Phase 29 = lattice).
+                    </p>
+                  </section>
+
+                  {/* Section 9 — Schema Transfer (TEM) */}
+                  <section className="rounded-lg bg-violet-500/10 border border-violet-500/30 p-5 space-y-3">
+                    <h3 className="text-xs font-bold uppercase tracking-wider text-violet-300 flex items-center gap-2">
+                      <Sparkles className="w-4 h-4" /> Schema Transfer Mode (TEM)
+                    </h3>
+                    <p>
+                      Toggle "Schema Transfer (TEM)" on the start screen and the session now contains <strong>2-5 blocks</strong>, each a fresh graph from the same topology family. The blocks are labelled <span className="text-cyan-300">Map α</span> · <span className="text-emerald-300">Map β</span> · <span className="text-violet-300">Map γ</span> · etc with distinct colour themes.
+                    </p>
+                    <p>
+                      <strong className="text-violet-200">What's the same:</strong> the topology FAMILY (ring / small-world / tree / lattice / random) and the tier rule. If you chose "Hard tier, small-world, K=2, 3 blocks", you get three different small-world graphs, each evaluated with the K=2 reach rule.
+                    </p>
+                    <p>
+                      <strong className="text-violet-200">What's different per block:</strong> the specific edges (graphs are independently sampled), the node positions, the theme colour. The labels (A-F) stay the same — that's the surface — but the connectivity changes.
+                    </p>
+                    <p>
+                      <strong className="text-violet-200">Critical rule:</strong> When a block switches mid-session, the first N=2 trials in the new block <strong>cannot be targets</strong>. This is by design — comparing across surfaces would be ill-defined (the graphs are different). After those 2 trials, the rule applies normally within the current block.
+                    </p>
+                    <p>
+                      <strong className="text-violet-200">What's being tested:</strong> can you grasp the abstract <em>schema</em> ("this is always a ring with 1 shortcut") rather than memorizing one specific map? An SR-mapped brain should perform well on Map β starting from trial 3 of Map β — no need to "re-learn" the topology. A surface-encoder will have to start from scratch each block.
+                    </p>
+                    <p>
+                      The <strong>Stats → Predictive Map</strong> tab computes a "Schema Transfer Cost" metric: <em>single-graph avg accuracy − schema-transfer avg accuracy</em>. A small positive value (&lt; 8%) = you've encoded the schema. A large positive value = you're memorizing concrete maps.
+                    </p>
+                  </section>
+
+                  {/* Section 10 — Strategy Summary */}
+                  <section className="rounded-lg bg-secondary/30 border border-border p-5 space-y-3">
+                    <h3 className="text-xs font-bold uppercase tracking-wider text-foreground flex items-center gap-2">
+                      <Brain className="w-4 h-4 text-indigo-400" /> Strategy summary — quick reference
+                    </h3>
+                    <div className="overflow-x-auto rounded border border-border bg-background/40">
+                      <table className="w-full text-[11px]">
+                        <thead><tr className="bg-secondary/40 border-b border-border">
+                          <th className="text-left p-2 text-indigo-300">Tier</th>
+                          <th className="text-left p-2 text-indigo-300">What to encode during learn phase</th>
+                          <th className="text-left p-2 text-indigo-300">What to compute per trial</th>
+                          <th className="text-left p-2 text-indigo-300">Mental load</th>
+                        </tr></thead>
+                        <tbody className="text-foreground/85">
+                          <tr className="border-b border-border/40"><td className="p-2 text-emerald-300 font-semibold">Easy</td><td className="p-2">Nothing about topology — just track current node</td><td className="p-2">Is letter X = letter from 2 trials ago?</td><td className="p-2">Low — pure WM</td></tr>
+                          <tr className="border-b border-border/40"><td className="p-2 text-cyan-300 font-semibold">Medium</td><td className="p-2">Adjacency list per node</td><td className="p-2">Is current ∈ neighbours(N-back)?</td><td className="p-2">Medium — WM + edge memory</td></tr>
+                          <tr className="border-b border-border/40"><td className="p-2 text-amber-300 font-semibold">Hard</td><td className="p-2">K-hop reach set per node (pre-compute)</td><td className="p-2">Is current ∈ K-reach(N-back)?</td><td className="p-2">High — WM + SR matrix</td></tr>
+                          <tr><td className="p-2 text-rose-300 font-semibold">Extreme</td><td className="p-2">Distance metric + shortest-path intuitions</td><td className="p-2">Is current on shortest-path(N-back → goal)?</td><td className="p-2">Highest — WM + dynamic planning</td></tr>
+                        </tbody>
+                      </table>
+                    </div>
+                    <p>
+                      <strong className="text-indigo-200">General tactic across all tiers:</strong> During the 6-trial learning window, don't just watch passively — actively rehearse the adjacency. Say each edge out loud (or sub-vocalize) as you see it: "A connects to B and F and C". By trial 6 you should have the full structure cached. Once fading kicks in, you're running entirely off that cache.
+                    </p>
+                    <p>
+                      <strong className="text-indigo-200">Pacing:</strong> default SOA is 2.4-2.8 seconds per trial. That's tight for Hard / Extreme. If you find yourself guessing, drop to a less demanding tier first to consolidate topology recall before progressing.
+                    </p>
+                  </section>
+
+                  {/* Section 11 — Common Pitfalls */}
+                  <section className="rounded-lg bg-amber-500/10 border border-amber-500/30 p-5 space-y-3">
+                    <h3 className="text-xs font-bold uppercase tracking-wider text-amber-300 flex items-center gap-2">
+                      <ShieldAlert className="w-4 h-4" /> Common pitfalls
+                    </h3>
+                    <ul className="list-disc list-inside pl-1 space-y-1.5">
+                      <li><strong className="text-amber-200">Only encoding the walk path, not the graph.</strong> If you only remember nodes you've visited, you miss edges that the random walk hasn't traversed yet. Always look at <em>all</em> visible edges during learn-phase, not just the highlighted ones.</li>
+                      <li><strong className="text-amber-200">Forgetting that revisits are allowed.</strong> In Hard tier K=2, the path A→B→A is a valid 2-step walk back to A. So A is in its own 2-step reach set. Same for any node that has a neighbour with a back-edge.</li>
+                      <li><strong className="text-amber-200">Misreading the tier badge.</strong> The top-right "TJN · MEDIUM" vs "TJN · HARD" looks similar at a glance. Always check before pressing on uncertain trials.</li>
+                      <li><strong className="text-amber-200">Pressing too early after block switch (TEM mode).</strong> The first N trials of a new block are non-scoring by design — pressing them gets you a false alarm. Wait until you've seen at least N=2 trials in the new block before considering presses.</li>
+                      <li><strong className="text-amber-200">Treating Easy tier like the others.</strong> Easy doesn't use the graph at all — using the graph slows you down without adding accuracy.</li>
+                      <li><strong className="text-amber-200">Trying to read the goal ★ position from where the star is drawn.</strong> The star is drawn slightly above the goal node — the goal IS the node directly underneath. Don't confuse the star's centroid with the node centroid.</li>
+                      <li><strong className="text-amber-200">Ignoring the T counter.</strong> If after 10 trials you have T=0, targets aren't firing — drop to an easier tier or larger topology, don't keep guessing.</li>
+                    </ul>
+                  </section>
+
+                  {/* Section 12 — Where to find it & coach phases */}
+                  <section className="rounded-lg bg-indigo-500/10 border border-indigo-500/30 p-5 space-y-3">
+                    <h3 className="text-xs font-bold uppercase tracking-wider text-indigo-300 flex items-center gap-2">
+                      <Zap className="w-4 h-4" /> Where to play it — manual + Coach phases
+                    </h3>
+                    <p>
+                      <strong className="text-indigo-200">Manual launch:</strong> Start screen → expand <em>Enhancement Modes</em> → toggle <em>Trajectory N-Back (SR / TEM)</em>. The settings panel appears with tier / topology / nodes / K / Schema Transfer toggle / block count. Then Manual Mode.
+                    </p>
+                    <p>
+                      <strong className="text-indigo-200">Coach Autopilot:</strong> the curriculum includes 7 dedicated TJN phases:
+                    </p>
+                    <ul className="list-disc list-inside pl-1 space-y-1 text-[12px]">
+                      <li><strong>Phase 26:</strong> Map Encoding (TJN Easy · ring · 6 nodes)</li>
+                      <li><strong>Phase 27:</strong> Neighbour Recall (TJN Medium · small-world · 6 nodes)</li>
+                      <li><strong>Phase 28:</strong> Successor Prediction (TJN Hard · small-world · K=2)</li>
+                      <li><strong>Phase 29:</strong> Goal Revaluation (TJN Extreme · 3×3 lattice · 9 nodes)</li>
+                      <li><strong>Phase 30:</strong> Schema Transfer Easy (TEM · 3 ring graphs)</li>
+                      <li><strong>Phase 31:</strong> Schema Transfer Successor (TEM · 3 small-world graphs · K=2)</li>
+                      <li><strong>Phase 32:</strong> Cross-Topology Schema Crucible (TEM · 4 lattices · Medium tier)</li>
+                    </ul>
+                    <p>
+                      Each phase has its own mastery slot in the spaced-repetition scheduler — pass at ≥75% to advance, fail at &lt;55% to drop back. The <strong>Stats → Predictive Map</strong> tab shows per-tier accuracy + the Schema Transfer Cost metric.
+                    </p>
+                  </section>
+
                 </div>
               )}
 
