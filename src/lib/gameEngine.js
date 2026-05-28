@@ -1240,7 +1240,14 @@ export function generateNextStimulus(state) {
   const nonSoundPool = pool.filter(rel => !isSound(rel));
   const allNonSoundPool = ALL_RELATIONSHIPS.filter(rel => !isSound(rel));
   const relationStreamIndexes = Array.from({ length: totalStreams }, (_, i) => i).filter(i => stypeOf(i) === 'relation');
-  const audioStreamIndexes = relationStreamIndexes.length >= 2 && soundPool.length > 0 ? pickSoundStreamIndexes(relationStreamIndexes) : [];
+  // The dual-audio (L/R sound) auto-assignment restricts each relation stream
+  // to a sound-only or non-sound pool. That conflicts with the Decoy Filter,
+  // whose per-stream decoy categories are drawn from the FULL pool — on a
+  // sound-restricted stream the decoy category would never appear and the
+  // filter would silently do nothing. So when decoy_filter is active, every
+  // stream keeps the full pool (no sound auto-restriction).
+  const decoyFilterOn = (modes || []).includes('decoy_filter');
+  const audioStreamIndexes = (!decoyFilterOn && relationStreamIndexes.length >= 2 && soundPool.length > 0) ? pickSoundStreamIndexes(relationStreamIndexes) : [];
   const streamPoolFor = (index) => {
     if (stypeOf(index) === 'cct') return ['CCT_NUMERIC'];
     if (audioStreamIndexes.includes(index)) return soundPool;
