@@ -27,7 +27,9 @@ export default function Game() {
   const [nrintEnabledFlags, setNrintEnabledFlags] = useState(null);
   const [nrintHideLegend, setNrintHideLegend] = useState(false);
   const [nrintMaxPerTrial, setNrintMaxPerTrial] = useState(0);
-  const [hideDecoyLabel, setHideDecoyLabel] = useState(false);
+  const [decoyFilterRule, setDecoyFilterRule] = useState('never_target');
+  const [decoyFilterRandom, setDecoyFilterRandom] = useState(true);
+  const [decoyFilterCategories, setDecoyFilterCategories] = useState([]);
   const [rstDifficulty, setRstDifficulty] = useState('easy');
   const [tjnTier, setTjnTier] = useState('easy');
   const [tjnTopology, setTjnTopology] = useState('small_world');
@@ -67,7 +69,9 @@ export default function Game() {
     setNrintEnabledFlags(extraSettings?.nrintEnabledFlags || null);
     setNrintHideLegend(!!extraSettings?.nrintHideLegend);
     setNrintMaxPerTrial(Number(extraSettings?.nrintMaxPerTrial) || 0);
-    setHideDecoyLabel(!!extraSettings?.hideDecoyLabel);
+    setDecoyFilterRule(extraSettings?.decoyFilterRule || 'never_target');
+    setDecoyFilterRandom(extraSettings?.decoyFilterRandom !== false);
+    setDecoyFilterCategories(Array.isArray(extraSettings?.decoyFilterCategories) ? extraSettings.decoyFilterCategories : []);
     setRstDifficulty(extraSettings?.rstDifficulty || 'easy');
     setTjnTier(extraSettings?.tjnTier || 'easy');
     setTjnTopology(extraSettings?.tjnTopology || 'small_world');
@@ -100,7 +104,9 @@ export default function Game() {
         nrintEnabledFlags: extraSettings?.nrintEnabledFlags || null,
         nrintHideLegend: !!extraSettings?.nrintHideLegend,
         nrintMaxPerTrial: Number(extraSettings?.nrintMaxPerTrial) || 0,
-        hideDecoyLabel: !!extraSettings?.hideDecoyLabel,
+        decoyFilterRule: extraSettings?.decoyFilterRule || 'never_target',
+        decoyFilterRandom: extraSettings?.decoyFilterRandom !== false,
+        decoyFilterCategories: Array.isArray(extraSettings?.decoyFilterCategories) ? extraSettings.decoyFilterCategories : [],
         rstDifficulty: extraSettings?.rstDifficulty || 'easy',
         tjnTier: extraSettings?.tjnTier || 'easy',
         tjnTopology: extraSettings?.tjnTopology || 'small_world',
@@ -141,9 +147,9 @@ export default function Game() {
       durationSeconds,
       noobMode,
       autopilot: !!state.autopilot,
-      // Count of decoy (spurious distractor) streams this session, for the
-      // Stats "Selective Attention" with/without comparison.
-      decoyStreamCount: (state.streamDecoys || []).filter(Boolean).length,
+      // Whether a decoy filter was active (type-based selective attention),
+      // for the Stats "Selective Attention" with/without comparison.
+      decoyFilterActive: (state.modes || []).includes('decoy_filter'),
       phaseTitle: state.phaseTitle || '',
       trials: state.allTrials || [] // trials saved during gameplay
     };
@@ -192,7 +198,9 @@ export default function Game() {
           nrintEnabledFlags={nrintEnabledFlags}
           nrintHideLegend={nrintHideLegend}
           nrintMaxPerTrial={nrintMaxPerTrial}
-          hideDecoyLabel={hideDecoyLabel}
+          decoyFilterRule={decoyFilterRule}
+          decoyFilterRandom={decoyFilterRandom}
+          decoyFilterCategories={decoyFilterCategories}
           rstDifficulty={rstDifficulty}
           tjnTier={tjnTier}
           tjnTopology={tjnTopology}

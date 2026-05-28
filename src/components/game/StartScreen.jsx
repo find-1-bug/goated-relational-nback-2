@@ -56,6 +56,7 @@ const MODE_OPTIONS = [
   { id: 'alien_square',    icon: Layers,     label: 'Alien Square Mode',    desc: 'Each stream appears inside a rotating 3×3 square. Relation and square position can be answered with separate keys.', phase: "Phase D: Spatial Overloads & Stress Resilience" },
   { id: 'alien_cube',      icon: Layers,     label: 'Alien Cube Mode',      desc: 'Each stream appears inside a rotating transparent 3×3×3 cube. Relation and position can be answered with separate keys.', phase: "Phase D: Spatial Overloads & Stress Resilience" },
   { id: 'alien_tesseract', icon: Layers,     label: 'Alien Tesseract Mode', desc: 'Each stream appears inside a projected 4D tesseract. Position targets include the visible cube cell plus an inner/outer hyperspace layer.', phase: "Phase D: Spatial Overloads & Stress Resilience" },
+  { id: 'decoy_filter', icon: Eye, label: 'Decoy Filter (selective attention)', desc: 'Some relation CATEGORIES become decoys you must IGNORE in real time — withhold on them even if they\'d match. Categories are drawn only from your selected relation types; pick them manually or let each stream randomize its own. Two rules: "Never target" (decoys stay in the chain, pressing one = false alarm) or "Removed from chain" (decoys are noise, N-back counts only relevant trials). Trains distractor inhibition / selective attention (Engle\'s controlled-attention construct).', phase: "Phase D: Spatial Overloads & Stress Resilience" },
   { id: 'stress_glitch', icon: Shuffle, label: 'Stress Glitch Engine', desc: 'Randomly injects intense visual glitch distortions into stream cards to overload optical stability.', phase: "Phase D: Spatial Overloads & Stress Resilience" },
   { id: 'stress_shake', icon: Shuffle, label: 'Screen Shake Distractor', desc: 'Triggers intense structural screen shakes to challenge cognitive stability.', phase: "Phase D: Spatial Overloads & Stress Resilience" },
   { id: 'timer_panic', icon: Zap, label: 'Timer Panic Heatbar', desc: 'Renders a shrinking countdown bar that signals imminent trial termination. Creates extreme urgency.', phase: "Phase D: Spatial Overloads & Stress Resilience" },
@@ -81,6 +82,7 @@ const MODE_RULE_BRIEFS = {
   binary_logic: 'Two N-back rules combined per trial with AND/OR/XOR/AND_NOT — match when the boolean is true.',
   analogy_nback: 'Form-class analogy — fires when current and N-back relations share a STRUCTURAL FORM (different tokens). Same-token = NOT a match.',
   trajectory_nback: 'Graph traversal — each trial is a node visited during a random walk. Target rule depends on tier (Easy: identity, Medium: neighbour, Hard: K-step successor, Extreme: shortest-path). Map edges fade after the learn phase. Schema mode = multiple graphs share topology with fresh surfaces (TEM transfer test).',
+  decoy_filter: 'Selective attention — certain relation categories are decoys to IGNORE (shown per stream). Withhold on decoy-category stimuli even if they would match. Pressing a decoy = false alarm.',
   mixed_nback: 'Per-trial random rule (Normal or Type) — can\'t pre-commit to one strategy.',
   mixed_rint: 'Per-trial random rule (Normal / Type / RINT) — three-way uncertainty.',
   impossible: 'Each stream picks Normal / Type / RINT independently per trial — chaos by design.',
@@ -103,15 +105,18 @@ const MODE_RULE_BRIEFS = {
 };
 
 const EXCLUSIVE_GROUPS = [
-  ['type_nback', 'mixed_nback', 'mixed_rint', 'impossible', 'nonverbal_rint', 'analogy_nback', 'trajectory_nback'],
-  ['rint', 'mixed_rint', 'impossible', 'nonverbal_rint', 'analogy_nback', 'trajectory_nback'],
+  ['type_nback', 'mixed_nback', 'mixed_rint', 'impossible', 'nonverbal_rint', 'analogy_nback', 'trajectory_nback', 'decoy_filter'],
+  ['rint', 'mixed_rint', 'impossible', 'nonverbal_rint', 'analogy_nback', 'trajectory_nback', 'decoy_filter'],
   // binary_logic overrides the primary nback type selection per trial so conflicts with fixed-mode selectors
-  ['binary_logic', 'mixed_nback', 'mixed_rint', 'impossible', 'nonverbal_rint', 'analogy_nback', 'trajectory_nback'],
+  ['binary_logic', 'mixed_nback', 'mixed_rint', 'impossible', 'nonverbal_rint', 'analogy_nback', 'trajectory_nback', 'decoy_filter'],
   ['alien_cube', 'alien_tesseract', 'alien_square'],
   // TJN replaces the relation pool entirely — disallow combinations with
   // overlay side-tasks that assume relation stims (CCT, RST, alien-positions,
   // wrapper morph, token blending). Map-only mode.
   ['trajectory_nback', 'cct', 'cct_overlay', 'rst_overlay', 'alien_cube', 'alien_tesseract', 'alien_square', 'wrapper_morph', 'token_blending'],
+  // decoy_filter rewrites the normal relation generation — keep it off the
+  // exotic rule modes (it builds on plain relation n-back).
+  ['decoy_filter', 'nonverbal_rint', 'trajectory_nback', 'type_nback', 'rint', 'analogy_nback', 'binary_logic'],
 ];
 
 const CATEGORY_META = {
@@ -245,22 +250,19 @@ const CAROUSEL_SPEED_OPTIONS = [
   { label: 'Turbo', ms: 1400 },
 ];
 
-function StreamRow({ label, labelColor, borderColor, keyCode, positionKeyCode, cctKeyCode, rstKeyCode, showPositionKey, showCCTKey, showRSTKey, onKeyChange, onPositionKeyChange, onCCTKeyChange, onRSTKeyChange, allStreamKeys, thisKey, thisPositionKey, thisCCTKey, thisRSTKey, onRemove, streamType, onStreamTypeChange, allowDecoy = false }) {
+function StreamRow({ label, labelColor, borderColor, keyCode, positionKeyCode, cctKeyCode, rstKeyCode, showPositionKey, showCCTKey, showRSTKey, onKeyChange, onPositionKeyChange, onCCTKeyChange, onRSTKeyChange, allStreamKeys, thisKey, thisPositionKey, thisCCTKey, thisRSTKey, onRemove, streamType, onStreamTypeChange }) {
   const isCCT = streamType === 'cct';
-  const isDecoy = streamType === 'decoy';
   return (
     <div className={`rounded-lg bg-secondary/50 border ${borderColor} p-2 space-y-1.5`}>
       <div className="flex items-center gap-2 flex-wrap">
         <span className={`text-xs font-mono font-semibold ${labelColor} shrink-0`}>{label}</span>
-        {/* Per-stream type selector: Relation (default) | CCT (arithmetic) |
-            Decoy (spurious distractor — rendered/played but never scored, no
-            response key). Decoy is only offered on extra streams. */}
+        {/* Per-stream type selector: Relation (default) | CCT (arithmetic). */}
         {onStreamTypeChange && (
           <div className="flex rounded border border-border overflow-hidden text-[10px] sm:text-xs font-mono shrink-0">
             <button
               type="button"
               onClick={() => onStreamTypeChange('relation')}
-              className={`px-2 py-0.5 transition-colors ${!isCCT && !isDecoy ? 'bg-primary/25 text-primary font-semibold' : 'text-muted-foreground hover:text-foreground'}`}
+              className={`px-2 py-0.5 transition-colors ${!isCCT ? 'bg-primary/25 text-primary font-semibold' : 'text-muted-foreground hover:text-foreground'}`}
               title="Relation n-back stream"
             >
               REL
@@ -273,20 +275,7 @@ function StreamRow({ label, labelColor, borderColor, keyCode, positionKeyCode, c
             >
               CCT
             </button>
-            {allowDecoy && (
-              <button
-                type="button"
-                onClick={() => onStreamTypeChange('decoy')}
-                className={`px-2 py-0.5 transition-colors ${isDecoy ? 'bg-amber-600/30 text-amber-300 font-semibold' : 'text-muted-foreground hover:text-foreground'}`}
-                title="Decoy / spurious stream — plays but is NOT scored; ignore it (selective attention training)"
-              >
-                DECOY
-              </button>
-            )}
           </div>
-        )}
-        {isDecoy && (
-          <span className="text-[10px] font-mono text-amber-400/80 shrink-0">ignore · not scored · no key</span>
         )}
         {onRemove && (
           <button onClick={onRemove}
@@ -426,10 +415,17 @@ export default function StartScreen({ onStart, suggestedN, lastSettings }) {
       rstKeyDisplay: s.rstKeyDisplay || 'R',
     }))
   );
-  // Decoy display mode: false (default) = marked "IGNORE" badge + dashed card;
-  // true = unmarked (decoy looks identical to a scored stream, player must
-  // remember which streams are theirs).
-  const [hideDecoyLabel, setHideDecoyLabel] = React.useState(!!lastSettings?.hideDecoyLabel);
+  // Decoy Filter (type-based selective attention): which relation categories
+  // are decoys to ignore. Random per-stream by default; manual lets the player
+  // pick. Rule = how decoys interact with the N-back chain.
+  const [decoyFilterRule, setDecoyFilterRule] = React.useState(lastSettings?.decoyFilterRule || 'never_target');
+  const [decoyFilterRandom, setDecoyFilterRandom] = React.useState(lastSettings?.decoyFilterRandom !== false);
+  const [decoyFilterCategories, setDecoyFilterCategories] = React.useState(
+    Array.isArray(lastSettings?.decoyFilterCategories) ? lastSettings.decoyFilterCategories : []
+  );
+  const toggleDecoyCategory = (cat) => {
+    setDecoyFilterCategories(prev => prev.includes(cat) ? prev.filter(c => c !== cat) : [...prev, cat]);
+  };
 
   const [alienSettings, setAlienSettings] = React.useState(lastSettings?.alienSettings || {
     cubeDirection: 'cw',
@@ -495,6 +491,15 @@ export default function StartScreen({ onStart, suggestedN, lastSettings }) {
   // so the player can still see what they'd configured.
   const nrintActive = modes.includes('nonverbal_rint');
   const tjnActive = modes.includes('trajectory_nback');
+  const decoyFilterActive = modes.includes('decoy_filter');
+  // Categories actually present in the current selection (decoy cats are drawn
+  // only from these, and at least one must remain as a relevant target).
+  const activeDecoyCategories = React.useMemo(() => {
+    const cats = Object.keys(RELATIONSHIP_CATEGORIES).filter(cat =>
+      (RELATIONSHIP_CATEGORIES[cat] || []).some(rel => selectedRels.includes(rel))
+    );
+    return cats;
+  }, [selectedRels]);
   const poolIgnoredCls = (nrintActive || tjnActive) ? 'opacity-50' : '';
   const poolIgnoredNote = tjnActive ? (
     <span className="text-[10px] font-mono text-indigo-400 bg-indigo-500/10 border border-indigo-500/30 rounded px-1.5 py-0.5 whitespace-nowrap">ignored in Trajectory N-Back</span>
@@ -1245,7 +1250,6 @@ export default function StartScreen({ onStart, suggestedN, lastSettings }) {
                   allStreamKeys={allStreamKeys} thisKey={stream.key} thisPositionKey={stream.positionKey} thisCCTKey={stream.cctKey} thisRSTKey={stream.rstKey}
                   onRemove={() => removeStream(idx)}
                   streamType={stream.streamType || 'relation'} onStreamTypeChange={(t) => setStreamType(idx, t)}
-                  allowDecoy
                 />
               );
             })}
@@ -1257,23 +1261,6 @@ export default function StartScreen({ onStart, suggestedN, lastSettings }) {
               {1 + extraStreams.length >= MAX_STREAMS ? 'Max Streams Reached' : 'Add Stream'}
             </button>
 
-            {/* Decoy display toggle — only relevant when a decoy stream exists.
-                Marked (default) = clear IGNORE badge. Unmarked = looks identical
-                to a scored stream (selective attention + source memory). */}
-            {extraStreams.some(s => s.streamType === 'decoy') && (
-              <div className="flex items-center justify-between gap-3 rounded-lg bg-amber-500/5 border border-amber-500/30 p-2.5">
-                <div className="flex-1 min-w-0">
-                  <span className="text-xs font-mono text-foreground">Hide ignore-label (unmarked decoy)</span>
-                  <p className="text-[10px] font-mono text-muted-foreground/70">Off = decoy is clearly marked "IGNORE". On = decoy looks identical to a scored stream, so you must remember which streams are yours.</p>
-                </div>
-                <button
-                  onClick={() => setHideDecoyLabel(v => !v)}
-                  className={`relative w-12 h-6 rounded-full transition-colors shrink-0 ${hideDecoyLabel ? 'bg-amber-500' : 'bg-secondary border border-border'}`}
-                >
-                  <div className={`absolute w-5 h-5 rounded-full bg-foreground transition-transform ${hideDecoyLabel ? 'translate-x-6' : 'translate-x-0.5'}`} style={{ top: '2.5px' }} />
-                </button>
-              </div>
-            )}
           </div>
         </div>
 
@@ -1458,6 +1445,80 @@ export default function StartScreen({ onStart, suggestedN, lastSettings }) {
                 </div>
               </div>
             )}
+          </div>
+        )}
+
+        {/* Decoy Filter (selective attention) settings */}
+        {decoyFilterActive && (
+          <div className="space-y-3 rounded-lg bg-amber-500/5 border border-amber-500/30 p-3">
+            <div className="flex items-center justify-between flex-wrap gap-2">
+              <label className="text-xs font-mono text-amber-300 uppercase tracking-widest">Decoy Filter · Selective Attention</label>
+              <span className="text-[10px] font-mono text-amber-400/70">{activeDecoyCategories.length} categories in pool</span>
+            </div>
+            <p className="text-xs font-mono text-muted-foreground/70 leading-relaxed">
+              Decoy categories are stimuli you must IGNORE — withhold even if they match. Drawn only from your selected relation types; at least one category always stays relevant.
+            </p>
+
+            {activeDecoyCategories.length < 2 && (
+              <p className="text-[11px] font-mono text-amber-400 bg-amber-500/10 border border-amber-500/30 rounded px-2 py-1.5">
+                Select relations from at least 2 categories for the decoy filter to work (it needs something to ignore AND something to respond to).
+              </p>
+            )}
+
+            {/* Decoy source: random per-stream vs manual pick */}
+            <div className="space-y-1.5">
+              <div className="text-[10px] font-mono text-muted-foreground/80 uppercase tracking-widest">Decoy categories</div>
+              <div className="flex rounded border border-border overflow-hidden text-xs font-mono w-max">
+                <button onClick={() => setDecoyFilterRandom(true)}
+                  className={`px-3 py-1 transition-colors ${decoyFilterRandom ? 'bg-amber-500/25 text-amber-300 font-semibold' : 'text-muted-foreground hover:text-foreground'}`}>
+                  Random / stream
+                </button>
+                <button onClick={() => setDecoyFilterRandom(false)}
+                  className={`px-3 py-1 transition-colors ${!decoyFilterRandom ? 'bg-amber-500/25 text-amber-300 font-semibold' : 'text-muted-foreground hover:text-foreground'}`}>
+                  Manual
+                </button>
+              </div>
+              {decoyFilterRandom ? (
+                <p className="text-[10px] font-mono text-muted-foreground/70">Each stream independently picks 1+ random decoy categories at session start (you'll be shown which on each stream).</p>
+              ) : (
+                <div className="flex flex-wrap gap-1.5 pt-1">
+                  {activeDecoyCategories.map(cat => {
+                    const on = decoyFilterCategories.includes(cat);
+                    const meta = CATEGORY_META[cat];
+                    return (
+                      <button key={cat} onClick={() => toggleDecoyCategory(cat)}
+                        className={`px-2 py-1 rounded text-xs font-mono border transition-colors ${on
+                          ? 'bg-amber-500/20 border-amber-400 text-amber-200 font-semibold'
+                          : 'bg-secondary/40 border-border text-muted-foreground hover:border-muted-foreground/50'}`}>
+                        {meta?.label || cat}
+                      </button>
+                    );
+                  })}
+                </div>
+              )}
+            </div>
+
+            {/* Filter rule */}
+            <div className="space-y-1.5">
+              <div className="text-[10px] font-mono text-muted-foreground/80 uppercase tracking-widest">Filter rule</div>
+              <div className="grid grid-cols-1 sm:grid-cols-2 gap-1.5">
+                {[
+                  { id: 'never_target', label: 'Never target', sub: 'Decoys stay in the chain; pressing one = false alarm' },
+                  { id: 'removed_from_chain', label: 'Removed from chain', sub: 'Decoys are noise; "N back" counts only relevant trials (harder)' },
+                ].map(({ id, label, sub }) => {
+                  const on = decoyFilterRule === id;
+                  return (
+                    <button key={id} onClick={() => setDecoyFilterRule(id)}
+                      className={`flex flex-col items-start gap-0.5 px-2.5 py-2 rounded text-left border transition-colors ${on
+                        ? 'bg-amber-500/20 border-amber-400 text-amber-100 font-semibold'
+                        : 'bg-secondary/40 border-border text-muted-foreground hover:border-muted-foreground/50'}`}>
+                      <span className="text-xs font-mono uppercase tracking-wide">{label}</span>
+                      <span className="text-[10px] font-mono text-muted-foreground/80 leading-tight">{sub}</span>
+                    </button>
+                  );
+                })}
+              </div>
+            </div>
           </div>
         )}
 
@@ -1867,7 +1928,10 @@ export default function StartScreen({ onStart, suggestedN, lastSettings }) {
                   nrintEnabledFlags,
                   nrintHideLegend,
                   nrintMaxPerTrial,
-                  hideDecoyLabel: false,
+                  // Decoy filter: a phase may force config; else use the user's.
+                  decoyFilterRule: currentPhase.decoyFilterRule || decoyFilterRule,
+                  decoyFilterRandom: 'decoyFilterRandom' in currentPhase ? currentPhase.decoyFilterRandom : decoyFilterRandom,
+                  decoyFilterCategories: currentPhase.decoyFilterCategories || decoyFilterCategories,
                   rstDifficulty: currentPhase.rstDifficulty || rstDifficulty,
                   // Coach-phase TJN config overrides the manual selector when
                   // a phase explicitly configures Trajectory N-Back.
@@ -1907,7 +1971,7 @@ export default function StartScreen({ onStart, suggestedN, lastSettings }) {
                 rstKeyDisplay: KEY_OPTIONS.find(k => k.code === streamARSTKey)?.display || 'R',
                 streamType: streamAType,
               };
-              onStart(nLevel, modes, finalPool, rounds, speedMs, { catWeights, useCustomMix, rels: selectedRels, tokenWeights, streamA: streamAWithPosition, extraStreams, streams: [streamAWithPosition, ...extraStreams], alienSettings, carouselSettings, nrintEnabledFlags, nrintHideLegend, nrintMaxPerTrial, hideDecoyLabel, rstDifficulty, tjnTier, tjnTopology, tjnNodes, tjnK, tjnSchemaMode, tjnSchemaBlocks, wrapperMorphStyle, autopilot: false }, noobMode);
+              onStart(nLevel, modes, finalPool, rounds, speedMs, { catWeights, useCustomMix, rels: selectedRels, tokenWeights, streamA: streamAWithPosition, extraStreams, streams: [streamAWithPosition, ...extraStreams], alienSettings, carouselSettings, nrintEnabledFlags, nrintHideLegend, nrintMaxPerTrial, decoyFilterRule, decoyFilterRandom, decoyFilterCategories, rstDifficulty, tjnTier, tjnTopology, tjnNodes, tjnK, tjnSchemaMode, tjnSchemaBlocks, wrapperMorphStyle, autopilot: false }, noobMode);
             }}
             className="flex-1 h-12 px-6 font-mono font-semibold text-xs sm:text-sm tracking-wide bg-secondary hover:bg-secondary/85 text-foreground border border-border"
           >

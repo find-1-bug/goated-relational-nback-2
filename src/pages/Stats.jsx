@@ -620,10 +620,10 @@ export default function Stats() {
               )}
             </div>
 
-            {/* Selective Attention (decoy) — with vs without comparison */}
+            {/* Selective Attention (decoy filter) — with vs without comparison */}
             {(() => {
-              const withDecoy = sessions.filter(s => (s.decoyStreamCount || 0) > 0);
-              const withoutDecoy = sessions.filter(s => !(s.decoyStreamCount > 0));
+              const withDecoy = sessions.filter(s => s.decoyFilterActive);
+              const withoutDecoy = sessions.filter(s => !s.decoyFilterActive);
               if (withDecoy.length === 0) return null;
               const avg = (arr) => arr.length ? Math.round(arr.reduce((a, x) => a + (x.accuracy || 0), 0) / arr.length) : null;
               const wAvg = avg(withDecoy);

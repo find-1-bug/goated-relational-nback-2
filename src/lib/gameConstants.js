@@ -1194,17 +1194,18 @@ export const COACH_PHASES = [
     streamsCount: 1
   },
   // ── Selective attention / distractor inhibition ──────────────────────────
-  // Two streams: A is scored, B is a DECOY — it renders and plays but is never
-  // scored and has no key. The player must filter it out while tracking A.
+  // Type-based decoy filter: some relation CATEGORIES are decoys to ignore in
+  // real time on a single scored stream. Withhold on decoy-category stimuli
+  // even when they'd match. Engle's controlled-attention construct.
   {
     title: "Phase 33: Selective Attention Filter",
     nLevel: 2,
     speedMs: 2400,
     rounds: 26,
-    modes: ['distractors', 'feedback_per_trial'],
-    streamsCount: 2,
-    decoyExtraIndexes: [0],
-    desc: "Two parallel streams, but only Stream A is scored — Stream B is a spurious DECOY (rendered + played, never scored, no response key). Trains selective attention / distractor inhibition: hold Stream A under N-back load while actively ignoring the salient irrelevant stream. Engle's controlled-attention construct."
+    modes: ['decoy_filter', 'feedback_per_trial'],
+    decoyFilterRule: 'never_target',
+    decoyFilterRandom: true,
+    desc: "Single stream, but certain relation CATEGORIES are decoys you must IGNORE — withhold even if they match (pressing a decoy = false alarm). The decoy categories are randomized per session and shown on the stream. Trains selective attention / distractor inhibition while holding the N-back load."
   }
 ];
 

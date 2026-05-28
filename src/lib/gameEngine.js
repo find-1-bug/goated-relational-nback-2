@@ -562,7 +562,9 @@ function makeNRINTStim(attrs) {
 
 // Generate stimulus for a single stream, given its own history/typeHistory/rintState
 // streamConfig: { trialMode, binaryMode, binaryOp, hierHistory } for Hierarchical and Binary Logic
-function generateOneStreamStimulus({ history, typeHistory, rintState, pool, effectiveN, trialMode, matchChance, hasDistractors, hasLures = false, negationMode = false, trialIndex, hierHistory, binaryMode, binaryOp, signalOnly = false, baseStim = null, alienCube = false, alienSquare = false, alienTesseract = false, alienSettings = {}, nrintEnabledFlags = NRINT_DEFAULT_FLAGS, nrintHideLegend = false, nrintMaxPerTrial = 0, customLureRate = null, customNegationRate = null, modes = [] }) {
+const DECOY_FILTER_TRIAL_RATE = 0.35; // fraction of trials drawn from decoy categories
+
+function generateOneStreamStimulus({ history, typeHistory, rintState, pool, effectiveN, trialMode, matchChance, hasDistractors, hasLures = false, negationMode = false, trialIndex, hierHistory, binaryMode, binaryOp, signalOnly = false, baseStim = null, alienCube = false, alienSquare = false, alienTesseract = false, alienSettings = {}, nrintEnabledFlags = NRINT_DEFAULT_FLAGS, nrintHideLegend = false, nrintMaxPerTrial = 0, decoyCats = [], decoyFilterRule = 'never_target', customLureRate = null, customNegationRate = null, modes = [] }) {
    let stim, isPrimaryTarget = false, isPositionTarget = false, nextRINTState = rintState;
    const canTarget = history.length >= effectiveN;
 
@@ -678,6 +680,46 @@ function generateOneStreamStimulus({ history, typeHistory, rintState, pool, effe
       ? makeStimulusEntry(chosenRel, modes)
       : maybeInvertVisual(makeStimulusEntry(chosenRel, modes));
     isPrimaryTarget = canTarget && relationsAreAnalogous(stim.rel, nBackEntry?.rel);
+  } else if (decoyCats && decoyCats.length > 0) {
+    // ── Decoy Filter: type-based selective attention ──
+    // Some relation CATEGORIES are decoys to ignore. Each trial is either a
+    // decoy-category stim (never a target — withhold) or a relevant-category
+    // stim that follows the normal n-back rule. Under 'removed_from_chain',
+    // decoy trials don't count toward the N-back position (the reference is
+    // the subsequence of relevant trials); under 'never_target' the chain is
+    // positional over all trials.
+    const isDecoyCat = (rel) => decoyCats.includes(getCategory(rel));
+    const relevantPool = finalPool.filter(r => !isDecoyCat(r));
+    const decoyPool = finalPool.filter(isDecoyCat);
+    const usePool = relevantPool.length > 0 ? relevantPool : finalPool;
+    const relevantHistory = decoyFilterRule === 'removed_from_chain'
+      ? history.filter(h => !h._isDecoyType)
+      : history;
+    const dnBack = relevantHistory.length >= effectiveN ? relevantHistory[relevantHistory.length - effectiveN] : null;
+    const canDTarget = relevantHistory.length >= effectiveN;
+    // Boost the match chance on relevant trials to offset the dilution from
+    // decoy trials (which are never targets), keeping the overall target rate
+    // near the normal MATCH_CHANCE rather than collapsing to ~10%.
+    const relMatchChance = Math.min(0.6, matchChance / (1 - DECOY_FILTER_TRIAL_RATE));
+    const wantDecoyTrial = decoyPool.length > 0 && relevantPool.length > 0 && Math.random() < DECOY_FILTER_TRIAL_RATE;
+    if (wantDecoyTrial) {
+      stim = maybeInvertVisual(makeStimulusEntry(pickRandom(decoyPool), modes));
+      stim._isDecoyType = true;
+      stim._negated = pickNegationFlag(negationMode, customNegationRate !== null ? customNegationRate : NEGATION_RATE);
+      isPrimaryTarget = false; // decoy-category trials are NEVER targets
+    } else if (canDTarget && dnBack && usePool.includes(dnBack.rel) && Math.random() < relMatchChance) {
+      stim = isVerbal(dnBack.rel)
+        ? (Math.random() < 0.35 ? makeInverseStimulus(dnBack) : null) || { ...dnBack }
+        : maybeInvertVisual(makeStimulusEntry(dnBack.rel, modes));
+      stim._negated = !!dnBack?._negated;
+      stim._isDecoyType = false;
+      isPrimaryTarget = canDTarget && logicalFactsMatch(stim, dnBack);
+    } else {
+      stim = makeStimulusEntry(makeNonTargetRelationship(usePool, rel => canDTarget && relationshipMatches(rel, dnBack?.rel)), modes);
+      stim._negated = pickNegationFlag(negationMode, customNegationRate !== null ? customNegationRate : NEGATION_RATE);
+      stim._isDecoyType = false;
+      isPrimaryTarget = false;
+    }
   } else {
     let isLure = false;
     let lureOffset = 0;
@@ -796,23 +838,43 @@ function randomBinaryConfig(effectiveN) {
 
 // ─── State Creation ──────────────────────────────────────────────────────────
 
-export function createGameState({ nLevel, modes, relationshipPool, totalRounds, extraStreams = [], alienSettings = {}, streamA = null, nrintEnabledFlags = null, nrintHideLegend = false, nrintMaxPerTrial = 0, hideDecoyLabel = false, initialSpeedMs = 2800, wrapperMorphStyle = 'shift', rstDifficulty = 'easy', tjnTier = TJN_DEFAULT_TIER, tjnTopology = TJN_DEFAULT_TOPOLOGY, tjnNodes = TJN_DEFAULT_NODES, tjnK = TJN_HARD_K, tjnSchemaMode = false, tjnSchemaBlocks = 3 } = {}) {
+export function createGameState({ nLevel, modes, relationshipPool, totalRounds, extraStreams = [], alienSettings = {}, streamA = null, nrintEnabledFlags = null, nrintHideLegend = false, nrintMaxPerTrial = 0, decoyFilterRule = 'never_target', decoyFilterRandom = true, decoyFilterCategories = [], initialSpeedMs = 2800, wrapperMorphStyle = 'shift', rstDifficulty = 'easy', tjnTier = TJN_DEFAULT_TIER, tjnTopology = TJN_DEFAULT_TOPOLOGY, tjnNodes = TJN_DEFAULT_NODES, tjnK = TJN_HARD_K, tjnSchemaMode = false, tjnSchemaBlocks = 3 } = {}) {
   const opts = { tjnSchemaMode, tjnSchemaBlocks };
   const numExtra = extraStreams.length;
   const totalStreams = 1 + numExtra;
-  // Per-stream type: 'relation' (default), 'cct', or 'decoy'. Falls back to
-  // global 'cct' mode for backward compat — if user toggled the legacy global
-  // Enhancement Mode "CCT" on but never set per-stream streamTypes, every
-  // stream gets cct. Stream A is never a decoy (always scored).
+  // Per-stream type: 'relation' (default) or 'cct'. Falls back to global 'cct'
+  // mode for backward compat.
   const defaultType = (modes || []).includes('cct') ? 'cct' : 'relation';
   const streamTypes = [
-    streamA?.streamType === 'decoy' ? 'relation' : (streamA?.streamType || defaultType),
+    streamA?.streamType || defaultType,
     ...extraStreams.map(s => s?.streamType || defaultType),
   ];
-  // streamDecoys[i] === true marks stream i as a spurious distractor: it is
-  // rendered/played but never scored and has no response key. Aligned to
-  // streams (0 = A, 1.. = extras). A decoy uses relation-style content.
-  const streamDecoys = streamTypes.map(t => t === 'decoy');
+
+  // ── Decoy Filter (type-based selective attention) ────────────────────────
+  // Certain relation CATEGORIES are "decoys" the player must ignore in real
+  // time. Each relation stream gets its own decoy category set. Categories are
+  // drawn ONLY from the categories actually present in the active pool, and at
+  // least one category is always left as a relevant (responded) target.
+  const decoyFilterActive = (modes || []).includes('decoy_filter');
+  let streamDecoyCats = Array.from({ length: totalStreams }, () => []);
+  if (decoyFilterActive) {
+    const dpool = (relationshipPool && relationshipPool.length) ? relationshipPool : ALL_RELATIONSHIPS;
+    const activeCats = [...new Set(dpool.map(getCategory))].filter(Boolean);
+    if (activeCats.length >= 2) {
+      const maxDecoy = activeCats.length - 1; // always leave ≥1 relevant category
+      const manualChosen = (decoyFilterCategories || []).filter(c => activeCats.includes(c));
+      streamDecoyCats = streamTypes.map(t => {
+        if (t !== 'relation') return []; // decoy filter only applies to relation streams
+        if (decoyFilterRandom) {
+          const k = 1 + Math.floor(Math.random() * maxDecoy);
+          const shuffled = [...activeCats].sort(() => Math.random() - 0.5);
+          return shuffled.slice(0, k);
+        }
+        // Manual: cap to maxDecoy so something always remains relevant.
+        return manualChosen.slice(0, maxDecoy);
+      });
+    }
+  }
 
   // ── TJN / TEM setup: pre-build "blocks". Each block has its own graph +
   // walk. For plain TJN there is exactly 1 block covering the whole
@@ -884,8 +946,8 @@ export function createGameState({ nLevel, modes, relationshipPool, totalRounds, 
     totalRounds: totalRounds || TOTAL_ROUNDS,
     numExtraStreams: numExtra,
     streamTypes,
-    streamDecoys,
-    hideDecoyLabel: !!hideDecoyLabel,
+    streamDecoyCats,
+    decoyFilterRule,
     nrintEnabledFlags: (nrintEnabledFlags && nrintEnabledFlags.length) ? nrintEnabledFlags : NRINT_DEFAULT_FLAGS,
     nrintHideLegend: !!nrintHideLegend,
     nrintMaxPerTrial: Number(nrintMaxPerTrial) || 0,
@@ -1177,21 +1239,17 @@ export function generateNextStimulus(state) {
   const soundPool = pool.filter(isSound);
   const nonSoundPool = pool.filter(rel => !isSound(rel));
   const allNonSoundPool = ALL_RELATIONSHIPS.filter(rel => !isSound(rel));
-  // Only SCORED relation streams participate in the dual-audio (L/R sound)
-  // auto-assignment. Decoy streams are deliberately excluded so they don't
-  // trip the "2+ relation streams → force sound-only pools" rule — a decoy
-  // is a full-pool stream over ALL relation types, just unscored.
   const relationStreamIndexes = Array.from({ length: totalStreams }, (_, i) => i).filter(i => stypeOf(i) === 'relation');
   const audioStreamIndexes = relationStreamIndexes.length >= 2 && soundPool.length > 0 ? pickSoundStreamIndexes(relationStreamIndexes) : [];
   const streamPoolFor = (index) => {
     if (stypeOf(index) === 'cct') return ['CCT_NUMERIC'];
-    // Decoy: always the full relational pool (every type), regardless of any
-    // sound auto-assignment happening on the scored streams.
-    if (stypeOf(index) === 'decoy') return pool;
     if (audioStreamIndexes.includes(index)) return soundPool;
     if (audioStreamIndexes.length > 0) return nonSoundPool.length > 0 ? nonSoundPool : allNonSoundPool;
     return pool;
   };
+  // Per-stream decoy categories (decoy_filter mode); [] when inactive.
+  const decoyFilterRule = state.decoyFilterRule || 'never_target';
+  const decoyCatsFor = (index) => (state.streamDecoyCats && state.streamDecoyCats[index]) || [];
 
   // Generate per-trial binary configs if binary_logic mode is active
   const trialBinaryConfigs = isBinaryLogic
@@ -1234,6 +1292,8 @@ export function generateNextStimulus(state) {
     nrintEnabledFlags,
     nrintHideLegend,
     nrintMaxPerTrial,
+    decoyCats: decoyCatsFor(0),
+    decoyFilterRule,
     customLureRate,
     customNegationRate,
     modes,
@@ -1281,6 +1341,8 @@ export function generateNextStimulus(state) {
       nrintEnabledFlags,
       nrintHideLegend,
       nrintMaxPerTrial,
+      decoyCats: decoyCatsFor(1 + i),
+      decoyFilterRule,
       customLureRate,
       customNegationRate,
       modes,
@@ -1625,10 +1687,6 @@ export function processResponses(state, { pressedA, pressedExtra = [], pressedPo
   const nextExtraRSTFA = [...(state.extraRSTFalseAlarms || [])];
   const nextExtraRSTCR = [...(state.extraRSTCorrectRejections || [])];
   (state.extraIsTargets || []).forEach((isTarget, i) => {
-    // Decoy (spurious) streams are rendered/played but never scored — they
-    // exist purely to train selective attention. Skip all scoring and
-    // trial-record logging so they contribute nothing to results.
-    if ((state.streamDecoys || [])[i + 1]) return;
     const pressed = pressedExtra[i] || false;
     if (isTarget && pressed) nextExtraHits[i] = (nextExtraHits[i] || 0) + 1;
     else if (isTarget && !pressed) nextExtraMisses[i] = (nextExtraMisses[i] || 0) + 1;
