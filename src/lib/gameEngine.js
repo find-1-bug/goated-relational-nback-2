@@ -845,9 +845,14 @@ export function createGameState({ nLevel, modes, relationshipPool, totalRounds, 
   // Per-stream type: 'relation' (default) or 'cct'. Falls back to global 'cct'
   // mode for backward compat.
   const defaultType = (modes || []).includes('cct') ? 'cct' : 'relation';
+  // Normalize to the only two live stream types. A stale 'decoy' value can
+  // linger in saved settings from the removed whole-stream-decoy feature;
+  // coerce it (and anything unknown) to 'relation' so it can't silently
+  // disable a stream's decoy-filter assignment.
+  const normalizeStreamType = (t) => (t === 'cct' ? 'cct' : 'relation');
   const streamTypes = [
-    streamA?.streamType || defaultType,
-    ...extraStreams.map(s => s?.streamType || defaultType),
+    normalizeStreamType(streamA?.streamType || defaultType),
+    ...extraStreams.map(s => normalizeStreamType(s?.streamType || defaultType)),
   ];
 
   // ── Decoy Filter (type-based selective attention) ────────────────────────

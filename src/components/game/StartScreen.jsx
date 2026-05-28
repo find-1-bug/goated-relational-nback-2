@@ -410,7 +410,9 @@ export default function StartScreen({ onStart, suggestedN, lastSettings }) {
   const [extraStreams, setExtraStreams] = React.useState(
     (lastSettings?.extraStreams || []).map(s => ({
       ...s,
-      streamType: s.streamType || (lastSettings?.modes?.includes('cct') ? 'cct' : 'relation'),
+      // Coerce the removed 'decoy' stream type (and anything unknown) back to
+      // a live type so stale saved settings don't disable a stream.
+      streamType: s.streamType === 'cct' ? 'cct' : 'relation',
       rstKey: s.rstKey || 'KeyR',
       rstKeyDisplay: s.rstKeyDisplay || 'R',
     }))
