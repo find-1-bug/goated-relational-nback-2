@@ -492,14 +492,6 @@ export default function StartScreen({ onStart, suggestedN, lastSettings }) {
   const nrintActive = modes.includes('nonverbal_rint');
   const tjnActive = modes.includes('trajectory_nback');
   const decoyFilterActive = modes.includes('decoy_filter');
-  // Categories actually present in the current selection (decoy cats are drawn
-  // only from these, and at least one must remain as a relevant target).
-  const activeDecoyCategories = React.useMemo(() => {
-    const cats = Object.keys(RELATIONSHIP_CATEGORIES).filter(cat =>
-      (RELATIONSHIP_CATEGORIES[cat] || []).some(rel => selectedRels.includes(rel))
-    );
-    return cats;
-  }, [selectedRels]);
   const poolIgnoredCls = (nrintActive || tjnActive) ? 'opacity-50' : '';
   const poolIgnoredNote = tjnActive ? (
     <span className="text-[10px] font-mono text-indigo-400 bg-indigo-500/10 border border-indigo-500/30 rounded px-1.5 py-0.5 whitespace-nowrap">ignored in Trajectory N-Back</span>
@@ -748,6 +740,11 @@ export default function StartScreen({ onStart, suggestedN, lastSettings }) {
   };
 
   const selectedRels = [...enabledRels];
+  // Categories actually present in the current selection — decoy cats are
+  // drawn only from these, and at least one must remain a relevant target.
+  const activeDecoyCategories = Object.keys(RELATIONSHIP_CATEGORIES).filter(cat =>
+    (RELATIONSHIP_CATEGORIES[cat] || []).some(rel => selectedRels.includes(rel))
+  );
   const totalRels = Object.values(RELATIONSHIP_CATEGORIES).flat().length;
   const streamCount = 1 + extraStreams.length;
   const soundOnlySelection = streamCount >= 2 && selectedRels.length > 0 && selectedRels.every(rel => RELATIONSHIP_CATEGORIES.SOUND.includes(rel));
