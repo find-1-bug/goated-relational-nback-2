@@ -245,21 +245,22 @@ const CAROUSEL_SPEED_OPTIONS = [
   { label: 'Turbo', ms: 1400 },
 ];
 
-function StreamRow({ label, labelColor, borderColor, keyCode, positionKeyCode, cctKeyCode, rstKeyCode, showPositionKey, showCCTKey, showRSTKey, onKeyChange, onPositionKeyChange, onCCTKeyChange, onRSTKeyChange, allStreamKeys, thisKey, thisPositionKey, thisCCTKey, thisRSTKey, onRemove, streamType, onStreamTypeChange }) {
+function StreamRow({ label, labelColor, borderColor, keyCode, positionKeyCode, cctKeyCode, rstKeyCode, showPositionKey, showCCTKey, showRSTKey, onKeyChange, onPositionKeyChange, onCCTKeyChange, onRSTKeyChange, allStreamKeys, thisKey, thisPositionKey, thisCCTKey, thisRSTKey, onRemove, streamType, onStreamTypeChange, allowDecoy = false }) {
   const isCCT = streamType === 'cct';
+  const isDecoy = streamType === 'decoy';
   return (
     <div className={`rounded-lg bg-secondary/50 border ${borderColor} p-2 space-y-1.5`}>
       <div className="flex items-center gap-2 flex-wrap">
         <span className={`text-xs font-mono font-semibold ${labelColor} shrink-0`}>{label}</span>
-        {/* Per-stream type selector: Relation (default) | CCT (arithmetic).
-            Streams can run independent rules — e.g. A on type-n-back relations,
-            B on CCT arithmetic — without one bleeding into the other. */}
+        {/* Per-stream type selector: Relation (default) | CCT (arithmetic) |
+            Decoy (spurious distractor — rendered/played but never scored, no
+            response key). Decoy is only offered on extra streams. */}
         {onStreamTypeChange && (
           <div className="flex rounded border border-border overflow-hidden text-[10px] sm:text-xs font-mono shrink-0">
             <button
               type="button"
               onClick={() => onStreamTypeChange('relation')}
-              className={`px-2 py-0.5 transition-colors ${!isCCT ? 'bg-primary/25 text-primary font-semibold' : 'text-muted-foreground hover:text-foreground'}`}
+              className={`px-2 py-0.5 transition-colors ${!isCCT && !isDecoy ? 'bg-primary/25 text-primary font-semibold' : 'text-muted-foreground hover:text-foreground'}`}
               title="Relation n-back stream"
             >
               REL
@@ -272,7 +273,20 @@ function StreamRow({ label, labelColor, borderColor, keyCode, positionKeyCode, c
             >
               CCT
             </button>
+            {allowDecoy && (
+              <button
+                type="button"
+                onClick={() => onStreamTypeChange('decoy')}
+                className={`px-2 py-0.5 transition-colors ${isDecoy ? 'bg-amber-600/30 text-amber-300 font-semibold' : 'text-muted-foreground hover:text-foreground'}`}
+                title="Decoy / spurious stream — plays but is NOT scored; ignore it (selective attention training)"
+              >
+                DECOY
+              </button>
+            )}
           </div>
+        )}
+        {isDecoy && (
+          <span className="text-[10px] font-mono text-amber-400/80 shrink-0">ignore · not scored · no key</span>
         )}
         {onRemove && (
           <button onClick={onRemove}
@@ -412,6 +426,10 @@ export default function StartScreen({ onStart, suggestedN, lastSettings }) {
       rstKeyDisplay: s.rstKeyDisplay || 'R',
     }))
   );
+  // Decoy display mode: false (default) = marked "IGNORE" badge + dashed card;
+  // true = unmarked (decoy looks identical to a scored stream, player must
+  // remember which streams are theirs).
+  const [hideDecoyLabel, setHideDecoyLabel] = React.useState(!!lastSettings?.hideDecoyLabel);
 
   const [alienSettings, setAlienSettings] = React.useState(lastSettings?.alienSettings || {
     cubeDirection: 'cw',
@@ -1227,6 +1245,7 @@ export default function StartScreen({ onStart, suggestedN, lastSettings }) {
                   allStreamKeys={allStreamKeys} thisKey={stream.key} thisPositionKey={stream.positionKey} thisCCTKey={stream.cctKey} thisRSTKey={stream.rstKey}
                   onRemove={() => removeStream(idx)}
                   streamType={stream.streamType || 'relation'} onStreamTypeChange={(t) => setStreamType(idx, t)}
+                  allowDecoy
                 />
               );
             })}
@@ -1237,6 +1256,24 @@ export default function StartScreen({ onStart, suggestedN, lastSettings }) {
               <Plus className="w-3.5 h-3.5" />
               {1 + extraStreams.length >= MAX_STREAMS ? 'Max Streams Reached' : 'Add Stream'}
             </button>
+
+            {/* Decoy display toggle — only relevant when a decoy stream exists.
+                Marked (default) = clear IGNORE badge. Unmarked = looks identical
+                to a scored stream (selective attention + source memory). */}
+            {extraStreams.some(s => s.streamType === 'decoy') && (
+              <div className="flex items-center justify-between gap-3 rounded-lg bg-amber-500/5 border border-amber-500/30 p-2.5">
+                <div className="flex-1 min-w-0">
+                  <span className="text-xs font-mono text-foreground">Hide ignore-label (unmarked decoy)</span>
+                  <p className="text-[10px] font-mono text-muted-foreground/70">Off = decoy is clearly marked "IGNORE". On = decoy looks identical to a scored stream, so you must remember which streams are yours.</p>
+                </div>
+                <button
+                  onClick={() => setHideDecoyLabel(v => !v)}
+                  className={`relative w-12 h-6 rounded-full transition-colors shrink-0 ${hideDecoyLabel ? 'bg-amber-500' : 'bg-secondary border border-border'}`}
+                >
+                  <div className={`absolute w-5 h-5 rounded-full bg-foreground transition-transform ${hideDecoyLabel ? 'translate-x-6' : 'translate-x-0.5'}`} style={{ top: '2.5px' }} />
+                </button>
+              </div>
+            )}
           </div>
         </div>
 
@@ -1792,9 +1829,13 @@ export default function StartScreen({ onStart, suggestedN, lastSettings }) {
                 { key: 'KeyA', keyDisplay: 'A', positionKey: 'KeyS', positionKeyDisplay: 'S', cctKey: 'KeyD', cctKeyDisplay: 'D', rstKey: 'KeyG', rstKeyDisplay: 'G' },
               ];
               const wantedExtras = Math.max(0, (currentPhase.streamsCount || 1) - 1);
+              // A phase may mark specific extra streams as decoys via
+              // `decoyExtraIndexes` (0-based among extras) — used by the
+              // Selective Attention Filter phase.
+              const decoyExtraIndexes = currentPhase.decoyExtraIndexes || [];
               const autopilotExtraStreams = EXTRA_STREAM_TEMPLATES
                 .slice(0, wantedExtras)
-                .map(t => ({ ...t, streamType: 'relation' }));
+                .map((t, i) => ({ ...t, streamType: decoyExtraIndexes.includes(i) ? 'decoy' : 'relation' }));
 
               // Pool selection — when the user is testing an arbitrary phase
               // (testPhaseIndex set), force-expand to ALL relations so the
@@ -1826,6 +1867,7 @@ export default function StartScreen({ onStart, suggestedN, lastSettings }) {
                   nrintEnabledFlags,
                   nrintHideLegend,
                   nrintMaxPerTrial,
+                  hideDecoyLabel: false,
                   rstDifficulty: currentPhase.rstDifficulty || rstDifficulty,
                   // Coach-phase TJN config overrides the manual selector when
                   // a phase explicitly configures Trajectory N-Back.
@@ -1865,7 +1907,7 @@ export default function StartScreen({ onStart, suggestedN, lastSettings }) {
                 rstKeyDisplay: KEY_OPTIONS.find(k => k.code === streamARSTKey)?.display || 'R',
                 streamType: streamAType,
               };
-              onStart(nLevel, modes, finalPool, rounds, speedMs, { catWeights, useCustomMix, rels: selectedRels, tokenWeights, streamA: streamAWithPosition, extraStreams, streams: [streamAWithPosition, ...extraStreams], alienSettings, carouselSettings, nrintEnabledFlags, nrintHideLegend, nrintMaxPerTrial, rstDifficulty, tjnTier, tjnTopology, tjnNodes, tjnK, tjnSchemaMode, tjnSchemaBlocks, wrapperMorphStyle, autopilot: false }, noobMode);
+              onStart(nLevel, modes, finalPool, rounds, speedMs, { catWeights, useCustomMix, rels: selectedRels, tokenWeights, streamA: streamAWithPosition, extraStreams, streams: [streamAWithPosition, ...extraStreams], alienSettings, carouselSettings, nrintEnabledFlags, nrintHideLegend, nrintMaxPerTrial, hideDecoyLabel, rstDifficulty, tjnTier, tjnTopology, tjnNodes, tjnK, tjnSchemaMode, tjnSchemaBlocks, wrapperMorphStyle, autopilot: false }, noobMode);
             }}
             className="flex-1 h-12 px-6 font-mono font-semibold text-xs sm:text-sm tracking-wide bg-secondary hover:bg-secondary/85 text-foreground border border-border"
           >

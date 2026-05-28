@@ -1,4 +1,5 @@
 let audioCtx = null;
+let masterBus = null;
 
 function getAudioContext() {
   if (typeof window === 'undefined') return null;
@@ -7,6 +8,25 @@ function getAudioContext() {
   if (!audioCtx) audioCtx = new AudioContext();
   if (audioCtx.state === 'suspended') audioCtx.resume();
   return audioCtx;
+}
+
+// Master output bus with a gentle limiter. Every tone routes through this
+// instead of connecting straight to ctx.destination, so when multiple sounds
+// (e.g. two sound-relation streams, or a scored + decoy stream) overlap on a
+// single trial their summed gains no longer clip/distort. Created lazily and
+// reused for the lifetime of the context.
+function getMasterBus(ctx) {
+  if (!ctx) return null;
+  if (masterBus && masterBus.context === ctx) return masterBus;
+  const compressor = ctx.createDynamicsCompressor();
+  compressor.threshold.setValueAtTime(-18, ctx.currentTime);
+  compressor.knee.setValueAtTime(24, ctx.currentTime);
+  compressor.ratio.setValueAtTime(4, ctx.currentTime);
+  compressor.attack.setValueAtTime(0.003, ctx.currentTime);
+  compressor.release.setValueAtTime(0.15, ctx.currentTime);
+  compressor.connect(ctx.destination);
+  masterBus = compressor;
+  return masterBus;
 }
 
 function tokenFrequency(token) {
@@ -29,11 +49,12 @@ function playTone(ctx, frequency, duration, pan, startTime, type = 'sine', peakG
   gain.gain.exponentialRampToValueAtTime(Math.max(0.0005, peakGain), startTime + 0.015);
   gain.gain.exponentialRampToValueAtTime(0.0001, startTime + duration);
 
+  const out = getMasterBus(ctx) || ctx.destination;
   if (panner) {
     panner.pan.setValueAtTime(pan, startTime);
-    oscillator.connect(gain).connect(panner).connect(ctx.destination);
+    oscillator.connect(gain).connect(panner).connect(out);
   } else {
-    oscillator.connect(gain).connect(ctx.destination);
+    oscillator.connect(gain).connect(out);
   }
 
   oscillator.start(startTime);

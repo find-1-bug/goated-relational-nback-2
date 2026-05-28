@@ -118,7 +118,7 @@ function mergeHistoricalWithProgress(historicalState, progressState, streamCount
   };
 }
 
-export default function GameScreen({ nLevel, modes, relationshipPool, totalRounds, stimulusDuration, extraStreams, streamA, alienSettings, carouselSettings, nrintEnabledFlags, nrintHideLegend, nrintMaxPerTrial = 0, rstDifficulty = 'easy', tjnTier = 'easy', tjnTopology = 'small_world', tjnNodes = 6, tjnK = 2, tjnSchemaMode = false, tjnSchemaBlocks = 3, noobMode, autopilot, phaseTitle, coachPickedPhaseIndex = null, coachPickReason = null, onFinish, onExit }) {
+export default function GameScreen({ nLevel, modes, relationshipPool, totalRounds, stimulusDuration, extraStreams, streamA, alienSettings, carouselSettings, nrintEnabledFlags, nrintHideLegend, nrintMaxPerTrial = 0, hideDecoyLabel = false, rstDifficulty = 'easy', tjnTier = 'easy', tjnTopology = 'small_world', tjnNodes = 6, tjnK = 2, tjnSchemaMode = false, tjnSchemaBlocks = 3, noobMode, autopilot, phaseTitle, coachPickedPhaseIndex = null, coachPickReason = null, onFinish, onExit }) {
   // extraStreams: [{ key, label, keyDisplay, positionKey, positionKeyDisplay }]
   const getStimulusDuration = useCallback(() => {
     if (modes.includes('adaptive_closed_loop') && gameStateRef.current?.adaptiveSpeedMs) {
@@ -157,9 +157,14 @@ export default function GameScreen({ nLevel, modes, relationshipPool, totalRound
     })),
   ];
   const numExtra = (extraStreams || []).length;
+  // A decoy stream hides its response controls only in the MARKED variant
+  // (default). In the unmarked variant (hideDecoyLabel) it looks identical to
+  // a scored stream — inert button shown — so the player must remember which
+  // stream is the decoy. Either way the keydown handler never scores it.
+  const decoyControlsHidden = (idx) => allStreams[idx]?.streamType === 'decoy' && !hideDecoyLabel;
 
   const [gameState, setGameState] = useState(() => {
-    const state = createGameState({ nLevel, modes, relationshipPool, totalRounds, extraStreams: extraStreams || [], alienSettings, streamA, nrintEnabledFlags, nrintHideLegend, nrintMaxPerTrial, rstDifficulty, tjnTier, tjnTopology, tjnNodes, tjnK, tjnSchemaMode, tjnSchemaBlocks, initialSpeedMs: stimulusDuration === 'random' ? 2800 : (stimulusDuration || 2800) });
+    const state = createGameState({ nLevel, modes, relationshipPool, totalRounds, extraStreams: extraStreams || [], alienSettings, streamA, nrintEnabledFlags, nrintHideLegend, nrintMaxPerTrial, hideDecoyLabel, rstDifficulty, tjnTier, tjnTopology, tjnNodes, tjnK, tjnSchemaMode, tjnSchemaBlocks, initialSpeedMs: stimulusDuration === 'random' ? 2800 : (stimulusDuration || 2800) });
     state.autopilot = autopilot;
     state.phaseTitle = phaseTitle;
     state.coachPickedPhaseIndex = coachPickedPhaseIndex;
@@ -454,6 +459,9 @@ export default function GameScreen({ nLevel, modes, relationshipPool, totalRound
       if (phase !== 'stimulus') return;
       if (noobMode && (progressStateRef.current?.scoredTrialKeys || []).includes(gameStateRef.current?.round)) return;
       allStreams.forEach((stream, idx) => {
+        // Decoy streams are never scored and have no response key — ignore
+        // every key for them so the player can't (accidentally) respond.
+        if (stream.streamType === 'decoy') return;
         if (e.code === stream.key) {
           e.preventDefault();
           markResponse(idx, 'relation');
@@ -666,7 +674,9 @@ export default function GameScreen({ nLevel, modes, relationshipPool, totalRound
             <div 
               key={idx} 
               className={`relative rounded-xl flex flex-col overflow-hidden transition-[box-shadow,border-color] duration-150 ${
-                theme 
+                decoyControlsHidden(idx)
+                  ? 'bg-secondary/10 border-amber-500/40 border-2 border-dashed opacity-80'
+                  : theme
                   ? theme.className
                   : (audioEarForIndex(idx)
                       ? 'bg-emerald-500/10 border-emerald-400 shadow-[0_0_28px_rgba(52,211,153,0.28)] border-2'
@@ -707,6 +717,13 @@ export default function GameScreen({ nLevel, modes, relationshipPool, totalRound
                     );
                   })() : (
                     <StreamModeBadge mode={allTrialModes[idx]} />
+                  )}
+                  {/* Decoy badge — marked variant only. Tells the player this
+                      stream is a spurious distractor to ignore (not scored). */}
+                  {allStreams[idx]?.streamType === 'decoy' && !hideDecoyLabel && (
+                    <span className="px-1.5 py-0.5 rounded border border-amber-500/60 bg-amber-500/15 text-amber-300 font-mono text-[10px] font-bold uppercase tracking-wider leading-none">
+                      Ignore · not scored
+                    </span>
                   )}
                 </div>
                 {audioEarForIndex(idx) && phase === 'stimulus' && !clearCanvas && (
@@ -993,11 +1010,17 @@ export default function GameScreen({ nLevel, modes, relationshipPool, totalRound
         <p className="text-xs font-mono text-muted-foreground/40 flex flex-wrap justify-center gap-x-2 gap-y-0.5">
           {allStreams.map((stream, idx) => (
             <span key={idx}>
-              <kbd className="px-1 py-0.5 rounded bg-muted text-muted-foreground font-semibold text-xs">{stream.keyDisplay}</kbd>
-              {' '}= {STREAM_LABELS[idx]} REL
-              {hasAlienPosition && <><kbd className="ml-1 px-1 py-0.5 rounded bg-muted text-amber-400 font-semibold text-xs">{stream.positionKeyDisplay}</kbd> = {STREAM_LABELS[idx]} POS</>}
-              {hasCCTOverlay && stream.streamType !== 'cct' && <><kbd className="ml-1 px-1 py-0.5 rounded bg-muted text-rose-400 font-semibold text-xs">{stream.cctKeyDisplay}</kbd> = {STREAM_LABELS[idx]} CCT</>}
-              {hasRSTOverlay && idx === 0 && <><kbd className="ml-1 px-1 py-0.5 rounded bg-muted text-violet-400 font-semibold text-xs">{stream.rstKeyDisplay}</kbd> = A RST</>}
+              {decoyControlsHidden(idx) ? (
+                <span className="text-amber-400/70">{STREAM_LABELS[idx]} = ignore (not scored)</span>
+              ) : (
+                <>
+                  <kbd className="px-1 py-0.5 rounded bg-muted text-muted-foreground font-semibold text-xs">{stream.keyDisplay}</kbd>
+                  {' '}= {STREAM_LABELS[idx]} REL
+                  {hasAlienPosition && <><kbd className="ml-1 px-1 py-0.5 rounded bg-muted text-amber-400 font-semibold text-xs">{stream.positionKeyDisplay}</kbd> = {STREAM_LABELS[idx]} POS</>}
+                  {hasCCTOverlay && stream.streamType !== 'cct' && <><kbd className="ml-1 px-1 py-0.5 rounded bg-muted text-rose-400 font-semibold text-xs">{stream.cctKeyDisplay}</kbd> = {STREAM_LABELS[idx]} CCT</>}
+                  {hasRSTOverlay && idx === 0 && <><kbd className="ml-1 px-1 py-0.5 rounded bg-muted text-violet-400 font-semibold text-xs">{stream.rstKeyDisplay}</kbd> = A RST</>}
+                </>
+              )}
             </span>
           ))}
 
@@ -1021,7 +1044,7 @@ export default function GameScreen({ nLevel, modes, relationshipPool, totalRound
               >
                 ← Prev
               </button>
-              {allStreams.flatMap((stream, idx) => [
+              {allStreams.flatMap((stream, idx) => decoyControlsHidden(idx) ? [] : [
                 <button key={`${idx}-rel`}
                   className={`h-11 rounded-lg bg-secondary border font-mono text-xs text-muted-foreground active:bg-secondary/70 transition-colors ${STREAM_BORDER_COLORS[idx % STREAM_BORDER_COLORS.length]}`}
                   style={{ WebkitTapHighlightColor: 'transparent', touchAction: 'manipulation' }}
@@ -1055,7 +1078,7 @@ export default function GameScreen({ nLevel, modes, relationshipPool, totalRound
               </button>
             </>
           ) : (
-            allStreams.flatMap((stream, idx) => [
+            allStreams.flatMap((stream, idx) => decoyControlsHidden(idx) ? [] : [
               <button key={`${idx}-rel`}
                 className={`h-12 rounded-lg bg-secondary border font-mono text-xs text-muted-foreground transition-colors ${STREAM_BORDER_COLORS[idx % STREAM_BORDER_COLORS.length]}`}
                 style={{ WebkitTapHighlightColor: 'transparent', touchAction: 'manipulation' }}
@@ -1095,7 +1118,7 @@ export default function GameScreen({ nLevel, modes, relationshipPool, totalRound
           >
             ← Prev Trial
           </button>
-          {allStreams.flatMap((stream, idx) => [
+          {allStreams.flatMap((stream, idx) => decoyControlsHidden(idx) ? [] : [
             <button key={`${idx}-rel`}
               onMouseDown={(e) => { e.preventDefault(); markResponse(idx, 'relation'); }}
               className={`px-6 h-10 rounded-lg bg-secondary border font-mono text-sm transition-colors ${STREAM_BORDER_COLORS[idx % STREAM_BORDER_COLORS.length]}`}>

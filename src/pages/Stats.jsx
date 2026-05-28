@@ -620,6 +620,46 @@ export default function Stats() {
               )}
             </div>
 
+            {/* Selective Attention (decoy) — with vs without comparison */}
+            {(() => {
+              const withDecoy = sessions.filter(s => (s.decoyStreamCount || 0) > 0);
+              const withoutDecoy = sessions.filter(s => !(s.decoyStreamCount > 0));
+              if (withDecoy.length === 0) return null;
+              const avg = (arr) => arr.length ? Math.round(arr.reduce((a, x) => a + (x.accuracy || 0), 0) / arr.length) : null;
+              const wAvg = avg(withDecoy);
+              const woAvg = avg(withoutDecoy);
+              const drop = (wAvg != null && woAvg != null) ? (woAvg - wAvg) : null;
+              return (
+                <div className="rounded-xl bg-amber-500/5 border border-amber-500/30 p-4 shadow-lg space-y-3">
+                  <div>
+                    <h3 className="text-xs font-mono font-bold uppercase tracking-widest text-amber-300">Selective Attention (Decoy)</h3>
+                    <p className="text-[10px] font-mono text-muted-foreground">Scored-stream accuracy with a spurious decoy present vs absent. A drop means the distractor is taxing you — that's the training effect.</p>
+                  </div>
+                  <div className="grid grid-cols-2 gap-3 font-mono">
+                    <div className="rounded-lg bg-background/40 border border-border p-3 text-center">
+                      <div className="text-2xl font-bold text-emerald-400">{woAvg != null ? `${woAvg}%` : '—'}</div>
+                      <div className="text-[10px] text-foreground font-semibold mt-1">Without decoy</div>
+                      <div className="text-[9px] text-muted-foreground">{withoutDecoy.length} session{withoutDecoy.length === 1 ? '' : 's'}</div>
+                    </div>
+                    <div className="rounded-lg bg-background/40 border border-amber-500/30 p-3 text-center">
+                      <div className="text-2xl font-bold text-amber-400">{wAvg != null ? `${wAvg}%` : '—'}</div>
+                      <div className="text-[10px] text-foreground font-semibold mt-1">With decoy</div>
+                      <div className="text-[9px] text-muted-foreground">{withDecoy.length} session{withDecoy.length === 1 ? '' : 's'}</div>
+                    </div>
+                  </div>
+                  {drop != null && (
+                    <div className={`text-[11px] font-mono rounded-lg px-3 py-2 border ${drop > 5 ? 'bg-amber-500/10 border-amber-500/30 text-amber-300' : 'bg-emerald-500/10 border-emerald-500/30 text-emerald-300'}`}>
+                      {drop > 5
+                        ? `Decoy cost = ${drop}% — the distractor is meaningfully taxing your scored streams. Keep training to build filtering resistance.`
+                        : drop >= 0
+                          ? `Decoy cost = ${drop}% — minimal interference; your selective attention is holding up well.`
+                          : `Decoy cost = ${drop}% — you actually score higher with a decoy present (small-sample noise or extra arousal).`}
+                    </div>
+                  )}
+                </div>
+              );
+            })()}
+
             {/* Stressors Accuracy Comparison Panel */}
             <div className="rounded-xl bg-secondary/35 border border-border/80 p-4 shadow-lg space-y-4">
               <div>

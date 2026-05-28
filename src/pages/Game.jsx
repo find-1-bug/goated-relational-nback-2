@@ -27,6 +27,7 @@ export default function Game() {
   const [nrintEnabledFlags, setNrintEnabledFlags] = useState(null);
   const [nrintHideLegend, setNrintHideLegend] = useState(false);
   const [nrintMaxPerTrial, setNrintMaxPerTrial] = useState(0);
+  const [hideDecoyLabel, setHideDecoyLabel] = useState(false);
   const [rstDifficulty, setRstDifficulty] = useState('easy');
   const [tjnTier, setTjnTier] = useState('easy');
   const [tjnTopology, setTjnTopology] = useState('small_world');
@@ -66,6 +67,7 @@ export default function Game() {
     setNrintEnabledFlags(extraSettings?.nrintEnabledFlags || null);
     setNrintHideLegend(!!extraSettings?.nrintHideLegend);
     setNrintMaxPerTrial(Number(extraSettings?.nrintMaxPerTrial) || 0);
+    setHideDecoyLabel(!!extraSettings?.hideDecoyLabel);
     setRstDifficulty(extraSettings?.rstDifficulty || 'easy');
     setTjnTier(extraSettings?.tjnTier || 'easy');
     setTjnTopology(extraSettings?.tjnTopology || 'small_world');
@@ -98,6 +100,7 @@ export default function Game() {
         nrintEnabledFlags: extraSettings?.nrintEnabledFlags || null,
         nrintHideLegend: !!extraSettings?.nrintHideLegend,
         nrintMaxPerTrial: Number(extraSettings?.nrintMaxPerTrial) || 0,
+        hideDecoyLabel: !!extraSettings?.hideDecoyLabel,
         rstDifficulty: extraSettings?.rstDifficulty || 'easy',
         tjnTier: extraSettings?.tjnTier || 'easy',
         tjnTopology: extraSettings?.tjnTopology || 'small_world',
@@ -138,6 +141,9 @@ export default function Game() {
       durationSeconds,
       noobMode,
       autopilot: !!state.autopilot,
+      // Count of decoy (spurious distractor) streams this session, for the
+      // Stats "Selective Attention" with/without comparison.
+      decoyStreamCount: (state.streamDecoys || []).filter(Boolean).length,
       phaseTitle: state.phaseTitle || '',
       trials: state.allTrials || [] // trials saved during gameplay
     };
@@ -186,6 +192,7 @@ export default function Game() {
           nrintEnabledFlags={nrintEnabledFlags}
           nrintHideLegend={nrintHideLegend}
           nrintMaxPerTrial={nrintMaxPerTrial}
+          hideDecoyLabel={hideDecoyLabel}
           rstDifficulty={rstDifficulty}
           tjnTier={tjnTier}
           tjnTopology={tjnTopology}

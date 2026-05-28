@@ -796,18 +796,23 @@ function randomBinaryConfig(effectiveN) {
 
 // ─── State Creation ──────────────────────────────────────────────────────────
 
-export function createGameState({ nLevel, modes, relationshipPool, totalRounds, extraStreams = [], alienSettings = {}, streamA = null, nrintEnabledFlags = null, nrintHideLegend = false, nrintMaxPerTrial = 0, initialSpeedMs = 2800, wrapperMorphStyle = 'shift', rstDifficulty = 'easy', tjnTier = TJN_DEFAULT_TIER, tjnTopology = TJN_DEFAULT_TOPOLOGY, tjnNodes = TJN_DEFAULT_NODES, tjnK = TJN_HARD_K, tjnSchemaMode = false, tjnSchemaBlocks = 3 } = {}) {
+export function createGameState({ nLevel, modes, relationshipPool, totalRounds, extraStreams = [], alienSettings = {}, streamA = null, nrintEnabledFlags = null, nrintHideLegend = false, nrintMaxPerTrial = 0, hideDecoyLabel = false, initialSpeedMs = 2800, wrapperMorphStyle = 'shift', rstDifficulty = 'easy', tjnTier = TJN_DEFAULT_TIER, tjnTopology = TJN_DEFAULT_TOPOLOGY, tjnNodes = TJN_DEFAULT_NODES, tjnK = TJN_HARD_K, tjnSchemaMode = false, tjnSchemaBlocks = 3 } = {}) {
   const opts = { tjnSchemaMode, tjnSchemaBlocks };
   const numExtra = extraStreams.length;
   const totalStreams = 1 + numExtra;
-  // Per-stream type: 'relation' (default) or 'cct'. Falls back to global 'cct'
-  // mode for backward compat — if user toggled the legacy global Enhancement
-  // Mode "CCT" on but never set per-stream streamTypes, every stream gets cct.
+  // Per-stream type: 'relation' (default), 'cct', or 'decoy'. Falls back to
+  // global 'cct' mode for backward compat — if user toggled the legacy global
+  // Enhancement Mode "CCT" on but never set per-stream streamTypes, every
+  // stream gets cct. Stream A is never a decoy (always scored).
   const defaultType = (modes || []).includes('cct') ? 'cct' : 'relation';
   const streamTypes = [
-    streamA?.streamType || defaultType,
+    streamA?.streamType === 'decoy' ? 'relation' : (streamA?.streamType || defaultType),
     ...extraStreams.map(s => s?.streamType || defaultType),
   ];
+  // streamDecoys[i] === true marks stream i as a spurious distractor: it is
+  // rendered/played but never scored and has no response key. Aligned to
+  // streams (0 = A, 1.. = extras). A decoy uses relation-style content.
+  const streamDecoys = streamTypes.map(t => t === 'decoy');
 
   // ── TJN / TEM setup: pre-build "blocks". Each block has its own graph +
   // walk. For plain TJN there is exactly 1 block covering the whole
@@ -879,6 +884,8 @@ export function createGameState({ nLevel, modes, relationshipPool, totalRounds, 
     totalRounds: totalRounds || TOTAL_ROUNDS,
     numExtraStreams: numExtra,
     streamTypes,
+    streamDecoys,
+    hideDecoyLabel: !!hideDecoyLabel,
     nrintEnabledFlags: (nrintEnabledFlags && nrintEnabledFlags.length) ? nrintEnabledFlags : NRINT_DEFAULT_FLAGS,
     nrintHideLegend: !!nrintHideLegend,
     nrintMaxPerTrial: Number(nrintMaxPerTrial) || 0,
@@ -1170,7 +1177,9 @@ export function generateNextStimulus(state) {
   const soundPool = pool.filter(isSound);
   const nonSoundPool = pool.filter(rel => !isSound(rel));
   const allNonSoundPool = ALL_RELATIONSHIPS.filter(rel => !isSound(rel));
-  const relationStreamIndexes = Array.from({ length: totalStreams }, (_, i) => i).filter(i => stypeOf(i) === 'relation');
+  // Decoy streams carry relation content (incl. sound relations), so they
+  // count as relation-like for pool + audio purposes — they just aren't scored.
+  const relationStreamIndexes = Array.from({ length: totalStreams }, (_, i) => i).filter(i => stypeOf(i) === 'relation' || stypeOf(i) === 'decoy');
   const audioStreamIndexes = relationStreamIndexes.length >= 2 && soundPool.length > 0 ? pickSoundStreamIndexes(relationStreamIndexes) : [];
   const streamPoolFor = (index) => {
     if (stypeOf(index) === 'cct') return ['CCT_NUMERIC'];
@@ -1611,6 +1620,10 @@ export function processResponses(state, { pressedA, pressedExtra = [], pressedPo
   const nextExtraRSTFA = [...(state.extraRSTFalseAlarms || [])];
   const nextExtraRSTCR = [...(state.extraRSTCorrectRejections || [])];
   (state.extraIsTargets || []).forEach((isTarget, i) => {
+    // Decoy (spurious) streams are rendered/played but never scored — they
+    // exist purely to train selective attention. Skip all scoring and
+    // trial-record logging so they contribute nothing to results.
+    if ((state.streamDecoys || [])[i + 1]) return;
     const pressed = pressedExtra[i] || false;
     if (isTarget && pressed) nextExtraHits[i] = (nextExtraHits[i] || 0) + 1;
     else if (isTarget && !pressed) nextExtraMisses[i] = (nextExtraMisses[i] || 0) + 1;

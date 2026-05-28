@@ -286,6 +286,16 @@ export default function Tutorial() {
                         <span>Blends verbal text, alphanumeric characters, and graphic emojis directly inside other relationship grids (like Spatial matrices, Orbiting 3D shapes, or Trait pairings). Blocks superficial shortcuts and overloads the episodic buffer.</span>
                       </div>
                       <div>
+                        <strong className="text-amber-300 block font-mono uppercase tracking-wider">Decoy / Spurious Streams (selective attention)</strong>
+                        <span>
+                          Add an extra stream and set its type to <strong className="text-amber-300">DECOY</strong>. A decoy stream is rendered and (if it carries sound relations) played, but it is <strong>never scored and has no response key</strong> — you must <em>ignore</em> it while tracking the real stream(s). This trains <strong>selective attention / distractor inhibition</strong>: filtering salient-but-irrelevant input under working-memory load. (Engle's controlled-attention theory: high working-memory individuals are precisely those who filter distractors best.)
+                          <br/><br/>
+                          <strong className="text-amber-200">Marked vs unmarked:</strong> by default the decoy card is clearly tagged <em>"IGNORE · not scored"</em> with a dashed border (pure response-inhibition). Toggle <em>"Hide ignore-label"</em> in the streams panel to make the decoy look identical to a scored stream — then you must <em>remember</em> from setup which streams are yours (selective attention + source memory).
+                          <br/><br/>
+                          <strong className="text-amber-200">Not the same as Distractors mode:</strong> the <em>Distractors</em> enhancement injects near-miss <em>lures</em> <em>inside a scored stream</em> (you still respond to that stream). A <em>decoy</em> is a whole <em>unscored</em> stream you must never respond to. Coach <strong>Phase 33: Selective Attention Filter</strong> is a ready-made 2-stream version (A scored, B decoy).
+                        </span>
+                      </div>
+                      <div>
                         <strong className="text-violet-300 block font-mono uppercase tracking-wider">RST Side-Task (Reasoning) · Easy / Medium / Hard / Extreme</strong>
                         <span>Layered on stream A like CCT, but trains deductive inference. One premise per trial; from trial N onwards a candidate conclusion is also shown. Press R if logically valid. Difficulty locks the family: <strong>Easy</strong> = Distinction (same/opposite XOR), <strong>Medium</strong> = Comparison (transitive order), <strong>Hard</strong> = Analogy (4-place structural mapping). <strong className="text-rose-300">Extreme</strong> = Meta-Relation: each conclusion is a BOOLEAN combination (∧, ∨, ∧¬, ↔) of TWO analogy claims spanning 5+ entities — pushes past Halford's 4-place rung into meta-knowledge territory. Hard + Extreme auto-extend SOA by 60%. Generators inspired by <a href="https://github.com/4skinskywalker/Syllogimous-v3" target="_blank" rel="noreferrer" className="underline">Syllogimous v3</a> (CC BY-NC 3.0). Requires N&ge;2.</span>
                       </div>

@@ -1192,6 +1192,19 @@ export const COACH_PHASES = [
     tjnSchemaBlocks: 4,
     desc: "Maximum schema-transfer challenge: 4 lattice graphs, neighbour-prediction tier. The player must extract grid-structure once, then apply it to four distinct surfaces with no relearning between blocks.",
     streamsCount: 1
+  },
+  // ── Selective attention / distractor inhibition ──────────────────────────
+  // Two streams: A is scored, B is a DECOY — it renders and plays but is never
+  // scored and has no key. The player must filter it out while tracking A.
+  {
+    title: "Phase 33: Selective Attention Filter",
+    nLevel: 2,
+    speedMs: 2400,
+    rounds: 26,
+    modes: ['distractors', 'feedback_per_trial'],
+    streamsCount: 2,
+    decoyExtraIndexes: [0],
+    desc: "Two parallel streams, but only Stream A is scored — Stream B is a spurious DECOY (rendered + played, never scored, no response key). Trains selective attention / distractor inhibition: hold Stream A under N-back load while actively ignoring the salient irrelevant stream. Engle's controlled-attention construct."
   }
 ];
 
