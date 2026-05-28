@@ -446,6 +446,9 @@ export default function StartScreen({ onStart, suggestedN, lastSettings }) {
       : NRINT_DEFAULT_FLAGS_LOCAL
   );
   const [nrintHideLegend, setNrintHideLegend] = React.useState(!!lastSettings?.nrintHideLegend);
+  // Max simultaneous attributes per trial (Grapist request). 0 = no cap.
+  // Lets the player bound tracking load when many flags are enabled.
+  const [nrintMaxPerTrial, setNrintMaxPerTrial] = React.useState(Number(lastSettings?.nrintMaxPerTrial) || 0);
   // RST family difficulty (Easy / Medium / Hard). Easy = Distinction only,
   // Medium = +Comparison, Hard = +Analogy (true 4-place). Family is picked
   // at session start from the difficulty pool and stays fixed for the run.
@@ -1286,6 +1289,33 @@ export default function StartScreen({ onStart, suggestedN, lastSettings }) {
                 />
               </button>
             </div>
+            {/* Max features per trial — caps how many attributes can be ON
+                simultaneously on any single stim. 0 = no cap (all enabled
+                flags eligible). Lets the player bound tracking load. */}
+            <div className="pt-2 border-t border-fuchsia-500/20 space-y-1.5">
+              <div className="flex items-center justify-between gap-3">
+                <div className="flex-1 min-w-0">
+                  <span className="text-xs font-mono text-foreground">Max features per trial</span>
+                  <p className="text-[10px] font-mono text-muted-foreground/70">Cap how many attributes appear at once on a single stimulus. 0 = no cap (up to all {nrintEnabledFlags.length} enabled).</p>
+                </div>
+                <div className="flex items-center gap-2 shrink-0">
+                  <button
+                    onClick={() => setNrintMaxPerTrial(v => Math.max(0, v - 1))}
+                    className="px-2 py-1 rounded bg-secondary/40 border border-border text-foreground text-xs font-mono">−</button>
+                  <span className="text-sm font-mono font-bold text-fuchsia-200 min-w-[3ch] text-center">
+                    {nrintMaxPerTrial === 0 ? '∞' : Math.min(nrintMaxPerTrial, nrintEnabledFlags.length)}
+                  </span>
+                  <button
+                    onClick={() => setNrintMaxPerTrial(v => Math.min(nrintEnabledFlags.length, v + 1))}
+                    className="px-2 py-1 rounded bg-secondary/40 border border-border text-foreground text-xs font-mono">+</button>
+                </div>
+              </div>
+              {nrintMaxPerTrial > 0 && nrintMaxPerTrial < nrintEnabledFlags.length && (
+                <p className="text-[10px] font-mono text-fuchsia-400/80">
+                  Each stim will show at most {nrintMaxPerTrial} of the {nrintEnabledFlags.length} enabled feature{nrintMaxPerTrial === 1 ? '' : 's'}. The union match rule still applies.
+                </p>
+              )}
+            </div>
           </div>
         )}
 
@@ -1795,6 +1825,7 @@ export default function StartScreen({ onStart, suggestedN, lastSettings }) {
                   carouselSettings, 
                   nrintEnabledFlags,
                   nrintHideLegend,
+                  nrintMaxPerTrial,
                   rstDifficulty: currentPhase.rstDifficulty || rstDifficulty,
                   // Coach-phase TJN config overrides the manual selector when
                   // a phase explicitly configures Trajectory N-Back.
@@ -1834,7 +1865,7 @@ export default function StartScreen({ onStart, suggestedN, lastSettings }) {
                 rstKeyDisplay: KEY_OPTIONS.find(k => k.code === streamARSTKey)?.display || 'R',
                 streamType: streamAType,
               };
-              onStart(nLevel, modes, finalPool, rounds, speedMs, { catWeights, useCustomMix, rels: selectedRels, tokenWeights, streamA: streamAWithPosition, extraStreams, streams: [streamAWithPosition, ...extraStreams], alienSettings, carouselSettings, nrintEnabledFlags, nrintHideLegend, rstDifficulty, tjnTier, tjnTopology, tjnNodes, tjnK, tjnSchemaMode, tjnSchemaBlocks, wrapperMorphStyle, autopilot: false }, noobMode);
+              onStart(nLevel, modes, finalPool, rounds, speedMs, { catWeights, useCustomMix, rels: selectedRels, tokenWeights, streamA: streamAWithPosition, extraStreams, streams: [streamAWithPosition, ...extraStreams], alienSettings, carouselSettings, nrintEnabledFlags, nrintHideLegend, nrintMaxPerTrial, rstDifficulty, tjnTier, tjnTopology, tjnNodes, tjnK, tjnSchemaMode, tjnSchemaBlocks, wrapperMorphStyle, autopilot: false }, noobMode);
             }}
             className="flex-1 h-12 px-6 font-mono font-semibold text-xs sm:text-sm tracking-wide bg-secondary hover:bg-secondary/85 text-foreground border border-border"
           >

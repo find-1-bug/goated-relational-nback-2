@@ -118,7 +118,7 @@ function mergeHistoricalWithProgress(historicalState, progressState, streamCount
   };
 }
 
-export default function GameScreen({ nLevel, modes, relationshipPool, totalRounds, stimulusDuration, extraStreams, streamA, alienSettings, carouselSettings, nrintEnabledFlags, nrintHideLegend, rstDifficulty = 'easy', tjnTier = 'easy', tjnTopology = 'small_world', tjnNodes = 6, tjnK = 2, tjnSchemaMode = false, tjnSchemaBlocks = 3, noobMode, autopilot, phaseTitle, coachPickedPhaseIndex = null, coachPickReason = null, onFinish, onExit }) {
+export default function GameScreen({ nLevel, modes, relationshipPool, totalRounds, stimulusDuration, extraStreams, streamA, alienSettings, carouselSettings, nrintEnabledFlags, nrintHideLegend, nrintMaxPerTrial = 0, rstDifficulty = 'easy', tjnTier = 'easy', tjnTopology = 'small_world', tjnNodes = 6, tjnK = 2, tjnSchemaMode = false, tjnSchemaBlocks = 3, noobMode, autopilot, phaseTitle, coachPickedPhaseIndex = null, coachPickReason = null, onFinish, onExit }) {
   // extraStreams: [{ key, label, keyDisplay, positionKey, positionKeyDisplay }]
   const getStimulusDuration = useCallback(() => {
     if (modes.includes('adaptive_closed_loop') && gameStateRef.current?.adaptiveSpeedMs) {
@@ -159,7 +159,7 @@ export default function GameScreen({ nLevel, modes, relationshipPool, totalRound
   const numExtra = (extraStreams || []).length;
 
   const [gameState, setGameState] = useState(() => {
-    const state = createGameState({ nLevel, modes, relationshipPool, totalRounds, extraStreams: extraStreams || [], alienSettings, streamA, nrintEnabledFlags, nrintHideLegend, rstDifficulty, tjnTier, tjnTopology, tjnNodes, tjnK, tjnSchemaMode, tjnSchemaBlocks, initialSpeedMs: stimulusDuration === 'random' ? 2800 : (stimulusDuration || 2800) });
+    const state = createGameState({ nLevel, modes, relationshipPool, totalRounds, extraStreams: extraStreams || [], alienSettings, streamA, nrintEnabledFlags, nrintHideLegend, nrintMaxPerTrial, rstDifficulty, tjnTier, tjnTopology, tjnNodes, tjnK, tjnSchemaMode, tjnSchemaBlocks, initialSpeedMs: stimulusDuration === 'random' ? 2800 : (stimulusDuration || 2800) });
     state.autopilot = autopilot;
     state.phaseTitle = phaseTitle;
     state.coachPickedPhaseIndex = coachPickedPhaseIndex;

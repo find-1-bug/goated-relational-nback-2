@@ -440,10 +440,29 @@ function emptyAttrs() {
   return o;
 }
 
-function randomAttrs(enabledFlags = NRINT_FLAGS) {
+// Count how many enabled flags are ON.
+function attrsCount(attrs, enabledFlags = NRINT_FLAGS) {
+  return enabledFlags.reduce((n, f) => n + (attrs[f] ? 1 : 0), 0);
+}
+
+// Cap the number of simultaneously-ON flags to `max` by randomly turning
+// off the excess. max <= 0 (or null) means "no cap". Mutates a copy.
+function capAttrs(attrs, max, enabledFlags = NRINT_FLAGS) {
+  if (!max || max <= 0) return attrs;
+  const on = enabledFlags.filter(f => attrs[f]);
+  if (on.length <= max) return attrs;
+  // Shuffle the ON flags and keep only the first `max`.
+  const shuffled = [...on].sort(() => Math.random() - 0.5);
+  const keep = new Set(shuffled.slice(0, max));
+  const out = { ...attrs };
+  on.forEach(f => { if (!keep.has(f)) out[f] = false; });
+  return out;
+}
+
+function randomAttrs(enabledFlags = NRINT_FLAGS, maxPerTrial = 0) {
   const out = emptyAttrs();
   enabledFlags.forEach(f => { out[f] = Math.random() < 0.5; });
-  return out;
+  return capAttrs(out, maxPerTrial, enabledFlags);
 }
 
 function attrsUnion(stimsTail, enabledFlags = NRINT_FLAGS) {
@@ -475,22 +494,30 @@ function attrsReachableFromSubset(tail, currentAttrs, enabledFlags = NRINT_FLAGS
 
 // Pick attrs that ARE reachable as a subset-union of the tail. Strategy:
 // take a random non-empty subset of tail and use its union as current.attrs.
-function pickReachableAttrs(tail, enabledFlags = NRINT_FLAGS) {
+// When maxPerTrial is set, the union must respect the cap — a single-member
+// subset always qualifies because tail stims are themselves capped, so a
+// valid reachable target always exists.
+function pickReachableAttrs(tail, enabledFlags = NRINT_FLAGS, maxPerTrial = 0) {
   const usable = (tail || []).filter(s => s?.attrs);
   if (usable.length === 0) return null;
-  for (let attempt = 0; attempt < 6; attempt++) {
-    let subset = usable.filter(() => Math.random() < 0.55);
+  const withinCap = (attrs) => !maxPerTrial || maxPerTrial <= 0 || attrsCount(attrs, enabledFlags) <= maxPerTrial;
+  for (let attempt = 0; attempt < 10; attempt++) {
+    // Bias toward smaller subsets when a cap is active so unions stay small.
+    const includeP = maxPerTrial && maxPerTrial > 0 ? 0.35 : 0.55;
+    let subset = usable.filter(() => Math.random() < includeP);
     if (subset.length === 0) subset = [usable[Math.floor(Math.random() * usable.length)]];
     const candidate = attrsUnion(subset, enabledFlags);
-    if (enabledFlags.some(f => candidate[f])) return candidate;
+    if (enabledFlags.some(f => candidate[f]) && withinCap(candidate)) return candidate;
   }
-  // Last resort: copy the freshest stim that has any enabled flag set.
-  for (let i = usable.length - 1; i >= 0; i--) {
-    const a = usable[i].attrs;
+  // Fallback: a single tail stim whose attrs are non-empty. Because tail
+  // stims were generated under the same cap, this always respects it.
+  const shuffled = [...usable].sort(() => Math.random() - 0.5);
+  for (const s of shuffled) {
+    const a = s.attrs;
     if (enabledFlags.some(f => a[f])) {
       const out = emptyAttrs();
       enabledFlags.forEach(f => { out[f] = !!a[f]; });
-      return out;
+      return out; // already within cap by construction
     }
   }
   return null;
@@ -499,16 +526,21 @@ function pickReachableAttrs(tail, enabledFlags = NRINT_FLAGS) {
 // Pick attrs that are NOT reachable as a subset-union of the tail. The
 // engine uses this for non-target trials; we keep candidates within the
 // enabled-flag set so disabling a flag really means it's silenced.
-function pickNonMatchingAttrs(tail, enabledFlags = NRINT_FLAGS) {
-  for (let i = 0; i < 16; i++) {
-    const cand = randomAttrs(enabledFlags);
+function pickNonMatchingAttrs(tail, enabledFlags = NRINT_FLAGS, maxPerTrial = 0) {
+  for (let i = 0; i < 20; i++) {
+    const cand = randomAttrs(enabledFlags, maxPerTrial);
     if (!attrsReachableFromSubset(tail, cand, enabledFlags)) return cand;
   }
   // Force a non-empty unreachable attrs by adding a flag that no tail stim has.
-  const out = randomAttrs(enabledFlags);
+  const out = randomAttrs(enabledFlags, maxPerTrial);
   for (const f of enabledFlags) {
     const haveAny = (tail || []).some(s => s?.attrs?.[f]);
-    if (!haveAny) { out[f] = true; return out; }
+    if (!haveAny) {
+      // Respect the cap: if already at cap, free a slot before adding.
+      const capped = capAttrs(out, maxPerTrial && maxPerTrial > 0 ? maxPerTrial - 1 : 0, enabledFlags);
+      capped[f] = true;
+      return capped;
+    }
   }
   return out;
 }
@@ -530,7 +562,7 @@ function makeNRINTStim(attrs) {
 
 // Generate stimulus for a single stream, given its own history/typeHistory/rintState
 // streamConfig: { trialMode, binaryMode, binaryOp, hierHistory } for Hierarchical and Binary Logic
-function generateOneStreamStimulus({ history, typeHistory, rintState, pool, effectiveN, trialMode, matchChance, hasDistractors, hasLures = false, negationMode = false, trialIndex, hierHistory, binaryMode, binaryOp, signalOnly = false, baseStim = null, alienCube = false, alienSquare = false, alienTesseract = false, alienSettings = {}, nrintEnabledFlags = NRINT_DEFAULT_FLAGS, nrintHideLegend = false, customLureRate = null, customNegationRate = null, modes = [] }) {
+function generateOneStreamStimulus({ history, typeHistory, rintState, pool, effectiveN, trialMode, matchChance, hasDistractors, hasLures = false, negationMode = false, trialIndex, hierHistory, binaryMode, binaryOp, signalOnly = false, baseStim = null, alienCube = false, alienSquare = false, alienTesseract = false, alienSettings = {}, nrintEnabledFlags = NRINT_DEFAULT_FLAGS, nrintHideLegend = false, nrintMaxPerTrial = 0, customLureRate = null, customNegationRate = null, modes = [] }) {
    let stim, isPrimaryTarget = false, isPositionTarget = false, nextRINTState = rintState;
    const canTarget = history.length >= effectiveN;
 
@@ -566,17 +598,21 @@ function generateOneStreamStimulus({ history, typeHistory, rintState, pool, effe
     // revised rule). Per-session enabledFlags controls which attribute
     // dimensions are active.
     const flags = (nrintEnabledFlags && nrintEnabledFlags.length) ? nrintEnabledFlags : NRINT_DEFAULT_FLAGS;
+    // Clamp the cap to the enabled-flag count; 0 = no cap. A cap below the
+    // count makes each trial show at most that many features (Grapist's
+    // tracking-load request) while leaving the union rule intact.
+    const cap = (nrintMaxPerTrial && nrintMaxPerTrial > 0) ? Math.min(nrintMaxPerTrial, flags.length) : 0;
     const tail = history.slice(-effectiveN).filter(s => s?.rel === 'NRINT_COMPOSITE');
     const haveChain = tail.length >= effectiveN;
     let attrs;
     if (haveChain && Math.random() < matchChance) {
-      attrs = pickReachableAttrs(tail, flags) || randomAttrs(flags);
+      attrs = pickReachableAttrs(tail, flags, cap) || randomAttrs(flags, cap);
       isPrimaryTarget = attrsReachableFromSubset(tail, attrs, flags);
     } else if (haveChain) {
-      attrs = pickNonMatchingAttrs(tail, flags);
+      attrs = pickNonMatchingAttrs(tail, flags, cap);
       isPrimaryTarget = false;
     } else {
-      attrs = randomAttrs(flags);
+      attrs = randomAttrs(flags, cap);
       isPrimaryTarget = false;
     }
     stim = makeNRINTStim(attrs);
@@ -760,7 +796,7 @@ function randomBinaryConfig(effectiveN) {
 
 // ─── State Creation ──────────────────────────────────────────────────────────
 
-export function createGameState({ nLevel, modes, relationshipPool, totalRounds, extraStreams = [], alienSettings = {}, streamA = null, nrintEnabledFlags = null, nrintHideLegend = false, initialSpeedMs = 2800, wrapperMorphStyle = 'shift', rstDifficulty = 'easy', tjnTier = TJN_DEFAULT_TIER, tjnTopology = TJN_DEFAULT_TOPOLOGY, tjnNodes = TJN_DEFAULT_NODES, tjnK = TJN_HARD_K, tjnSchemaMode = false, tjnSchemaBlocks = 3 } = {}) {
+export function createGameState({ nLevel, modes, relationshipPool, totalRounds, extraStreams = [], alienSettings = {}, streamA = null, nrintEnabledFlags = null, nrintHideLegend = false, nrintMaxPerTrial = 0, initialSpeedMs = 2800, wrapperMorphStyle = 'shift', rstDifficulty = 'easy', tjnTier = TJN_DEFAULT_TIER, tjnTopology = TJN_DEFAULT_TOPOLOGY, tjnNodes = TJN_DEFAULT_NODES, tjnK = TJN_HARD_K, tjnSchemaMode = false, tjnSchemaBlocks = 3 } = {}) {
   const opts = { tjnSchemaMode, tjnSchemaBlocks };
   const numExtra = extraStreams.length;
   const totalStreams = 1 + numExtra;
@@ -845,6 +881,7 @@ export function createGameState({ nLevel, modes, relationshipPool, totalRounds, 
     streamTypes,
     nrintEnabledFlags: (nrintEnabledFlags && nrintEnabledFlags.length) ? nrintEnabledFlags : NRINT_DEFAULT_FLAGS,
     nrintHideLegend: !!nrintHideLegend,
+    nrintMaxPerTrial: Number(nrintMaxPerTrial) || 0,
     initialSpeedMs,
     adaptiveSpeedMs: initialSpeedMs,
     adaptiveLureRate: 0.20,
@@ -1161,6 +1198,7 @@ export function generateNextStimulus(state) {
 
   const nrintEnabledFlags = state.nrintEnabledFlags || NRINT_DEFAULT_FLAGS;
   const nrintHideLegend = !!state.nrintHideLegend;
+  const nrintMaxPerTrial = Number(state.nrintMaxPerTrial) || 0;
   const customLureRate = state.adaptiveLureRate !== undefined ? state.adaptiveLureRate : null;
   const customNegationRate = state.adaptiveNegationRate !== undefined ? state.adaptiveNegationRate : null;
 
@@ -1181,6 +1219,7 @@ export function generateNextStimulus(state) {
     alienSettings,
     nrintEnabledFlags,
     nrintHideLegend,
+    nrintMaxPerTrial,
     customLureRate,
     customNegationRate,
     modes,
@@ -1227,6 +1266,7 @@ export function generateNextStimulus(state) {
       alienSettings,
       nrintEnabledFlags,
       nrintHideLegend,
+      nrintMaxPerTrial,
       customLureRate,
       customNegationRate,
       modes,

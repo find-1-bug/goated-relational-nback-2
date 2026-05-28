@@ -26,6 +26,7 @@ export default function Game() {
   const [carouselSettings, setCarouselSettings] = useState({ enabled: true, streamsPerSlide: 'auto', slideMs: 2800 });
   const [nrintEnabledFlags, setNrintEnabledFlags] = useState(null);
   const [nrintHideLegend, setNrintHideLegend] = useState(false);
+  const [nrintMaxPerTrial, setNrintMaxPerTrial] = useState(0);
   const [rstDifficulty, setRstDifficulty] = useState('easy');
   const [tjnTier, setTjnTier] = useState('easy');
   const [tjnTopology, setTjnTopology] = useState('small_world');
@@ -64,6 +65,7 @@ export default function Game() {
     setCarouselSettings({ enabled: true, streamsPerSlide: 'auto', slideMs: 2800, ...(extraSettings?.carouselSettings || {}) });
     setNrintEnabledFlags(extraSettings?.nrintEnabledFlags || null);
     setNrintHideLegend(!!extraSettings?.nrintHideLegend);
+    setNrintMaxPerTrial(Number(extraSettings?.nrintMaxPerTrial) || 0);
     setRstDifficulty(extraSettings?.rstDifficulty || 'easy');
     setTjnTier(extraSettings?.tjnTier || 'easy');
     setTjnTopology(extraSettings?.tjnTopology || 'small_world');
@@ -95,6 +97,7 @@ export default function Game() {
         carouselSettings: { enabled: true, streamsPerSlide: 'auto', slideMs: 2800, ...(extraSettings?.carouselSettings || {}) },
         nrintEnabledFlags: extraSettings?.nrintEnabledFlags || null,
         nrintHideLegend: !!extraSettings?.nrintHideLegend,
+        nrintMaxPerTrial: Number(extraSettings?.nrintMaxPerTrial) || 0,
         rstDifficulty: extraSettings?.rstDifficulty || 'easy',
         tjnTier: extraSettings?.tjnTier || 'easy',
         tjnTopology: extraSettings?.tjnTopology || 'small_world',
@@ -182,6 +185,7 @@ export default function Game() {
           carouselSettings={carouselSettings}
           nrintEnabledFlags={nrintEnabledFlags}
           nrintHideLegend={nrintHideLegend}
+          nrintMaxPerTrial={nrintMaxPerTrial}
           rstDifficulty={rstDifficulty}
           tjnTier={tjnTier}
           tjnTopology={tjnTopology}
