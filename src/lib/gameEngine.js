@@ -1177,12 +1177,17 @@ export function generateNextStimulus(state) {
   const soundPool = pool.filter(isSound);
   const nonSoundPool = pool.filter(rel => !isSound(rel));
   const allNonSoundPool = ALL_RELATIONSHIPS.filter(rel => !isSound(rel));
-  // Decoy streams carry relation content (incl. sound relations), so they
-  // count as relation-like for pool + audio purposes — they just aren't scored.
-  const relationStreamIndexes = Array.from({ length: totalStreams }, (_, i) => i).filter(i => stypeOf(i) === 'relation' || stypeOf(i) === 'decoy');
+  // Only SCORED relation streams participate in the dual-audio (L/R sound)
+  // auto-assignment. Decoy streams are deliberately excluded so they don't
+  // trip the "2+ relation streams → force sound-only pools" rule — a decoy
+  // is a full-pool stream over ALL relation types, just unscored.
+  const relationStreamIndexes = Array.from({ length: totalStreams }, (_, i) => i).filter(i => stypeOf(i) === 'relation');
   const audioStreamIndexes = relationStreamIndexes.length >= 2 && soundPool.length > 0 ? pickSoundStreamIndexes(relationStreamIndexes) : [];
   const streamPoolFor = (index) => {
     if (stypeOf(index) === 'cct') return ['CCT_NUMERIC'];
+    // Decoy: always the full relational pool (every type), regardless of any
+    // sound auto-assignment happening on the scored streams.
+    if (stypeOf(index) === 'decoy') return pool;
     if (audioStreamIndexes.includes(index)) return soundPool;
     if (audioStreamIndexes.length > 0) return nonSoundPool.length > 0 ? nonSoundPool : allNonSoundPool;
     return pool;
