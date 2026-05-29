@@ -809,20 +809,23 @@ export default function Tutorial() {
               {/* SPECIAL TECH TAB */}
               {activeTab === 'features' && (
                 <div className="space-y-4">
-                  {/* Reasoning Snapshot — pre/post assessment */}
+                  {/* Reasoning Index (ICAR) — pre/post assessment */}
                   <div className="rounded-lg bg-cyan-500/10 border border-cyan-500/30 p-5 space-y-2">
                     <div className="flex items-center gap-2">
                       <Brain className="w-5 h-5 text-cyan-400" />
-                      <h3 className="text-xs font-bold uppercase tracking-wider text-cyan-300">Reasoning Snapshot — pre/post measure</h3>
+                      <h3 className="text-xs font-bold uppercase tracking-wider text-cyan-300">Reasoning Index (ICAR) — pre/post IQ-scale measure</h3>
                     </div>
                     <p className="text-[13px] text-muted-foreground leading-relaxed">
-                      A 12-item fluid-reasoning check (matrix completion + number/letter series) reached from the <strong className="text-cyan-300">Snapshot</strong> button on the start screen. Take <strong>Baseline (Form A)</strong> before a training block and <strong>Follow-up (Form B)</strong> after; the gap between them is your transfer signal.
+                      A 12-item fluid-reasoning test reached from the <strong className="text-cyan-300">Snapshot</strong> button, built from the <strong>ICAR</strong> (International Cognitive Ability Resource) public-domain item bank — the four ICAR families: <strong>matrix reasoning, verbal reasoning, letter-number series, and 3-D rotation</strong>. ICAR is peer-reviewed (Condon &amp; Revelle, 2014) and correlates ~0.80 with full IQ batteries, so this is a real norm-referenced reasoning measure, not home-made puzzles.
                     </p>
                     <p className="text-[13px] text-muted-foreground leading-relaxed">
-                      <strong className="text-cyan-200">Why these formats?</strong> A pre/post test is only valid if it measures something you <em>don't</em> train — otherwise you'd just be measuring practice on the test (near transfer). So the Snapshot deliberately uses formats <strong>no training mode here uses</strong>: abstract matrices and numeric/alphabetic series. Verbal analogies and odd-one-out are intentionally excluded because the <Link to="/insight" className="underline text-amber-400">Insight</Link> mode trains them. Form B uses different items than Form A, so there's nothing to memorize between sittings.
+                      Take <strong>Baseline (Form A)</strong> before a training block and <strong>Follow-up (Form B)</strong> after. The two forms are <strong>different items</strong>, so nothing is memorized between sittings. Your raw score maps to a <strong>100-average / 15-per-step</strong> scale, reported with a <strong>95% confidence interval</strong>, percentile, a 4-domain profile, and reliability.
                     </p>
                     <p className="text-[13px] text-muted-foreground leading-relaxed">
-                      You get a <strong>Reasoning Index</strong> (scaled ~100±15) and a pre→post trajectory. <strong className="text-amber-300">Honest caveat:</strong> with no standardization sample this is an <em>approximate</em> index for tracking your own change over time — not a normed or clinical IQ score. The meaningful number is the <em>delta</em>, not the absolute value.
+                      <strong className="text-cyan-200">Pre/post done right:</strong> we compute a <strong>Reliable Change Index</strong> — your follow-up minus baseline, judged against measurement error. A short 12-item form is noisy, so a change has to clear roughly <strong>±20 points</strong> to count as statistically reliable; smaller real gains exist but can't be distinguished from noise at this length. The app says so plainly rather than hyping a noise bump.
+                    </p>
+                    <p className="text-[13px] text-muted-foreground leading-relaxed">
+                      <strong className="text-amber-300">Honest limits:</strong> the norms come from ICAR's large online (SAPA) sample, which skews young and educated — so scores may run a few points optimistic vs. the general population — and a 12-item form has a wide confidence interval. Read the interval and the change, not the bare number. (A finer per-item IRT scoring layer is built in and switches on automatically once calibrated item parameters are loaded.)
                     </p>
                   </div>
                   {/* Synaesthesia */}

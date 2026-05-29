@@ -193,23 +193,23 @@ export default function Stats() {
               ))}
             </div>
 
-            {/* Reasoning Snapshot (pre/post assessment) summary */}
+            {/* Reasoning Index (ICAR pre/post) summary */}
             {(() => {
               const assessments = getAssessments();
               if (!assessments.length) return null;
               const lastBaseline = [...assessments].reverse().find(a => a.benchmark === 'baseline');
               const lastFollowup = [...assessments].reverse().find(a => a.benchmark === 'followup');
-              const delta = (lastBaseline && lastFollowup) ? lastFollowup.reasoningIndex - lastBaseline.reasoningIndex : null;
+              const delta = (lastBaseline && lastFollowup) ? lastFollowup.iq - lastBaseline.iq : null;
               return (
                 <div className="rounded-xl bg-cyan-500/5 border border-cyan-500/30 p-4 flex flex-wrap items-center gap-4 font-mono">
                   <div className="flex-1 min-w-[180px]">
-                    <h3 className="text-xs font-bold uppercase tracking-widest text-cyan-300">Reasoning Snapshot</h3>
-                    <p className="text-[10px] text-muted-foreground">Pre/post fluid-reasoning index (untrained formats). Δ is the transfer signal.</p>
+                    <h3 className="text-xs font-bold uppercase tracking-widest text-cyan-300">Reasoning Index (ICAR)</h3>
+                    <p className="text-[10px] text-muted-foreground">Norm-referenced pre/post fluid reasoning. Δ is the training transfer signal.</p>
                   </div>
                   <div className="flex gap-4 text-center">
-                    <div><div className="text-xl font-bold text-foreground">{lastBaseline?.reasoningIndex ?? '—'}</div><div className="text-[9px] uppercase tracking-widest text-muted-foreground">Baseline</div></div>
-                    <div><div className="text-xl font-bold text-foreground">{lastFollowup?.reasoningIndex ?? '—'}</div><div className="text-[9px] uppercase tracking-widest text-muted-foreground">Follow-up</div></div>
-                    <div><div className={`text-xl font-bold ${delta == null ? 'text-muted-foreground' : delta > 0 ? 'text-emerald-400' : delta < 0 ? 'text-rose-400' : 'text-foreground'}`}>{delta == null ? '—' : `${delta > 0 ? '+' : ''}${delta}`}</div><div className="text-[9px] uppercase tracking-widest text-muted-foreground">Δ transfer</div></div>
+                    <div><div className="text-xl font-bold text-foreground">{lastBaseline?.iq ?? '—'}</div><div className="text-[9px] uppercase tracking-widest text-muted-foreground">Baseline</div></div>
+                    <div><div className="text-xl font-bold text-foreground">{lastFollowup?.iq ?? '—'}</div><div className="text-[9px] uppercase tracking-widest text-muted-foreground">Follow-up</div></div>
+                    <div><div className={`text-xl font-bold ${delta == null ? 'text-muted-foreground' : delta > 0 ? 'text-emerald-400' : delta < 0 ? 'text-rose-400' : 'text-foreground'}`}>{delta == null ? '—' : `${delta > 0 ? '+' : ''}${delta}`}</div><div className="text-[9px] uppercase tracking-widest text-muted-foreground">Δ index</div></div>
                   </div>
                   <Link to="/assessment" className="text-[11px] text-cyan-400 hover:text-cyan-300 underline">Open →</Link>
                 </div>

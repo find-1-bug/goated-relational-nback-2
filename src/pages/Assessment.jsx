@@ -1,19 +1,19 @@
 import React from 'react';
 import { Link } from 'react-router-dom';
 import { motion } from 'framer-motion';
-import { ChevronLeft, Brain, Clock, BarChart3, Play } from 'lucide-react';
-import { buildForm, SUBTEST_LABELS } from '@/lib/assessmentItems';
-import { scoreForm, indexBand, RI_CAVEAT } from '@/lib/assessmentScoring';
+import { ChevronLeft, Brain, Clock, BarChart3, Play, Info } from 'lucide-react';
+import { buildIcarForm, ICAR_DOMAIN_LABELS } from '@/lib/icarBank';
+import { scoreBattery, reliableChange, empiricalReliability, ICAR_CITATION, NORM_CAVEAT } from '@/lib/psychometrics';
 import { getAssessments, addAssessment } from '@/lib/localStorageManager';
-import CellCanvas from '@/components/assessment/CellCanvas';
+import { getAssetUrl } from '@/lib/gameConstants';
 
 const FORM_META = {
-  A: { label: 'Baseline', sub: 'Form A — take before training', tag: 'baseline' },
+  A: { label: 'Baseline', sub: 'Form A — take before a training block', tag: 'baseline' },
   B: { label: 'Follow-up', sub: 'Form B — take after a training block', tag: 'followup' },
 };
 
 export default function Assessment() {
-  const [phase, setPhase] = React.useState('pick'); // 'pick' | 'run' | 'done'
+  const [phase, setPhase] = React.useState('pick'); // pick | run | done
   const [form, setForm] = React.useState('A');
   const [battery, setBattery] = React.useState(null);
   const [idx, setIdx] = React.useState(0);
@@ -29,18 +29,14 @@ export default function Assessment() {
 
   const finish = React.useCallback((finalAnswers) => {
     if (tickRef.current) clearInterval(tickRef.current);
-    const scored = scoreForm(finalAnswers, items);
-    const durationSeconds = Math.round((Date.now() - startRef.current) / 1000);
+    const scored = scoreBattery(items, finalAnswers);
     const meta = FORM_META[form];
     const rec = addAssessment({
-      form,
-      benchmark: meta.tag,
-      rawScore: scored.rawScore,
-      total: scored.total,
-      reasoningIndex: scored.reasoningIndex,
-      accuracy: scored.accuracy,
-      subScores: scored.subScores,
-      durationSeconds,
+      form, benchmark: meta.tag,
+      raw: scored.raw, n: scored.n, iq: scored.iq, sem: scored.sem, ci95: scored.ci95,
+      percentile: scored.percentile, band: scored.band.label, method: scored.method,
+      perDomain: scored.perDomain, responses: finalAnswers,
+      durationSeconds: Math.round((Date.now() - startRef.current) / 1000),
     });
     setHistory(getAssessments());
     setResult({ ...scored, record: rec });
@@ -48,64 +44,50 @@ export default function Assessment() {
   }, [items, form]);
 
   const advance = React.useCallback((choiceIndex) => {
+    if (tickRef.current) clearInterval(tickRef.current);
     setAnswers(prev => {
       const next = [...prev];
       next[idx] = choiceIndex;
-      if (idx + 1 >= items.length) {
-        finish(next);
-      } else {
-        setIdx(idx + 1);
-      }
+      if (idx + 1 >= items.length) finish(next); else setIdx(idx + 1);
       return next;
     });
   }, [idx, items.length, finish]);
 
-  // Per-item countdown.
   React.useEffect(() => {
     if (phase !== 'run' || !item) return;
-    const dur = item.timeMs || 25000;
-    const itemStart = Date.now();
+    const dur = item.timeMs || 60000;
+    const t0 = Date.now();
     setRemainingMs(dur);
     if (tickRef.current) clearInterval(tickRef.current);
     tickRef.current = setInterval(() => {
-      const left = dur - (Date.now() - itemStart);
-      if (left <= 0) {
-        clearInterval(tickRef.current);
-        setRemainingMs(0);
-        advance(null); // timed out → incorrect
-      } else {
-        setRemainingMs(left);
-      }
+      const left = dur - (Date.now() - t0);
+      if (left <= 0) { clearInterval(tickRef.current); setRemainingMs(0); advance(null); }
+      else setRemainingMs(left);
     }, 100);
     return () => { if (tickRef.current) clearInterval(tickRef.current); };
   }, [phase, idx, item, advance]);
 
   const startForm = (f) => {
-    const seed = (Date.now() & 0x7fffffff) >>> 0;
-    const built = buildForm(f, seed);
     setForm(f);
-    setBattery(built);
-    setIdx(0);
-    setAnswers([]);
-    setResult(null);
+    setBattery(buildIcarForm(f));
+    setIdx(0); setAnswers([]); setResult(null);
     startRef.current = Date.now();
     setPhase('run');
   };
 
   const lastBaseline = [...history].reverse().find(a => a.benchmark === 'baseline');
   const lastFollowup = [...history].reverse().find(a => a.benchmark === 'followup');
-  const delta = (lastFollowup && lastBaseline) ? lastFollowup.reasoningIndex - lastBaseline.reasoningIndex : null;
+  const rc = (lastBaseline && lastFollowup) ? reliableChange(lastBaseline.iq, lastFollowup.iq) : null;
 
   return (
     <motion.div initial={{ opacity: 0 }} animate={{ opacity: 1 }} className="min-h-screen bg-background p-3 sm:p-6" style={{ paddingTop: 'max(0.75rem, env(safe-area-inset-top))' }}>
       <div className="max-w-3xl mx-auto space-y-6">
-        {/* Header */}
         <div className="flex items-center justify-between gap-3 border-b border-border/40 pb-4">
           <div className="flex items-center gap-3">
             <Brain className="w-6 h-6 text-cyan-400" />
             <div>
-              <h1 className="text-lg sm:text-xl font-mono font-bold text-foreground tracking-tight">Reasoning Snapshot</h1>
-              <p className="text-[10px] font-mono text-muted-foreground">Pre/post fluid-reasoning measure · untrained formats</p>
+              <h1 className="text-lg sm:text-xl font-mono font-bold text-foreground tracking-tight">Reasoning Index (ICAR)</h1>
+              <p className="text-[10px] font-mono text-muted-foreground">Norm-referenced fluid-reasoning test · pre/post</p>
             </div>
           </div>
           <Link to="/" className="px-3 py-1.5 rounded-lg bg-secondary border border-border text-muted-foreground hover:text-foreground text-xs font-mono font-semibold transition-colors flex items-center gap-1.5">
@@ -113,13 +95,12 @@ export default function Assessment() {
           </Link>
         </div>
 
-        {/* PICK */}
         {phase === 'pick' && (
           <div className="space-y-5">
             <div className="rounded-xl bg-secondary/20 border border-border p-4 font-mono text-[12px] leading-relaxed text-muted-foreground space-y-2">
-              <p>A 12-item reasoning check (matrices + number/letter series) — formats the training deliberately never uses, so a gain reflects <strong className="text-cyan-300">transfer</strong>, not practice on the game.</p>
-              <p>Take <strong className="text-cyan-300">Baseline (Form A)</strong> before a training block, then <strong className="text-cyan-300">Follow-up (Form B)</strong> after. Form B uses different items, so there's nothing to memorize.</p>
-              <p className="text-[11px] text-amber-400/80 border-t border-border/40 pt-2">{RI_CAVEAT}</p>
+              <p>12 items across <strong className="text-cyan-300">matrix reasoning, verbal reasoning, letter-number series, and 3-D rotation</strong> — the four ICAR families. ICAR is a public, peer-reviewed reasoning measure that correlates ~0.80 with full IQ batteries.</p>
+              <p>Take <strong className="text-cyan-300">Baseline (Form A)</strong> before training and <strong className="text-cyan-300">Follow-up (Form B)</strong> after. The two forms use different items, so there's nothing to memorize.</p>
+              <p className="text-[11px] text-amber-400/80 border-t border-border/40 pt-2">{NORM_CAVEAT}</p>
             </div>
 
             <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
@@ -127,81 +108,85 @@ export default function Assessment() {
                 const meta = FORM_META[f];
                 const last = f === 'A' ? lastBaseline : lastFollowup;
                 return (
-                  <button key={f} onClick={() => startForm(f)}
-                    className="rounded-xl bg-secondary/30 border border-border hover:border-cyan-400/60 p-4 text-left transition-colors space-y-2">
+                  <button key={f} onClick={() => startForm(f)} className="rounded-xl bg-secondary/30 border border-border hover:border-cyan-400/60 p-4 text-left transition-colors space-y-2">
                     <div className="flex items-center justify-between">
                       <span className="text-sm font-mono font-bold text-foreground">{meta.label}</span>
                       <span className="text-[10px] font-mono uppercase tracking-widest text-cyan-400">Form {f}</span>
                     </div>
                     <p className="text-[11px] font-mono text-muted-foreground">{meta.sub}</p>
                     <div className="flex items-center gap-2 text-[11px] font-mono pt-1">
-                      <Play className="w-3.5 h-3.5 text-cyan-400" />
-                      <span className="text-cyan-300">Start</span>
-                      {last && <span className="text-muted-foreground/70 ml-auto">last: {last.reasoningIndex}</span>}
+                      <Play className="w-3.5 h-3.5 text-cyan-400" /><span className="text-cyan-300">Start</span>
+                      {last && <span className="text-muted-foreground/70 ml-auto">last: {last.iq} ± {Math.round(1.96 * (last.sem || 7))}</span>}
                     </div>
                   </button>
                 );
               })}
             </div>
 
-            {/* Trajectory + delta */}
             {history.length > 0 && (
               <div className="rounded-xl bg-secondary/20 border border-border p-4 space-y-3">
-                <div className="flex items-center gap-2">
-                  <BarChart3 className="w-4 h-4 text-cyan-400" />
-                  <h3 className="text-xs font-mono font-bold uppercase tracking-widest text-foreground">Your Reasoning Index over time</h3>
-                </div>
+                <div className="flex items-center gap-2"><BarChart3 className="w-4 h-4 text-cyan-400" /><h3 className="text-xs font-mono font-bold uppercase tracking-widest text-foreground">Reasoning Index over time</h3></div>
                 <Trajectory history={history} />
-                <div className="grid grid-cols-3 gap-2 font-mono text-center">
-                  <Metric label="Latest baseline" value={lastBaseline?.reasoningIndex ?? '—'} />
-                  <Metric label="Latest follow-up" value={lastFollowup?.reasoningIndex ?? '—'} />
-                  <Metric label="Δ (transfer)" value={delta == null ? '—' : `${delta > 0 ? '+' : ''}${delta}`} highlight={delta != null} />
-                </div>
+                {rc && (
+                  <div className={`text-[11px] font-mono rounded-lg px-3 py-2 border ${rc.reliable ? 'bg-emerald-500/10 border-emerald-500/30 text-emerald-300' : 'bg-amber-500/10 border-amber-500/30 text-amber-300'}`}>
+                    Baseline {lastBaseline.iq} → Follow-up {lastFollowup.iq} ({rc.deltaIQ > 0 ? '+' : ''}{rc.deltaIQ}). {rc.reliable
+                      ? `That exceeds the ±${rc.thresholdIQ}-point reliable-change threshold — a statistically reliable change.`
+                      : `That's within the ±${rc.thresholdIQ}-point measurement-error band, so it can't yet be called a real change (a 12-item form is noisy by nature).`}
+                  </div>
+                )}
               </div>
             )}
           </div>
         )}
 
-        {/* RUN */}
         {phase === 'run' && item && (
           <div className="space-y-4">
             <div className="flex items-center justify-between font-mono text-xs">
-              <span className="text-muted-foreground">{idx + 1} / {items.length} · <span className="text-cyan-400">{SUBTEST_LABELS[item.subtest]}</span></span>
+              <span className="text-muted-foreground">{idx + 1} / {items.length} · <span className="text-cyan-400">{ICAR_DOMAIN_LABELS[item.domain]}</span></span>
               <span className="flex items-center gap-1.5 text-amber-400"><Clock className="w-3.5 h-3.5" /> {Math.ceil(remainingMs / 1000)}s</span>
             </div>
-            <div className="h-1.5 w-full bg-secondary rounded-full overflow-hidden">
-              <div className="h-full bg-amber-400 transition-[width] duration-100" style={{ width: `${(remainingMs / (item.timeMs || 25000)) * 100}%` }} />
-            </div>
+            <div className="h-1.5 w-full bg-secondary rounded-full overflow-hidden"><div className="h-full bg-amber-400 transition-[width] duration-100" style={{ width: `${(remainingMs / (item.timeMs || 60000)) * 100}%` }} /></div>
 
-            {item.subtest === 'matrix' ? (
-              <MatrixItem item={item} onAnswer={advance} />
-            ) : (
-              <SeriesItem item={item} onAnswer={advance} />
+            <p className="font-mono text-sm text-foreground leading-relaxed">{item.prompt}</p>
+            {item.imageUrl && (
+              <div className="flex justify-center rounded-xl bg-white/95 border border-border p-2">
+                <img src={getAssetUrl(item.imageUrl)} alt="reasoning item" className="max-w-full max-h-[46vh] object-contain" />
+              </div>
             )}
-            <p className="text-center text-[10px] font-mono text-muted-foreground/50">Pick the best answer. No going back — skipped or timed-out counts as incorrect.</p>
+            <div className={`grid gap-2 ${item.imageUrl ? 'grid-cols-4 sm:grid-cols-8' : 'grid-cols-1 sm:grid-cols-2'}`}>
+              {item.options.map((opt, i) => (
+                <button key={i} onClick={() => advance(i)}
+                  className={`rounded-lg bg-secondary/40 border border-border hover:border-cyan-400 hover:bg-secondary/70 font-mono text-foreground transition-colors ${item.imageUrl ? 'h-12 text-sm font-bold' : 'min-h-12 text-xs p-2 text-left'}`}>
+                  {opt}
+                </button>
+              ))}
+            </div>
+            <p className="text-center text-[10px] font-mono text-muted-foreground/50">Take your time — the timer is generous. No going back; "I don't know" is a valid answer.</p>
           </div>
         )}
 
-        {/* DONE */}
         {phase === 'done' && result && (
           <div className="space-y-5">
-            <div className="rounded-xl bg-cyan-500/5 border border-cyan-500/30 p-5 text-center space-y-2">
+            <div className="rounded-xl bg-cyan-500/5 border border-cyan-500/30 p-5 text-center space-y-1">
               <p className="text-[11px] font-mono uppercase tracking-widest text-cyan-400">{FORM_META[form].label} · Form {form}</p>
-              <div className="text-5xl font-mono font-bold text-foreground">{result.reasoningIndex}</div>
-              <p className={`text-xs font-mono font-semibold ${indexBand(result.reasoningIndex).color}`}>{indexBand(result.reasoningIndex).label} · Reasoning Index (approx)</p>
-              <p className="text-[11px] font-mono text-muted-foreground">{result.rawScore} / {result.total} correct · {result.accuracy}%</p>
+              <div className="text-5xl font-mono font-bold text-foreground">{result.iq}</div>
+              <p className="text-xs font-mono text-muted-foreground">95% CI {result.ci95[0]}–{result.ci95[1]} · {result.percentile}th percentile</p>
+              <p className={`text-xs font-mono font-semibold ${result.band.color}`}>{result.band.label} · Reasoning Index</p>
+              <p className="text-[11px] font-mono text-muted-foreground">{result.raw} / {result.n} correct · reliability {empiricalReliability().toFixed(2)} · method {result.method === 'irt' ? 'IRT (EAP)' : 'raw-norm'}</p>
             </div>
 
-            <div className="grid grid-cols-3 gap-2 font-mono text-center">
-              {Object.entries(result.subScores).map(([k, v]) => (
-                <Metric key={k} label={SUBTEST_LABELS[k]} value={`${v.correct}/${v.total}`} />
+            <div className="grid grid-cols-2 sm:grid-cols-4 gap-2 font-mono text-center">
+              {Object.entries(result.perDomain).map(([k, v]) => (
+                <div key={k} className="rounded-lg bg-background/40 border border-border p-2">
+                  <div className="text-lg font-bold text-foreground">{v.correct}/{v.total}</div>
+                  <div className="text-[9px] uppercase tracking-widest text-muted-foreground leading-tight">{ICAR_DOMAIN_LABELS[k]}</div>
+                </div>
               ))}
             </div>
 
-            {delta != null && (
-              <div className="rounded-lg bg-secondary/30 border border-border p-3 text-center font-mono">
-                <span className="text-[11px] text-muted-foreground">Baseline {lastBaseline.reasoningIndex} → Follow-up {lastFollowup.reasoningIndex} · </span>
-                <span className={`text-sm font-bold ${delta > 0 ? 'text-emerald-400' : delta < 0 ? 'text-rose-400' : 'text-foreground'}`}>{delta > 0 ? '+' : ''}{delta}</span>
+            {rc && (
+              <div className={`rounded-lg px-3 py-2 border font-mono text-[11px] ${rc.reliable ? 'bg-emerald-500/10 border-emerald-500/30 text-emerald-300' : 'bg-amber-500/10 border-amber-500/30 text-amber-300'}`}>
+                Baseline {lastBaseline.iq} → Follow-up {lastFollowup.iq} = <strong>{rc.deltaIQ > 0 ? '+' : ''}{rc.deltaIQ}</strong>. {rc.reliable ? `Reliable change (beyond ±${rc.thresholdIQ}).` : `Within measurement error (need ±${rc.thresholdIQ}+ to be reliable).`}
               </div>
             )}
 
@@ -212,11 +197,13 @@ export default function Assessment() {
               </div>
             )}
 
-            <p className="text-[11px] font-mono text-amber-400/80 leading-relaxed">{RI_CAVEAT}</p>
-
-            <div className="flex gap-3">
-              <button onClick={() => setPhase('pick')} className="flex-1 h-11 rounded-lg bg-cyan-600 hover:bg-cyan-500 text-white font-mono text-sm font-semibold transition-colors">Done</button>
+            <div className="rounded-lg bg-secondary/20 border border-border/60 p-3 font-mono text-[10px] leading-relaxed text-muted-foreground/80 space-y-1.5">
+              <div className="flex items-center gap-1.5 text-cyan-400 font-bold uppercase"><Info className="w-3.5 h-3.5" /> Methodology &amp; limits</div>
+              <p>{ICAR_CITATION}</p>
+              <p>{NORM_CAVEAT}</p>
             </div>
+
+            <button onClick={() => setPhase('pick')} className="w-full h-11 rounded-lg bg-cyan-600 hover:bg-cyan-500 text-white font-mono text-sm font-semibold transition-colors">Done</button>
           </div>
         )}
       </div>
@@ -224,63 +211,11 @@ export default function Assessment() {
   );
 }
 
-function Metric({ label, value, highlight }) {
-  return (
-    <div className="rounded-lg bg-background/40 border border-border p-2">
-      <div className={`text-lg font-bold ${highlight ? 'text-cyan-400' : 'text-foreground'}`}>{value}</div>
-      <div className="text-[9px] uppercase tracking-widest text-muted-foreground">{label}</div>
-    </div>
-  );
-}
-
-function MatrixItem({ item, onAnswer }) {
-  return (
-    <div className="space-y-4">
-      <div className="flex justify-center">
-        <div className="grid grid-cols-3 gap-1.5 p-2 rounded-xl bg-secondary/20 border border-border">
-          {item.grid.flatMap((row, r) => row.map((cell, c) => (
-            <div key={`${r}-${c}`} className="rounded-lg bg-background/40 border border-border/60 flex items-center justify-center" style={{ width: 84, height: 84 }}>
-              <CellCanvas cell={cell} size={80} empty={!cell && !(r === 2 && c === 2)} question={r === 2 && c === 2} />
-            </div>
-          )))}
-        </div>
-      </div>
-      <div className="grid grid-cols-3 sm:grid-cols-6 gap-2 max-w-xl mx-auto">
-        {item.options.map((opt, i) => (
-          <button key={i} onClick={() => onAnswer(i)}
-            className="rounded-lg bg-secondary/40 border border-border hover:border-cyan-400 hover:bg-secondary/70 flex items-center justify-center p-1 transition-colors aspect-square">
-            <CellCanvas cell={opt} size={70} />
-          </button>
-        ))}
-      </div>
-    </div>
-  );
-}
-
-function SeriesItem({ item, onAnswer }) {
-  return (
-    <div className="space-y-5">
-      <div className="rounded-xl bg-secondary/20 border border-border p-8 text-center">
-        <div className="text-2xl sm:text-3xl font-mono font-bold text-foreground tracking-wider">{item.prompt}</div>
-      </div>
-      <div className="grid grid-cols-5 gap-2 max-w-md mx-auto">
-        {item.options.map((opt, i) => (
-          <button key={i} onClick={() => onAnswer(i)}
-            className="h-14 rounded-lg bg-secondary/40 border border-border hover:border-cyan-400 hover:bg-secondary/70 font-mono text-lg font-bold text-foreground transition-colors">
-            {opt}
-          </button>
-        ))}
-      </div>
-    </div>
-  );
-}
-
-// Compact SVG sparkline of reasoningIndex over assessments, baseline vs follow-up coloured.
 function Trajectory({ history }) {
-  const W = 520, H = 120, pad = 16;
+  const W = 520, H = 130, pad = 18;
   const pts = history.map((a, i) => ({
     x: pad + (history.length === 1 ? (W - pad * 2) / 2 : (i / (history.length - 1)) * (W - pad * 2)),
-    y: H - pad - ((Math.max(40, Math.min(160, a.reasoningIndex)) - 40) / 120) * (H - pad * 2),
+    y: H - pad - ((Math.max(40, Math.min(160, a.iq)) - 40) / 120) * (H - pad * 2),
     a,
   }));
   const path = pts.map((p, i) => `${i === 0 ? 'M' : 'L'} ${p.x.toFixed(1)} ${p.y.toFixed(1)}`).join(' ');
@@ -295,9 +230,7 @@ function Trajectory({ history }) {
       })}
       {pts.length > 1 && <path d={path} fill="none" stroke="#22d3ee" strokeWidth="2" strokeLinejoin="round" />}
       {pts.map((p, i) => (
-        <circle key={i} cx={p.x} cy={p.y} r="4"
-          fill={p.a.benchmark === 'followup' ? '#34d399' : '#22d3ee'}
-          stroke="#0b1220" strokeWidth="1.5" />
+        <circle key={i} cx={p.x} cy={p.y} r="4" fill={p.a.benchmark === 'followup' ? '#34d399' : '#22d3ee'} stroke="#0b1220" strokeWidth="1.5" />
       ))}
     </svg>
   );
