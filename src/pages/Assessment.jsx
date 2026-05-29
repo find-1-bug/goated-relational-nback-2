@@ -2,15 +2,15 @@ import React from 'react';
 import { Link } from 'react-router-dom';
 import { motion } from 'framer-motion';
 import { ChevronLeft, Brain, Clock, BarChart3, Play, Info } from 'lucide-react';
-import { buildIcarForm, ICAR_DOMAIN_LABELS } from '@/lib/icarBank';
-import { scoreBattery, reliableChange, normsForLength, ICAR_CITATION, NORM_CAVEAT } from '@/lib/psychometrics';
+import { buildSandiaForm, SANDIA_CITATION, SANDIA_CAVEAT } from '@/lib/sandiaBank';
+import { scoreBattery, reliableChange, normsForLength } from '@/lib/psychometrics';
 import { getAssessments, addAssessment } from '@/lib/localStorageManager';
 import { getAssetUrl } from '@/lib/gameConstants';
 
 const FORM_META = {
-  A: { label: 'Baseline', sub: 'Form A · 12 items — take before a training block', tag: 'baseline' },
-  B: { label: 'Follow-up', sub: 'Form B · 12 items — take after a training block', tag: 'followup' },
-  full: { label: 'Full test', sub: 'All 24 items — most reliable single estimate (not for tracking)', tag: 'full' },
+  A: { label: 'Baseline', sub: 'Form A · 24 items — take before a training block', tag: 'baseline' },
+  B: { label: 'Follow-up', sub: 'Form B · 24 items — take after a training block', tag: 'followup' },
+  full: { label: 'Full test', sub: 'All 48 items — most reliable single estimate', tag: 'full' },
 };
 
 export default function Assessment() {
@@ -30,19 +30,18 @@ export default function Assessment() {
 
   const finish = React.useCallback((finalAnswers) => {
     if (tickRef.current) clearInterval(tickRef.current);
-    const scored = scoreBattery(items, finalAnswers);
+    const scored = scoreBattery(items, finalAnswers, battery?.norm);
     const meta = FORM_META[form];
     const rec = addAssessment({
-      form, benchmark: meta.tag,
+      form, benchmark: meta.tag, instrument: 'sandia',
       raw: scored.raw, n: scored.n, iq: scored.iq, sem: scored.sem, ci95: scored.ci95,
       percentile: scored.percentile, band: scored.band.label, method: scored.method,
-      perDomain: scored.perDomain, responses: finalAnswers,
-      durationSeconds: Math.round((Date.now() - startRef.current) / 1000),
+      responses: finalAnswers, durationSeconds: Math.round((Date.now() - startRef.current) / 1000),
     });
     setHistory(getAssessments());
     setResult({ ...scored, record: rec });
     setPhase('done');
-  }, [items, form]);
+  }, [items, form, battery]);
 
   const advance = React.useCallback((choiceIndex) => {
     if (tickRef.current) clearInterval(tickRef.current);
@@ -70,7 +69,7 @@ export default function Assessment() {
 
   const startForm = (f) => {
     setForm(f);
-    setBattery(buildIcarForm(f));
+    setBattery(buildSandiaForm(f));
     setIdx(0); setAnswers([]); setResult(null);
     startRef.current = Date.now();
     setPhase('run');
@@ -87,8 +86,8 @@ export default function Assessment() {
           <div className="flex items-center gap-3">
             <Brain className="w-6 h-6 text-cyan-400" />
             <div>
-              <h1 className="text-lg sm:text-xl font-mono font-bold text-foreground tracking-tight">Reasoning Index (ICAR)</h1>
-              <p className="text-[10px] font-mono text-muted-foreground">Norm-referenced fluid-reasoning test · pre/post</p>
+              <h1 className="text-lg sm:text-xl font-mono font-bold text-foreground tracking-tight">Reasoning Index</h1>
+              <p className="text-[10px] font-mono text-muted-foreground">Matrix-reasoning measure (Sandia Matrices) · pre/post tracker</p>
             </div>
           </div>
           <Link to="/" className="px-3 py-1.5 rounded-lg bg-secondary border border-border text-muted-foreground hover:text-foreground text-xs font-mono font-semibold transition-colors flex items-center gap-1.5">
@@ -99,9 +98,9 @@ export default function Assessment() {
         {phase === 'pick' && (
           <div className="space-y-5">
             <div className="rounded-xl bg-secondary/20 border border-border p-4 font-mono text-[12px] leading-relaxed text-muted-foreground space-y-2">
-              <p>12 items across <strong className="text-cyan-300">matrix reasoning, verbal reasoning, letter-number series, and 3-D rotation</strong> — the four ICAR families. ICAR is a public, peer-reviewed reasoning measure that correlates ~0.80 with full IQ batteries.</p>
-              <p>Take <strong className="text-cyan-300">Baseline (Form A)</strong> before training and <strong className="text-cyan-300">Follow-up (Form B)</strong> after. The two forms use different items, so there's nothing to memorize.</p>
-              <p className="text-[11px] text-amber-400/80 border-t border-border/40 pt-2">{NORM_CAVEAT}</p>
+              <p>Abstract <strong className="text-cyan-300">matrix reasoning</strong> — the single best proxy for fluid intelligence. Each item shows a 3×3 pattern with one cell missing; pick the option that completes it. Items are the free, validated, normed <strong className="text-cyan-300">Sandia Matrices</strong> (Matzen et al. 2010).</p>
+              <p>Take <strong className="text-cyan-300">Baseline (Form A)</strong> before a training block and <strong className="text-cyan-300">Follow-up (Form B)</strong> after. The forms are different items of matched difficulty, so nothing is memorized. Or run the <strong className="text-cyan-300">Full test (48)</strong> for the most reliable single estimate.</p>
+              <p className="text-[11px] text-amber-400/80 border-t border-border/40 pt-2">{SANDIA_CAVEAT}</p>
             </div>
 
             <div className="grid grid-cols-1 sm:grid-cols-3 gap-3">
@@ -112,7 +111,7 @@ export default function Assessment() {
                   <button key={f} onClick={() => startForm(f)} className="rounded-xl bg-secondary/30 border border-border hover:border-cyan-400/60 p-4 text-left transition-colors space-y-2">
                     <div className="flex items-center justify-between">
                       <span className="text-sm font-mono font-bold text-foreground">{meta.label}</span>
-                      <span className="text-[10px] font-mono uppercase tracking-widest text-cyan-400">Form {f}</span>
+                      <span className="text-[10px] font-mono uppercase tracking-widest text-cyan-400">{f === 'full' ? '48' : 'Form ' + f}</span>
                     </div>
                     <p className="text-[11px] font-mono text-muted-foreground">{meta.sub}</p>
                     <div className="flex items-center gap-2 text-[11px] font-mono pt-1">
@@ -132,7 +131,7 @@ export default function Assessment() {
                   <div className={`text-[11px] font-mono rounded-lg px-3 py-2 border ${rc.reliable ? 'bg-emerald-500/10 border-emerald-500/30 text-emerald-300' : 'bg-amber-500/10 border-amber-500/30 text-amber-300'}`}>
                     Baseline {lastBaseline.iq} → Follow-up {lastFollowup.iq} ({rc.deltaIQ > 0 ? '+' : ''}{rc.deltaIQ}). {rc.reliable
                       ? `That exceeds the ±${rc.thresholdIQ}-point reliable-change threshold — a statistically reliable change.`
-                      : `That's within the ±${rc.thresholdIQ}-point measurement-error band, so it can't yet be called a real change (a 12-item form is noisy by nature).`}
+                      : `That's within the ±${rc.thresholdIQ}-point measurement-error band, so it can't yet be called a real change.`}
                   </div>
                 )}
               </div>
@@ -143,46 +142,40 @@ export default function Assessment() {
         {phase === 'run' && item && (
           <div className="space-y-4">
             <div className="flex items-center justify-between font-mono text-xs">
-              <span className="text-muted-foreground">{idx + 1} / {items.length} · <span className="text-cyan-400">{ICAR_DOMAIN_LABELS[item.domain]}</span></span>
+              <span className="text-muted-foreground">{idx + 1} / {items.length} · <span className="text-cyan-400">Matrix Reasoning</span></span>
               <span className="flex items-center gap-1.5 text-amber-400"><Clock className="w-3.5 h-3.5" /> {Math.ceil(remainingMs / 1000)}s</span>
             </div>
             <div className="h-1.5 w-full bg-secondary rounded-full overflow-hidden"><div className="h-full bg-amber-400 transition-[width] duration-100" style={{ width: `${(remainingMs / (item.timeMs || 60000)) * 100}%` }} /></div>
 
-            <p className="font-mono text-sm text-foreground leading-relaxed">{item.prompt}</p>
-            {item.imageUrl && (
-              <div className="flex justify-center rounded-xl bg-white/95 border border-border p-2">
-                <img src={getAssetUrl(item.imageUrl)} alt="reasoning item" className="max-w-full max-h-[46vh] object-contain" />
+            <p className="font-mono text-sm text-foreground">Which option completes the pattern?</p>
+            <div className="flex flex-col items-center gap-2">
+              <div className="rounded-xl bg-white p-2 w-full flex justify-center">
+                <img src={getAssetUrl(item.imageUrl)} alt="matrix" className="max-w-full max-h-[40vh] object-contain" />
               </div>
-            )}
-            <div className={`grid gap-2 ${item.imageUrl ? 'grid-cols-4 sm:grid-cols-8' : 'grid-cols-1 sm:grid-cols-2'}`}>
+              <div className="rounded-xl bg-white p-2 w-full flex justify-center">
+                <img src={getAssetUrl(item.answersImageUrl)} alt="answer options" className="max-w-full max-h-[26vh] object-contain" />
+              </div>
+            </div>
+            <div className="grid grid-cols-4 sm:grid-cols-8 gap-2">
               {item.options.map((opt, i) => (
                 <button key={i} onClick={() => advance(i)}
-                  className={`rounded-lg bg-secondary/40 border border-border hover:border-cyan-400 hover:bg-secondary/70 font-mono text-foreground transition-colors ${item.imageUrl ? 'h-12 text-sm font-bold' : 'min-h-12 text-xs p-2 text-left'}`}>
+                  className="h-12 rounded-lg bg-secondary/40 border border-border hover:border-cyan-400 hover:bg-secondary/70 font-mono text-foreground text-sm font-bold transition-colors">
                   {opt}
                 </button>
               ))}
             </div>
-            <p className="text-center text-[10px] font-mono text-muted-foreground/50">Take your time — the timer is generous. No going back; "I don't know" is a valid answer.</p>
+            <p className="text-center text-[10px] font-mono text-muted-foreground/50">Cells are numbered 1-8, left→right, top row then bottom row. Take your time; no going back.</p>
           </div>
         )}
 
         {phase === 'done' && result && (
           <div className="space-y-5">
             <div className="rounded-xl bg-cyan-500/5 border border-cyan-500/30 p-5 text-center space-y-1">
-              <p className="text-[11px] font-mono uppercase tracking-widest text-cyan-400">{FORM_META[form].label} · Form {form}</p>
+              <p className="text-[11px] font-mono uppercase tracking-widest text-cyan-400">{FORM_META[form].label} · {form === 'full' ? '48 items' : 'Form ' + form}</p>
               <div className="text-5xl font-mono font-bold text-foreground">{result.iq}</div>
               <p className="text-xs font-mono text-muted-foreground">95% CI {result.ci95[0]}–{result.ci95[1]} · {result.percentile}th percentile</p>
               <p className={`text-xs font-mono font-semibold ${result.band.color}`}>{result.band.label} · Reasoning Index</p>
-              <p className="text-[11px] font-mono text-muted-foreground">{result.raw} / {result.n} correct · reliability {normsForLength(result.n).reliability.toFixed(2)} · method {result.method === 'irt' ? 'IRT (EAP)' : 'raw-norm'}</p>
-            </div>
-
-            <div className="grid grid-cols-2 sm:grid-cols-4 gap-2 font-mono text-center">
-              {Object.entries(result.perDomain).map(([k, v]) => (
-                <div key={k} className="rounded-lg bg-background/40 border border-border p-2">
-                  <div className="text-lg font-bold text-foreground">{v.correct}/{v.total}</div>
-                  <div className="text-[9px] uppercase tracking-widest text-muted-foreground leading-tight">{ICAR_DOMAIN_LABELS[k]}</div>
-                </div>
-              ))}
+              <p className="text-[11px] font-mono text-muted-foreground">{result.raw} / {result.n} correct · reliability {normsForLength(result.n).reliability.toFixed(2)}</p>
             </div>
 
             {rc && (
@@ -200,8 +193,8 @@ export default function Assessment() {
 
             <div className="rounded-lg bg-secondary/20 border border-border/60 p-3 font-mono text-[10px] leading-relaxed text-muted-foreground/80 space-y-1.5">
               <div className="flex items-center gap-1.5 text-cyan-400 font-bold uppercase"><Info className="w-3.5 h-3.5" /> Methodology &amp; limits</div>
-              <p>{ICAR_CITATION}</p>
-              <p>{NORM_CAVEAT}</p>
+              <p>{SANDIA_CITATION}</p>
+              <p>{SANDIA_CAVEAT}</p>
             </div>
 
             <button onClick={() => setPhase('pick')} className="w-full h-11 rounded-lg bg-cyan-600 hover:bg-cyan-500 text-white font-mono text-sm font-semibold transition-colors">Done</button>

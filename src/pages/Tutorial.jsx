@@ -809,23 +809,23 @@ export default function Tutorial() {
               {/* SPECIAL TECH TAB */}
               {activeTab === 'features' && (
                 <div className="space-y-4">
-                  {/* Reasoning Index (ICAR) — pre/post assessment */}
+                  {/* Reasoning Index (Sandia Matrices) — pre/post assessment */}
                   <div className="rounded-lg bg-cyan-500/10 border border-cyan-500/30 p-5 space-y-2">
                     <div className="flex items-center gap-2">
                       <Brain className="w-5 h-5 text-cyan-400" />
-                      <h3 className="text-xs font-bold uppercase tracking-wider text-cyan-300">Reasoning Index (ICAR) — pre/post IQ-scale measure</h3>
+                      <h3 className="text-xs font-bold uppercase tracking-wider text-cyan-300">Reasoning Index — pre/post matrix-reasoning measure</h3>
                     </div>
                     <p className="text-[13px] text-muted-foreground leading-relaxed">
-                      A 12-item fluid-reasoning test reached from the <strong className="text-cyan-300">Snapshot</strong> button, built from the <strong>ICAR</strong> (International Cognitive Ability Resource) public-domain item bank — the four ICAR families: <strong>matrix reasoning, verbal reasoning, letter-number series, and 3-D rotation</strong>. ICAR is peer-reviewed (Condon &amp; Revelle, 2014) and correlates ~0.80 with full IQ batteries, so this is a real norm-referenced reasoning measure, not home-made puzzles.
+                      A matrix-reasoning test reached from the <strong className="text-cyan-300">Snapshot</strong> button, built from the <strong>Sandia Matrices</strong> (Matzen et al. 2010) — a free, published, norm-referenced Raven's-style item bank released by Sandia National Laboratories. Abstract matrix reasoning is the single best proxy for fluid intelligence (g). Each item shows a 3×3 pattern with one cell missing; you choose the option that completes it.
                     </p>
                     <p className="text-[13px] text-muted-foreground leading-relaxed">
-                      Take <strong>Baseline (Form A)</strong> before a training block and <strong>Follow-up (Form B)</strong> after. The two forms are <strong>different items</strong>, so nothing is memorized between sittings. Your raw score maps to a <strong>100-average / 15-per-step</strong> scale, reported with a <strong>95% confidence interval</strong>, percentile, a 4-domain profile, and reliability.
+                      Take <strong>Baseline (Form A · 24 items)</strong> before a training block and <strong>Follow-up (Form B · 24 items)</strong> after — two <strong>different, difficulty-matched</strong> item sets, so nothing is memorized. Or run the <strong>Full test (48 items)</strong> for the most reliable single estimate. Your score maps to a <strong>100-average / 15-per-step</strong> scale with a <strong>95% confidence interval</strong>, percentile, and reliability (longer test → tighter interval).
                     </p>
                     <p className="text-[13px] text-muted-foreground leading-relaxed">
-                      <strong className="text-cyan-200">Pre/post done right:</strong> we compute a <strong>Reliable Change Index</strong> — your follow-up minus baseline, judged against measurement error. A short 12-item form is noisy, so a change has to clear roughly <strong>±20 points</strong> to count as statistically reliable; smaller real gains exist but can't be distinguished from noise at this length. The app says so plainly rather than hyping a noise bump.
+                      <strong className="text-cyan-200">Pre/post done right:</strong> a <strong>Reliable Change Index</strong> judges your follow-up minus baseline against measurement error — a change has to clear the stated threshold to count as statistically reliable. Smaller real gains exist but can't be distinguished from noise; the app says so plainly rather than hyping a noise bump.
                     </p>
                     <p className="text-[13px] text-muted-foreground leading-relaxed">
-                      <strong className="text-amber-300">Honest limits:</strong> the norms come from ICAR's large online (SAPA) sample, which skews young and educated — so scores may run a few points optimistic vs. the general population — and a 12-item form has a wide confidence interval. Read the interval and the change, not the bare number. (A finer per-item IRT scoring layer is built in and switches on automatically once calibrated item parameters are loaded.)
+                      <strong className="text-amber-300">Honest limits:</strong> it's anchored to the Sandia 2010 norming study (university-student sample, few ratings per item), so it's an index for tracking <em>your own change over time</em> — not a clinical or population-normed IQ. Read the confidence interval and the change, not the bare number.
                     </p>
                   </div>
                   {/* Synaesthesia */}

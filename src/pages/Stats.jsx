@@ -203,8 +203,8 @@ export default function Stats() {
               return (
                 <div className="rounded-xl bg-cyan-500/5 border border-cyan-500/30 p-4 flex flex-wrap items-center gap-4 font-mono">
                   <div className="flex-1 min-w-[180px]">
-                    <h3 className="text-xs font-bold uppercase tracking-widest text-cyan-300">Reasoning Index (ICAR)</h3>
-                    <p className="text-[10px] text-muted-foreground">Norm-referenced pre/post fluid reasoning. Δ is the training transfer signal.</p>
+                    <h3 className="text-xs font-bold uppercase tracking-widest text-cyan-300">Reasoning Index</h3>
+                    <p className="text-[10px] text-muted-foreground">Matrix-reasoning pre/post (Sandia Matrices). Δ is the training transfer signal.</p>
                   </div>
                   <div className="flex gap-4 text-center">
                     <div><div className="text-xl font-bold text-foreground">{lastBaseline?.iq ?? '—'}</div><div className="text-[9px] uppercase tracking-widest text-muted-foreground">Baseline</div></div>

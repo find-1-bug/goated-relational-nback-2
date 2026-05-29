@@ -169,8 +169,13 @@ export function iqFromTheta(theta, semTheta) {
 
 // Top-level scorer: prefers IRT when every answered item has params, else
 // falls back to the published raw-score norm.
-export function scoreBattery(items, answers, norm = null) {
-  norm = norm || normsForLength(items.length);
+// formNorm (optional): { mean, sd } anchored to the item set's own norming
+// sample (e.g. Sandia item difficulties). Reliability/SEM always come from the
+// length-aware model; mean/sd come from formNorm when supplied.
+export function scoreBattery(items, answers, formNorm = null) {
+  const norm = formNorm
+    ? { ...normsForLength(items.length), mean: formNorm.mean, sd: formNorm.sd }
+    : normsForLength(items.length);
   let raw = 0;
   const perDomain = {};
   const irtResponses = [];
