@@ -33,9 +33,15 @@ export const NORM_CAVEAT =
 // This makes a longer test genuinely more reliable (tighter CI), which is the
 // whole point of growing the item bank. `provisional` flags that the anchors
 // are ICAR-informed estimates pending a local IRT calibration.
-const P0 = 5.4 / 12;          // ≈ 0.45 per-item proportion correct
-const SD12 = 1.6;             // raw SD at 12 items
-const R1 = 0.78 / (12 - 11 * 0.78); // ≈ 0.228 per-item reliability (Spearman-Brown inverse of 0.78@12)
+const P0 = 5.4 / 12;          // ≈ 0.45 per-item proportion correct (provisional raw anchor)
+const SD12 = 1.6;             // raw SD at 12 items (provisional)
+// Per-item reliability derived from the PUBLISHED ICAR-16 internal consistency
+// (0.81 over 16 items; Condon & Revelle 2014, Table 8) via inverse
+// Spearman-Brown. Consistency check: projecting this back up to 60 items gives
+// ≈0.94, matching the paper's published ICAR-60 reliability of 0.93 — so the
+// length model is anchored to two real data points, not guessed.
+const ICAR16_REL = 0.81, ICAR16_N = 16;
+const R1 = ICAR16_REL / (ICAR16_N - (ICAR16_N - 1) * ICAR16_REL); // ≈ 0.2104
 export const NORMS_PROVISIONAL = true;
 
 export function normsForLength(n) {
