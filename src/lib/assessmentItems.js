@@ -42,6 +42,14 @@ const FILLS = ['solid', 'hollow'];
 
 function cellKey(c) { return `${c.shape}|${c.count}|${c.rot}|${c.fill}`; }
 
+// VISUAL key — rotation is only perceptible on a triangle (circle/square/
+// diamond are ~symmetric under 90° steps), so normalize rot to 0 for those.
+// Used to dedup OPTIONS so no two answer tiles look identical.
+function visualKey(c) {
+  const rot = c.shape === 'triangle' ? (((c.rot % 4) + 4) % 4) : 0;
+  return `${c.shape}|${c.count}|${rot}|${c.fill}`;
+}
+
 // Returns a function value(index) for a dimension given a rule + a base.
 function dimSequence(rng, dim) {
   if (dim === 'count') {
@@ -64,17 +72,27 @@ function dimSequence(rng, dim) {
   return () => 0;
 }
 
-function makeMatrixItem(rng, id, twoRule) {
+// hardness: 2 → two rules (col + row), 3 → three rules (col + row + a diagonal
+// trap on a third dimension). Distractors are "rule violations" — the cell you
+// land on if you misread exactly one rule — so they can't be eliminated by
+// surface features alone.
+function makeMatrixItem(rng, id, hardness) {
   const dims = shuffle(rng, ['count', 'shape', 'fill', 'rot']);
-  const colDim = dims[0];
-  const rowDim = twoRule ? dims[1] : null;
-  // Rotation is only visible on a directional shape; if a rule uses 'rot' make
-  // sure the constant shape is directional (triangle) unless 'shape' varies.
+  // If 'rot' is a varying rule, the varying shape can't also be 'shape'
+  // (rotating different shapes is unreadable). Drop 'shape' when 'rot' is used.
+  let ruleDims = dims.slice(0, hardness >= 3 ? 3 : 2);
+  if (ruleDims.includes('rot') && ruleDims.includes('shape')) {
+    ruleDims = ruleDims.filter(d => d !== 'shape');
+    if (ruleDims.length < (hardness >= 3 ? 3 : 2)) {
+      for (const d of ['count', 'fill']) if (!ruleDims.includes(d)) { ruleDims.push(d); break; }
+    }
+  }
+  const [colDim, rowDim, diagDim] = ruleDims;
   const colSeq = dimSequence(rng, colDim);
-  const rowSeq = rowDim ? dimSequence(rng, rowDim) : null;
+  const rowSeq = dimSequence(rng, rowDim);
+  const diagSeq = diagDim ? dimSequence(rng, diagDim) : null;
 
-  // Constant baseline for the non-varying dimensions.
-  const usesRot = colDim === 'rot' || rowDim === 'rot';
+  const usesRot = ruleDims.includes('rot');
   const base = {
     shape: usesRot ? 'triangle' : pick(rng, MATRIX_SHAPES),
     count: randInt(rng, 1, 3),
@@ -84,69 +102,79 @@ function makeMatrixItem(rng, id, twoRule) {
   const cellAt = (r, c) => {
     const cell = { ...base };
     cell[colDim] = colSeq(c);
-    if (rowDim) cell[rowDim] = rowSeq(r);
+    cell[rowDim] = rowSeq(r);
+    if (diagDim) cell[diagDim] = diagSeq((r + c) % 3); // diagonal/third rule
     return cell;
   };
 
   const grid = [0, 1, 2].map(r => [0, 1, 2].map(c => cellAt(r, c)));
   const correct = grid[2][2];
-  grid[2][2] = null; // hidden cell
+  grid[2][2] = null;
 
-  // Build distractors: correct spec with one feature changed.
+  // Rule-violation distractors: rebuild the target cell but read ONE rule from
+  // the wrong index (a neighbouring row/col), which is the classic near-miss.
   const opts = [{ ...correct }];
-  const seenKeys = new Set([cellKey(correct)]);
-  const mutators = shuffle(rng, ['count', 'shape', 'fill', 'rot']);
-  let mi = 0;
-  let guard = 0;
-  while (opts.length < 6 && guard++ < 60) {
-    const cand = { ...correct };
-    const dim = mutators[mi % mutators.length]; mi++;
-    if (dim === 'count') cand.count = pick(rng, COUNTS.filter(v => v !== correct.count));
-    else if (dim === 'shape') cand.shape = pick(rng, MATRIX_SHAPES.filter(v => v !== correct.shape));
-    else if (dim === 'fill') cand.fill = FILLS.find(v => v !== correct.fill);
-    else if (dim === 'rot') cand.rot = pick(rng, [0, 1, 2, 3].filter(v => v !== correct.rot));
-    const k = cellKey(cand);
-    if (!seenKeys.has(k)) { seenKeys.add(k); opts.push(cand); }
+  const seen = new Set([visualKey(correct)]);
+  const violations = [
+    () => { const c = cellAt(2, 2); c[colDim] = colSeq(1); return c; }, // wrong column read
+    () => { const c = cellAt(2, 2); c[rowDim] = rowSeq(1); return c; }, // wrong row read
+    () => { const c = cellAt(2, 2); c[colDim] = colSeq(0); return c; },
+    () => { const c = cellAt(2, 2); c[rowDim] = rowSeq(0); return c; },
+    () => ({ ...correct, count: pick(rng, COUNTS.filter(v => v !== correct.count)) }),
+    () => ({ ...correct, fill: FILLS.find(v => v !== correct.fill) }),
+    () => ({ ...correct, shape: pick(rng, MATRIX_SHAPES.filter(v => v !== correct.shape && !usesRot || v === 'triangle')) || pick(rng, MATRIX_SHAPES.filter(v => v !== correct.shape)) }),
+  ];
+  const order0 = shuffle(rng, violations);
+  let gi = 0, guard = 0;
+  while (opts.length < 6 && guard++ < 80) {
+    const cand = order0[gi % order0.length](); gi++;
+    const vk = visualKey(cand);
+    if (!seen.has(vk)) { seen.add(vk); opts.push(cand); }
   }
-  // If rotation-only distractors collapsed (e.g. circle), top up by count.
+  // Safety top-up with always-visible feature combos.
   while (opts.length < 6) {
-    const cand = { ...correct, count: ((correct.count + opts.length) % 3) + 1, shape: pick(rng, MATRIX_SHAPES) };
-    const k = cellKey(cand);
-    if (!seenKeys.has(k)) { seenKeys.add(k); opts.push(cand); }
+    const cand = { ...correct, count: ((correct.count + opts.length) % 3) + 1, fill: pick(rng, FILLS), shape: usesRot ? 'triangle' : pick(rng, MATRIX_SHAPES) };
+    const vk = visualKey(cand);
+    if (!seen.has(vk)) { seen.add(vk); opts.push(cand); }
   }
   const order = shuffle(rng, opts.slice(0, 6));
-  const correctIndex = order.findIndex(o => cellKey(o) === cellKey(correct));
+  const correctIndex = order.findIndex(o => visualKey(o) === visualKey(correct));
   return {
     id, subtest: 'matrix', grid, options: order, correctIndex,
-    timeMs: 32000,
+    timeMs: 34000,
     key: `m:${grid.map(row => row.map(c => c ? cellKey(c) : '_').join(',')).join(';')}`,
   };
 }
 
 // ── Number Series ────────────────────────────────────────────────────────────
 function makeNumberSeriesItem(rng, id) {
-  const type = pick(rng, ['arith', 'geom', 'alt', 'fib', 'sqstep']);
+  const type = pick(rng, ['geom', 'alt', 'fib', 'sqstep', 'muladd', 'seconddiff']);
   let terms = [];
-  if (type === 'arith') {
-    const start = randInt(rng, 1, 9), step = randInt(rng, 2, 9);
-    for (let i = 0; i < 6; i++) terms.push(start + step * i);
-  } else if (type === 'geom') {
-    const start = randInt(rng, 2, 4), ratio = randInt(rng, 2, 3);
+  if (type === 'geom') {
+    const start = randInt(rng, 2, 5), ratio = randInt(rng, 2, 3);
     for (let i = 0; i < 5; i++) terms.push(start * Math.pow(ratio, i));
   } else if (type === 'alt') {
-    // two interleaved arithmetic sequences
-    const s1 = randInt(rng, 1, 6), d1 = randInt(rng, 2, 6);
-    const s2 = randInt(rng, 10, 20), d2 = randInt(rng, 2, 6);
+    // two interleaved arithmetic sequences (one ascending, one descending)
+    const s1 = randInt(rng, 1, 6), d1 = randInt(rng, 3, 8);
+    const s2 = randInt(rng, 30, 50), d2 = randInt(rng, 3, 8);
     for (let i = 0; i < 3; i++) { terms.push(s1 + d1 * i); terms.push(s2 - d2 * i); }
     terms = terms.slice(0, 6);
   } else if (type === 'fib') {
-    let a = randInt(rng, 1, 5), b = randInt(rng, 2, 6);
+    let a = randInt(rng, 2, 6), b = randInt(rng, 3, 8);
     terms = [a, b];
     for (let i = 0; i < 4; i++) { const n = a + b; terms.push(n); a = b; b = n; }
-  } else { // sqstep: increasing step (+1,+2,+3,...)
-    let v = randInt(rng, 1, 5), step = randInt(rng, 1, 3);
+  } else if (type === 'sqstep') { // increasing step (+s,+(s+1),...)
+    let v = randInt(rng, 2, 7), step = randInt(rng, 2, 4);
     terms = [v];
     for (let i = 0; i < 5; i++) { v += step; terms.push(v); step++; }
+  } else if (type === 'muladd') { // xK then +M
+    const k = randInt(rng, 2, 3), m = randInt(rng, 1, 5);
+    let v = randInt(rng, 1, 4); terms = [v];
+    for (let i = 0; i < 4; i++) { v = v * k + m; terms.push(v); }
+  } else { // seconddiff: differences grow by a constant (e.g. +2,+5,+8 → diff of diffs = 3)
+    const d0 = randInt(rng, 2, 5), dd = randInt(rng, 2, 4);
+    let v = randInt(rng, 1, 6), d = d0; terms = [v];
+    for (let i = 0; i < 5; i++) { v += d; terms.push(v); d += dd; }
   }
   const answer = terms[terms.length - 1];
   const shown = terms.slice(0, terms.length - 1);
@@ -227,7 +255,8 @@ export function buildForm(form = 'A', seed = 1, excludeKeys = new Set()) {
     // give up uniqueness after retries (astronomically rare) — still push
     items.push(factory(items.length + 1));
   };
-  for (let i = 0; i < 6; i++) addUnique((id) => makeMatrixItem(rng, id, i >= 3));
+  // All matrices use ≥2 rules; the last two use 3 rules (harder).
+  for (let i = 0; i < 6; i++) addUnique((id) => makeMatrixItem(rng, id, i >= 4 ? 3 : 2));
   for (let i = 0; i < 3; i++) addUnique((id) => makeNumberSeriesItem(rng, id));
   for (let i = 0; i < 3; i++) addUnique((id) => makeLetterSeriesItem(rng, id));
   return { form, seed, items };
