@@ -50,7 +50,8 @@ const FORM_B = [
   { id: 'BR2', domain: 'rotation', kind: 'rotation', prompt: 'Choose the rotated shape that matches the target.', imageUrl: '/assets/icar/formB/rotation/BR2.jpg', options: ROTATION_OPTIONS, correctIndex: 2 },
 ];
 
-export const ICAR_FORMS = { A: FORM_A, B: FORM_B };
+// 'full' = all 24 items as one deep test (most reliable single estimate).
+export const ICAR_FORMS = { A: FORM_A, B: FORM_B, full: [...FORM_A, ...FORM_B] };
 
 // Soft per-item time caps (generous — ICAR is near-untimed). Timeout = no credit.
 const TIME_CAP_MS = { matrix: 75000, rotation: 75000, verbal: 50000, series: 50000 };

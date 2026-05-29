@@ -24,17 +24,36 @@ export const ICAR_CITATION =
 export const NORM_CAVEAT =
   'Norm-referenced to the ICAR/SAPA online sample (skews young and educated, so scores may run a few points optimistic vs. the general population). A 12-item form is a short snapshot — read the confidence interval and the pre/post change, not the single number.';
 
-// Per-form norm constants (12-item ICAR snapshot). `provisional: true` flags
-// that these are ICAR-anchored estimates pending a local IRT calibration.
-export const FORM_NORM = Object.freeze({
-  mean: 5.4,        // expected raw correct (of 12) in the reference sample
-  sd: 1.6,          // raw SD in the reference sample
-  n: 12,
-  reliability: 0.78, // ~ICAR-16 internal consistency, adjusted for 12 items
-  sdIQ: 15,
-  meanIQ: 100,
-  provisional: true,
-});
+// Length-aware norms. Anchored to the established 12-item ICAR snapshot
+// (mean ≈ 5.4 of 12, SD ≈ 1.6, reliability ≈ 0.78 — the SgS-12 anchoring),
+// then projected to any test length n with standard test-theory:
+//   • mean(n)  = p0·n           (p0 = per-item proportion correct = 5.4/12)
+//   • sd(n)    = sd12·√(n/12)   (SD grows with √length)
+//   • rel(n)   = Spearman-Brown from a derived per-item reliability r1
+// This makes a longer test genuinely more reliable (tighter CI), which is the
+// whole point of growing the item bank. `provisional` flags that the anchors
+// are ICAR-informed estimates pending a local IRT calibration.
+const P0 = 5.4 / 12;          // ≈ 0.45 per-item proportion correct
+const SD12 = 1.6;             // raw SD at 12 items
+const R1 = 0.78 / (12 - 11 * 0.78); // ≈ 0.228 per-item reliability (Spearman-Brown inverse of 0.78@12)
+export const NORMS_PROVISIONAL = true;
+
+export function normsForLength(n) {
+  const len = Math.max(1, Math.round(n) || 12);
+  const reliability = (len * R1) / (1 + (len - 1) * R1);
+  return {
+    n: len,
+    mean: P0 * len,
+    sd: SD12 * Math.sqrt(len / 12),
+    reliability,
+    sdIQ: 15,
+    meanIQ: 100,
+    provisional: NORMS_PROVISIONAL,
+  };
+}
+
+// Default (12-item) norm, kept for back-compat call sites.
+export const FORM_NORM = Object.freeze(normsForLength(12));
 
 const clamp = (lo, hi, v) => Math.max(lo, Math.min(hi, v));
 
@@ -144,7 +163,8 @@ export function iqFromTheta(theta, semTheta) {
 
 // Top-level scorer: prefers IRT when every answered item has params, else
 // falls back to the published raw-score norm.
-export function scoreBattery(items, answers, norm = FORM_NORM) {
+export function scoreBattery(items, answers, norm = null) {
+  norm = norm || normsForLength(items.length);
   let raw = 0;
   const perDomain = {};
   const irtResponses = [];

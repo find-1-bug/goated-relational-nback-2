@@ -3,13 +3,14 @@ import { Link } from 'react-router-dom';
 import { motion } from 'framer-motion';
 import { ChevronLeft, Brain, Clock, BarChart3, Play, Info } from 'lucide-react';
 import { buildIcarForm, ICAR_DOMAIN_LABELS } from '@/lib/icarBank';
-import { scoreBattery, reliableChange, empiricalReliability, ICAR_CITATION, NORM_CAVEAT } from '@/lib/psychometrics';
+import { scoreBattery, reliableChange, normsForLength, ICAR_CITATION, NORM_CAVEAT } from '@/lib/psychometrics';
 import { getAssessments, addAssessment } from '@/lib/localStorageManager';
 import { getAssetUrl } from '@/lib/gameConstants';
 
 const FORM_META = {
-  A: { label: 'Baseline', sub: 'Form A — take before a training block', tag: 'baseline' },
-  B: { label: 'Follow-up', sub: 'Form B — take after a training block', tag: 'followup' },
+  A: { label: 'Baseline', sub: 'Form A · 12 items — take before a training block', tag: 'baseline' },
+  B: { label: 'Follow-up', sub: 'Form B · 12 items — take after a training block', tag: 'followup' },
+  full: { label: 'Full test', sub: 'All 24 items — most reliable single estimate (not for tracking)', tag: 'full' },
 };
 
 export default function Assessment() {
@@ -103,10 +104,10 @@ export default function Assessment() {
               <p className="text-[11px] text-amber-400/80 border-t border-border/40 pt-2">{NORM_CAVEAT}</p>
             </div>
 
-            <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
-              {['A', 'B'].map(f => {
+            <div className="grid grid-cols-1 sm:grid-cols-3 gap-3">
+              {['A', 'B', 'full'].map(f => {
                 const meta = FORM_META[f];
-                const last = f === 'A' ? lastBaseline : lastFollowup;
+                const last = f === 'A' ? lastBaseline : f === 'B' ? lastFollowup : [...history].reverse().find(a => a.benchmark === 'full');
                 return (
                   <button key={f} onClick={() => startForm(f)} className="rounded-xl bg-secondary/30 border border-border hover:border-cyan-400/60 p-4 text-left transition-colors space-y-2">
                     <div className="flex items-center justify-between">
@@ -172,7 +173,7 @@ export default function Assessment() {
               <div className="text-5xl font-mono font-bold text-foreground">{result.iq}</div>
               <p className="text-xs font-mono text-muted-foreground">95% CI {result.ci95[0]}–{result.ci95[1]} · {result.percentile}th percentile</p>
               <p className={`text-xs font-mono font-semibold ${result.band.color}`}>{result.band.label} · Reasoning Index</p>
-              <p className="text-[11px] font-mono text-muted-foreground">{result.raw} / {result.n} correct · reliability {empiricalReliability().toFixed(2)} · method {result.method === 'irt' ? 'IRT (EAP)' : 'raw-norm'}</p>
+              <p className="text-[11px] font-mono text-muted-foreground">{result.raw} / {result.n} correct · reliability {normsForLength(result.n).reliability.toFixed(2)} · method {result.method === 'irt' ? 'IRT (EAP)' : 'raw-norm'}</p>
             </div>
 
             <div className="grid grid-cols-2 sm:grid-cols-4 gap-2 font-mono text-center">
