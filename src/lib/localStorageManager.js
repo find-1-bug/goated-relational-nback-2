@@ -3,6 +3,7 @@
 const STORAGE_KEYS = {
   SESSIONS: 'nback_sessions',
   SETTINGS: 'nback_settings',
+  ASSESSMENTS: 'nback_assessments',
 };
 
 export function getSessions() {
@@ -45,6 +46,28 @@ export function deleteSession(sessionId) {
   saveSessions(sessions);
 }
 
+// ── Reasoning Snapshot assessments ──────────────────────────────────────────
+export function getAssessments() {
+  try {
+    const data = localStorage.getItem(STORAGE_KEYS.ASSESSMENTS);
+    return data ? JSON.parse(data) : [];
+  } catch {
+    return [];
+  }
+}
+
+export function saveAssessments(list) {
+  localStorage.setItem(STORAGE_KEYS.ASSESSMENTS, JSON.stringify(list));
+}
+
+export function addAssessment(record) {
+  const list = getAssessments();
+  const entry = { id: Date.now().toString(), ...record, created_date: new Date().toISOString() };
+  list.push(entry);
+  saveAssessments(list);
+  return entry;
+}
+
 export function getSettings() {
   try {
     const data = localStorage.getItem(STORAGE_KEYS.SETTINGS);
@@ -61,7 +84,8 @@ export function saveSettings(settings) {
 export function exportData() {
   const sessions = getSessions();
   const settings = getSettings();
-  return { sessions, settings, exportDate: new Date().toISOString() };
+  const assessments = getAssessments();
+  return { sessions, settings, assessments, exportDate: new Date().toISOString() };
 }
 
 export function importData(data) {
@@ -70,4 +94,5 @@ export function importData(data) {
   }
   saveSessions(data.sessions);
   if (data.settings) saveSettings(data.settings);
+  if (Array.isArray(data.assessments)) saveAssessments(data.assessments);
 }

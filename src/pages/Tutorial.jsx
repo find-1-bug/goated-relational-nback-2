@@ -809,6 +809,22 @@ export default function Tutorial() {
               {/* SPECIAL TECH TAB */}
               {activeTab === 'features' && (
                 <div className="space-y-4">
+                  {/* Reasoning Snapshot — pre/post assessment */}
+                  <div className="rounded-lg bg-cyan-500/10 border border-cyan-500/30 p-5 space-y-2">
+                    <div className="flex items-center gap-2">
+                      <Brain className="w-5 h-5 text-cyan-400" />
+                      <h3 className="text-xs font-bold uppercase tracking-wider text-cyan-300">Reasoning Snapshot — pre/post measure</h3>
+                    </div>
+                    <p className="text-[13px] text-muted-foreground leading-relaxed">
+                      A 12-item fluid-reasoning check (matrix completion + number/letter series) reached from the <strong className="text-cyan-300">Snapshot</strong> button on the start screen. Take <strong>Baseline (Form A)</strong> before a training block and <strong>Follow-up (Form B)</strong> after; the gap between them is your transfer signal.
+                    </p>
+                    <p className="text-[13px] text-muted-foreground leading-relaxed">
+                      <strong className="text-cyan-200">Why these formats?</strong> A pre/post test is only valid if it measures something you <em>don't</em> train — otherwise you'd just be measuring practice on the test (near transfer). So the Snapshot deliberately uses formats <strong>no training mode here uses</strong>: abstract matrices and numeric/alphabetic series. Verbal analogies and odd-one-out are intentionally excluded because the <Link to="/insight" className="underline text-amber-400">Insight</Link> mode trains them. Form B uses different items than Form A, so there's nothing to memorize between sittings.
+                    </p>
+                    <p className="text-[13px] text-muted-foreground leading-relaxed">
+                      You get a <strong>Reasoning Index</strong> (scaled ~100±15) and a pre→post trajectory. <strong className="text-amber-300">Honest caveat:</strong> with no standardization sample this is an <em>approximate</em> index for tracking your own change over time — not a normed or clinical IQ score. The meaningful number is the <em>delta</em>, not the absolute value.
+                    </p>
+                  </div>
                   {/* Synaesthesia */}
                   <div className="rounded-lg bg-indigo-500/10 border border-indigo-500/30 p-5 space-y-2">
                     <div className="flex items-center gap-2">

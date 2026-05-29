@@ -12,6 +12,7 @@ import Framework from '@/pages/Framework';
 import Diagnostics from '@/pages/Diagnostics';
 import Insight from '@/pages/Insight';
 import Successor from '@/pages/Successor';
+import Assessment from '@/pages/Assessment';
 
 function App() {
   React.useEffect(() => {
@@ -29,6 +30,7 @@ function App() {
           <Route path="/diagnostics" element={<Diagnostics />} />
           <Route path="/insight" element={<Insight />} />
           <Route path="/successor" element={<Successor />} />
+          <Route path="/assessment" element={<Assessment />} />
           <Route path="/review/:sessionId" element={<Review />} />
           <Route path="*" element={<PageNotFound />} />
         </Routes>
