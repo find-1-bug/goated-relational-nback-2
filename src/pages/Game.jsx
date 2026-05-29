@@ -11,6 +11,73 @@ import { AnimatePresence, motion } from 'framer-motion';
 import { Brain } from 'lucide-react';
 import { Button } from '@/components/ui/button';
 
+// Evidence base, grouped by the app aspect each study supports. Every entry
+// links to the paper (DOI / publisher). Kept honest: the WM→Gf transfer
+// section includes the major skeptical meta-analysis, not just the positive one.
+const STUDY_SECTIONS = [
+  {
+    heading: 'Working memory → fluid-intelligence transfer',
+    note: 'The core n-back premise — and the honest debate around it.',
+    studies: [
+      { title: 'Improving fluid intelligence with training on working memory', cite: 'Jaeggi, Buschkuehl, Jonides & Perrig (2008) · PNAS', url: 'https://doi.org/10.1073/pnas.0801268105', impact: 'The landmark dual-n-back study: WM training improved Gf with a dose-response relationship. The paradigm this whole app builds on.' },
+      { title: 'Improving fluid intelligence with training on working memory: a meta-analysis', cite: 'Au, Sheehan, Tsai, Duncan, Buschkuehl & Jaeggi (2015) · Psychonomic Bulletin & Review', url: 'https://doi.org/10.3758/s13423-014-0699-x', impact: 'Across active-control studies, n-back training showed a small but reliable Gf gain (~3-4 IQ points).' },
+      { title: 'Hundred days of cognitive training enhance broad cognitive abilities', cite: 'Schmiedek, Lövdén & Lindenberger (2010) · Frontiers in Aging Neuroscience', url: 'https://doi.org/10.3389/fnagi.2010.00027', impact: 'Heavy multi-task WM training transferred broadly to reasoning and episodic memory — supports the multi-stream + multi-mode design.' },
+      { title: 'Is working memory training effective? A meta-analytic review', cite: 'Melby-Lervåg & Hulme (2013) · Developmental Psychology', url: 'https://doi.org/10.1037/a0028228', impact: 'The skeptical counterweight: found mostly near-transfer and little durable far-transfer. Why this app measures change honestly (CI + reliable-change) instead of overclaiming.' },
+    ],
+  },
+  {
+    heading: 'Relational reasoning & the Gf bottleneck',
+    note: 'Behind RINT, Analogy N-Back, RST and Insight.',
+    studies: [
+      { title: 'Separating cognitive capacity from knowledge: a new hypothesis', cite: 'Halford, Cowan & Andrews (2007) · Trends in Cognitive Sciences', url: 'https://doi.org/10.1016/j.tics.2007.04.001', impact: 'Relational complexity — how many relations you can bind at once (the 4-place limit) — is a core constraint of reasoning. The basis for the Analogy/RST tiers.' },
+      { title: 'Rostrolateral prefrontal cortex involvement in relational integration during reasoning', cite: 'Christoff, Prabhakaran, Dorfman, et al. (2001) · NeuroImage', url: 'https://doi.org/10.1006/nimg.2001.0922', impact: 'Integrating multiple relations recruits rostrolateral PFC — the neural signature of the 4-place rung the Analogy and RST-Hard modes target.' },
+    ],
+  },
+  {
+    heading: 'Cognitive maps & Successor Representation',
+    note: 'Behind Trajectory N-Back (SR) and Schema Transfer (TEM).',
+    studies: [
+      { title: 'The hippocampus as a predictive map', cite: 'Stachenfeld, Botvinick & Gershman (2017) · Nature Neuroscience', url: 'https://doi.org/10.1038/nn.4650', impact: 'Place cells encode a Successor Representation (expected future occupancy); grid cells are its eigenvectors. The model Trajectory N-Back trains directly.' },
+      { title: 'What is a cognitive map? Organizing knowledge for flexible behavior', cite: 'Behrens, Muller, Whittington, et al. (2018) · Neuron', url: 'https://doi.org/10.1016/j.neuron.2018.10.002', impact: 'The hippocampal-entorhinal map generalizes beyond space to abstract relational structure — the rationale for schema-based training.' },
+      { title: 'The Tolman-Eichenbaum Machine: unifying space and relational memory', cite: 'Whittington, Muller, Mark, et al. (2020) · Cell', url: 'https://doi.org/10.1016/j.cell.2020.10.024', impact: 'Formal model of how the same machinery learns reusable schemas across environments — the basis for the Schema Transfer (TEM) mode.' },
+      { title: 'Inferences on a multidimensional social hierarchy use a grid-like code', cite: 'Park, Miller & Boorman (2021) · Nature Neuroscience', url: 'https://doi.org/10.1038/s41593-021-00916-3', impact: 'The same map code organizes non-spatial (social) structure — evidence the predictive-map system is general-purpose.' },
+    ],
+  },
+  {
+    heading: 'Selective attention & distractor control',
+    note: 'Behind the Decoy stream and the lure/distractor modes.',
+    studies: [
+      { title: 'Working memory capacity as executive attention', cite: 'Engle (2002) · Current Directions in Psychological Science', url: 'https://doi.org/10.1111/1467-8721.00160', impact: 'High-WM individuals are precisely those who filter irrelevant input best — the construct the Decoy (ignore-this-stream) mode trains.' },
+      { title: 'Neural measures reveal individual differences in controlling access to working memory', cite: 'Vogel, McCollough & Machizawa (2005) · Nature', url: 'https://doi.org/10.1038/nature04171', impact: 'Efficiency of WM is largely about keeping distractors OUT, not raw capacity — direct support for distractor-inhibition training.' },
+    ],
+  },
+  {
+    heading: 'Spaced repetition & retrieval practice',
+    note: 'Behind the Coach mastery scheduler (Leitner intervals).',
+    studies: [
+      { title: 'Test-enhanced learning: taking memory tests improves long-term retention', cite: 'Roediger & Karpicke (2006) · Psychological Science', url: 'https://doi.org/10.1111/j.1467-9280.2006.01693.x', impact: 'Spaced retrieval beats massed practice for durable learning — the principle behind the Coach revisiting mastered phases on expanding intervals.' },
+      { title: 'Distributed practice in verbal recall tasks: a review and quantitative synthesis', cite: 'Cepeda, Pashler, Vul, Wixted & Rohrer (2006) · Psychological Bulletin', url: 'https://doi.org/10.1037/0033-2909.132.3.354', impact: 'Quantifies the spacing effect across hundreds of studies — basis for the Leitner 1·2·5·11·25·60 schedule.' },
+    ],
+  },
+  {
+    heading: 'Measuring reasoning (the Reasoning Index)',
+    note: 'Behind the pre/post assessment.',
+    studies: [
+      { title: "The Raven's Progressive Matrices: change and stability over culture and time", cite: 'Raven (2000) · Cognitive Psychology', url: 'https://doi.org/10.1006/cogp.1999.0735', impact: 'Matrix reasoning is the most g-loaded single measure — why the Reasoning Index is matrix-based.' },
+      { title: "Recreating Raven's: software for generating Raven-like matrices with normed properties", cite: 'Matzen, Benz, Dixon, et al. (2010) · Behavior Research Methods', url: 'https://doi.org/10.3758/BRM.42.2.525', impact: 'The free, public, normed Sandia Matrices — the actual item bank the Reasoning Index uses.' },
+      { title: 'The International Cognitive Ability Resource (ICAR): a public-domain measure', cite: 'Condon & Revelle (2014) · Intelligence', url: 'https://doi.org/10.1016/j.intell.2014.01.004', impact: 'Open, normed reasoning items (~0.8 with full IQ) — anchored the reliability model.' },
+      { title: 'Clinical significance: a statistical approach (Reliable Change Index)', cite: 'Jacobson & Truax (1991) · J. Consulting & Clinical Psychology', url: 'https://doi.org/10.1037/0022-006X.59.1.12', impact: 'The RCI the assessment uses to decide whether a pre→post change exceeds measurement error.' },
+    ],
+  },
+  {
+    heading: 'Neuroplasticity from training',
+    studies: [
+      { title: 'Changes in cortical dopamine D1 receptor binding associated with cognitive training', cite: 'McNab, Varrone, Farde, et al. (2009) · Science', url: 'https://doi.org/10.1126/science.1166102', impact: 'WM training physically changed prefrontal/parietal dopamine D1 binding — neurochemical plasticity, not just practice.' },
+      { title: 'Dynamic reconfiguration of functional brain networks during working memory training', cite: 'Finc, Bonna, He, et al. (2020) · Nature Communications', url: 'https://doi.org/10.1038/s41467-020-15631-z', impact: 'Training reorganized frontoparietal connectivity toward greater efficiency (lower neural cost).' },
+    ],
+  },
+];
+
 export default function Game() {
   const [screen, setScreen] = useState('start');
   const [nLevel, setNLevel] = useState(2);
@@ -292,121 +359,26 @@ export default function Game() {
               {/* Scrollable Content */}
               <div className="p-4 overflow-y-auto space-y-4 font-mono text-xs text-foreground/90 scrollbar-thin">
                 <div className="text-[11px] text-muted-foreground leading-relaxed border-b border-border/40 pb-3">
-                  This cognitive trainer applies evidence-based paradigms shown in peer-reviewed neuroscience publications to improve working memory capacity and cognitive control.
+                  The peer-reviewed evidence behind each part of this trainer, grouped by what it supports. Every entry links to the paper. The transfer debate is presented honestly — the skeptical meta-analysis is included, not hidden.
                 </div>
 
-                {/* Study 1 */}
-                <div className="p-3 bg-secondary/30 rounded-lg border border-border/60 space-y-1.5 text-left">
-                  <div className="text-emerald-400 font-bold">1. Fluid Intelligence Transfer Landmark</div>
-                  <div className="text-[11px] text-muted-foreground font-semibold">Jaeggi et al. (2008) · Proceedings of the National Academy of Sciences (PNAS)</div>
-                  <p className="text-[11px] text-foreground/75 leading-relaxed">
-                    <strong>Paradigms:</strong> Dual N-Back vs. Passive/Active Controls.
-                  </p>
-                  <p className="text-[11px] text-foreground/75 leading-relaxed">
-                    <strong>Cognitive Impact:</strong> Established that daily training on working memory tasks directly improves Fluid Intelligence (Gf) scores in healthy young adults. Discovered a linear dose-response relationship: more training days yield larger intelligence gains.
-                  </p>
-                </div>
-
-                {/* Study 2 */}
-                <div className="p-3 bg-secondary/30 rounded-lg border border-border/60 space-y-1.5 text-left">
-                  <div className="text-emerald-400 font-bold">2. Cognitive Control &amp; Stress Resilience</div>
-                  <div className="text-[11px] text-muted-foreground font-semibold">Novick et al. (2014) · Cognitive Science</div>
-                  <p className="text-[11px] text-foreground/75 leading-relaxed">
-                    <strong>Paradigms:</strong> Cognitive Control Training (CCT) / Conflict Resolution.
-                  </p>
-                  <p className="text-[11px] text-foreground/75 leading-relaxed">
-                    <strong>Cognitive Impact:</strong> Proven to structurally strengthen prefrontal conflict resolution, allowing subjects to ignore intense emotional/sensory distractors and maintain mental focus under high pressure.
-                  </p>
-                </div>
-
-                {/* Study 3 */}
-                <div className="p-3 bg-secondary/30 rounded-lg border border-border/60 space-y-1.5 text-left">
-                  <div className="text-emerald-400 font-bold">3. Relational Bottleneck of Human Intelligence (g)</div>
-                  <div className="text-[11px] text-muted-foreground font-semibold">Halford, Cowan, &amp; Andrews (2007) · Trends in Cognitive Sciences</div>
-                  <p className="text-[11px] text-foreground/75 leading-relaxed">
-                    <strong>Paradigms:</strong> Relational Complexity Mapping.
-                  </p>
-                  <p className="text-[11px] text-foreground/75 leading-relaxed">
-                    <strong>Cognitive Impact:</strong> Argues that processing complex relationships simultaneously (like transitive chaining in our RINT mode) is the core active constraint of human reasoning. Relational reasoning training acts as a direct multiplier of human fluid ability.
-                  </p>
-                </div>
-
-                {/* Study 4 */}
-                <div className="p-3 bg-secondary/30 rounded-lg border border-border/60 space-y-1.5 text-left">
-                  <div className="text-emerald-400 font-bold">4. Fluid Transfer Confirmed via Meta-Analysis</div>
-                  <div className="text-[11px] text-muted-foreground font-semibold">Au et al. (2015) · Psychonomic Bulletin &amp; Review</div>
-                  <p className="text-[11px] text-foreground/75 leading-relaxed">
-                    <strong>Paradigms:</strong> Quantitative meta-analysis of N-back training.
-                  </p>
-                  <p className="text-[11px] text-foreground/75 leading-relaxed">
-                    <strong>Cognitive Impact:</strong> Aggregated dozens of studies using active-control groups, concluding that working memory training leads to statistically significant and generalizable improvements in Fluid Intelligence.
-                  </p>
-                </div>
-
-                {/* Study 5 */}
-                <div className="p-3 bg-secondary/30 rounded-lg border border-border/60 space-y-1.5 text-left">
-                  <div className="text-emerald-400 font-bold">5. Multi-stream Memory Capacity Scaling</div>
-                  <div className="text-[11px] text-muted-foreground font-semibold">Schmiedek et al. (2010) · Cognitive Psychology</div>
-                  <p className="text-[11px] text-foreground/75 leading-relaxed">
-                    <strong>Paradigms:</strong> Multi-axis working memory paradigms.
-                  </p>
-                  <p className="text-[11px] text-foreground/75 leading-relaxed">
-                    <strong>Cognitive Impact:</strong> Proved that daily multi-stream working memory sessions lead to massive neurocognitive changes, transferring broadly to spatial orientation, verbal working memory, and logical processing speeds.
-                  </p>
-                </div>
-
-                {/* Study 6 */}
-                <div className="p-3 bg-secondary/30 rounded-lg border border-border/60 space-y-1.5 text-left">
-                  <div className="text-emerald-400 font-bold">6. Prefrontal Dopamine Receptor Density Tuning</div>
-                  <div className="text-[11px] text-muted-foreground font-semibold">McNab et al. (2009) · Science</div>
-                  <p className="text-[11px] text-foreground/75 leading-relaxed">
-                    <strong>Paradigms:</strong> PET brain scans of working memory training.
-                  </p>
-                  <p className="text-[11px] text-foreground/75 leading-relaxed">
-                    <strong>Cognitive Impact:</strong> First clinical paper showing physical neurochemical changes: working memory training alters dopamine D1 receptor binding potential in prefrontal and parietal lobes, confirming structural cortical plasticity.
-                  </p>
-                </div>
-
-                {/* Recent Advances Divider */}
-                <div className="border-t border-border/40 pt-3 text-left">
-                  <span className="text-[10px] font-mono uppercase tracking-widest font-bold text-cyan-400">Recent Advances (2020 - 2024)</span>
-                </div>
-
-                {/* Study 7 */}
-                <div className="p-3 bg-secondary/30 rounded-lg border border-border/60 space-y-1.5 text-left">
-                  <div className="text-cyan-400 font-bold">7. Functional Brain Network Reorganization</div>
-                  <div className="text-[11px] text-muted-foreground font-semibold">Finc et al. (2020) · Nature Communications</div>
-                  <p className="text-[11px] text-foreground/75 leading-relaxed">
-                    <strong>Paradigms:</strong> fMRI scans of progressive N-back working memory load.
-                  </p>
-                  <p className="text-[11px] text-foreground/75 leading-relaxed">
-                    <strong>Cognitive Impact:</strong> Proves that adaptive memory training structurally reorganizes functional brain connectivity, significantly lowering the neural energy cost of frontoparietal control network (FPN) activation, showing cortical efficiency.
-                  </p>
-                </div>
-
-                {/* Study 8 */}
-                <div className="p-3 bg-secondary/30 rounded-lg border border-border/60 space-y-1.5 text-left">
-                  <div className="text-cyan-400 font-bold">8. Myelination &amp; Cortical Myelin Density Changes</div>
-                  <div className="text-[11px] text-muted-foreground font-semibold">Salmi et al. (2023) · NeuroImage</div>
-                  <p className="text-[11px] text-foreground/75 leading-relaxed">
-                    <strong>Paradigms:</strong> Quantitative MRI &amp; multi-stream tracking.
-                  </p>
-                  <p className="text-[11px] text-foreground/75 leading-relaxed">
-                    <strong>Cognitive Impact:</strong> Discovered substantial, measurable increases in myelin density and white-matter tract pathways connecting the dorsolateral prefrontal cortex (dlPFC) and the intraparietal sulcus after multi-stream working memory training.
-                  </p>
-                </div>
-
-                {/* Study 9 */}
-                <div className="p-3 bg-secondary/30 rounded-lg border border-border/60 space-y-1.5 text-left">
-                  <div className="text-cyan-400 font-bold">9. Affective Control &amp; Anxiety Far Transfer</div>
-                  <div className="text-[11px] text-muted-foreground font-semibold">Schweizer et al. (2020) · Journal of Experimental Psychology: General</div>
-                  <p className="text-[11px] text-foreground/75 leading-relaxed">
-                    <strong>Paradigms:</strong> Dual N-Back transfer to emotional regulation.
-                  </p>
-                  <p className="text-[11px] text-foreground/75 leading-relaxed">
-                    <strong>Cognitive Impact:</strong> Demonstrated that high-intensity dual N-back training trains shared prefrontal capacity, providing direct far-transfer to emotional self-regulation, thereby significantly reducing subjective anxiety scores.
-                  </p>
-                </div>
+                {STUDY_SECTIONS.map((section) => (
+                  <div key={section.heading} className="space-y-2 text-left">
+                    <div className="border-t border-border/40 pt-3">
+                      <span className="text-[10px] font-mono uppercase tracking-widest font-bold text-cyan-400">{section.heading}</span>
+                      {section.note && <p className="text-[10px] text-muted-foreground/70 mt-0.5">{section.note}</p>}
+                    </div>
+                    {section.studies.map((s) => (
+                      <a key={s.title} href={s.url} target="_blank" rel="noreferrer"
+                        className="block p-3 bg-secondary/30 rounded-lg border border-border/60 space-y-1 hover:border-cyan-400/60 transition-colors">
+                        <div className="text-emerald-400 font-bold text-[12px] leading-snug">{s.title}</div>
+                        <div className="text-[11px] text-muted-foreground font-semibold">{s.cite}</div>
+                        <p className="text-[11px] text-foreground/75 leading-relaxed">{s.impact}</p>
+                        <div className="text-[10px] text-cyan-400/80 underline">{s.url.replace('https://doi.org/', 'doi:')}</div>
+                      </a>
+                    ))}
+                  </div>
+                ))}
               </div>
 
               {/* Footer */}

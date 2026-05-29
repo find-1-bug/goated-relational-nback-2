@@ -28,21 +28,25 @@ A working-memory trainer that, instead of asking you to remember which letter or
 
 ---
 
-# Pages (7 routes, all HashRouter)
+# Pages (9 routes, all HashRouter)
 
 | Route | Purpose |
 |---|---|
 | `/` | **Game** — StartScreen → GameScreen → ResultsScreen |
 | `/insight` | **Insight Mode** — Raven-style puzzles with no WM load |
-| `/tutorial` | **Tutorial** — 6-tab Academy |
+| `/assessment` | **Reasoning Index** — norm-referenced matrix-reasoning pre/post test (Sandia Matrices) |
+| `/tutorial` | **Tutorial** — 7-tab Academy (incl. Predictive Map deep-dive) |
 | `/stats` | **Stats** — neuro-analytics dashboard |
 | `/framework` | **Framework** — worked-example reference per mode |
-| `/diagnostics` | **Diagnostics** — pre-release 600-case engine validation suite |
+| `/diagnostics` | **Diagnostics** — pre-release engine validation suite |
+| `/successor` | **Successor** — standalone graph-prediction sandbox (unlisted; Trajectory N-Back is the real mode) |
 | `/review/:sessionId` | **Review** — trial-by-trial session playback |
 
 ---
 
-# Game Modes (33 total, organised into 4 phases)
+# Game Modes (34 total, organised into 4 phases)
+
+> Plus a per-stream **Decoy** type (see Phase D) and a per-stream REL/CCT type — orthogonal to the mode toggles below.
 
 `MODE_OPTIONS` in [src/components/game/StartScreen.jsx](src/components/game/StartScreen.jsx). Players toggle these on/off freely; mutually-exclusive modes block each other in the UI.
 
@@ -63,7 +67,8 @@ A working-memory trainer that, instead of asking you to remember which letter or
 ### Phase C — Memory Integration & Dynamic Rules
 - **type_nback** — match by relation **type**, not trial distance. Each rel has its own n-back queue.
 - **rint** (N≥2) — Relational Integration. Persistent entities (α, β, γ…); target = current is a valid transitive conclusion from chaining the N most-recent facts. **Now with mixed direction within a chain** — e.g. `α > β`, `γ < β` requires mentally inverting to chain. Conclusions render in either direction (`A > C` or `C < A`).
-- **nonverbal_rint** (N≥2) — composite attributes across **14 flags** (8 visual: touching, hollow, size_mismatch, rotated, dashed_border, glow, mirrored, striped + 6 audio: audio, pitch_high, audio_loud, audio_long, audio_rhythmic, audio_warm). Audio cues fire at staggered time slots so multiple can layer per trial without collision. Subset-union rule: current is a target iff its attrs equal the union of some non-empty subset of the last N stims.
+- **nonverbal_rint** (N≥2) — composite attributes across **14 flags** (8 visual: touching, hollow, size_mismatch, rotated, dashed_border, glow, mirrored, striped + 6 audio: audio, pitch_high, audio_loud, audio_long, audio_rhythmic, audio_warm). Audio cues fire at staggered time slots so multiple can layer per trial without collision. Subset-union rule: current is a target iff its attrs equal the union of some non-empty subset of the last N stims. **Max-features-per-trial cap** (Grapist request) bounds how many flags can be ON at once so the tracking load stays manageable when many flags are enabled.
+- **trajectory_nback** (N≥2) — **Successor-Representation / cognitive-map training**, the first mode that targets hippocampus + entorhinal cortex rather than DLPFC. Each session builds a graph; you walk it as a random walk. 4 tiers: Easy (same node N-back) → Medium (neighbour) → Hard (K-step successor) → Extreme (on the shortest path to a goal). Edges **fade** after a 6-trial learning window, forcing you to internalize the topology from memory (true SR, not visual edge-checking). **Schema Transfer (TEM)** toggle runs 2-5 graphs that share a topology family but with fresh surfaces — tests whether you abstract the schema (Stachenfeld 2017 × Behrens/Whittington TEM 2020). Topologies: ring · small-world · tree · lattice · random.
 - **mixed_nback** — per-trial random: Normal or Type.
 - **mixed_rint** (N≥2) — per-trial random: Normal / Type / RINT.
 - **wrapper_morph** — visual theme + token category rotate mid-session.
@@ -79,6 +84,7 @@ A working-memory trainer that, instead of asking you to remember which letter or
 - **stress_shake** — screen-shake animation fires ~35% of trials.
 - **timer_panic** — shrinking countdown bar above each stream.
 - **impossible** (N≥2, ≥2 streams) — each stream independently picks Normal/Type/RINT per trial.
+- **Decoy stream** (per-stream type, not a global toggle) — a "spurious" stream that renders/plays normally but is **never scored and has no response key**. You must *ignore* it while tracking the real streams — **selective-attention / distractor-inhibition** training (Engle's controlled-attention construct), distinct from the `distractors` mode (which injects lures *into* a scored stream). A "hide ignore-label" toggle switches between a marked decoy (pure response inhibition) and an unmarked one (you must remember which streams are yours). Also fixed an audio master-limiter so overlapping sound cues no longer clip.
 
 ---
 
@@ -99,7 +105,7 @@ Generators inspired by [Syllogimous v3 by 4skinskywalker](https://github.com/4sk
 
 # Coach Autopilot — Mastery-Scaled Spaced Repetition
 
-26 curated phases in [COACH_PHASES](src/lib/gameConstants.js). The Coach no longer marches you linearly through them. Instead:
+33 curated phases in [COACH_PHASES](src/lib/gameConstants.js). The Coach no longer marches you linearly through them. Instead:
 
 - Each phase has its own **mastery level (0–5)** tracked across attempts.
 - A success (≥75% accuracy) bumps the level by 1; a fail (<55%) drops it by 1.
@@ -122,6 +128,9 @@ Implementation: [src/lib/coachMastery.js](src/lib/coachMastery.js). Legacy `cons
 - **23**: Relational Supercomputer (RINT + RST Hard + CCT overlay)
 - **24**: Grandmaster (3 streams, N=3)
 - **25**: Infinite Singularity (3 streams, N=4, tesseract, max chaos)
+- **26–29**: Trajectory N-Back ladder — Map Encoding (Easy/ring) → Neighbour Recall (Medium/small-world) → Successor Prediction (Hard/K=2) → Goal Revaluation (Extreme/lattice)
+- **30–32**: Schema Transfer (TEM) — Easy (3 rings) → Successor (3 small-worlds) → Cross-Topology Crucible (4 lattices)
+- **33**: Selective Attention Filter (2 streams, B is an unscored decoy you must ignore)
 
 You can also **test any phase** without disturbing real curriculum progress via the Test Phase dropdown in the Coach card.
 
@@ -137,6 +146,19 @@ Pure relational inference, **no n-back chain, no WM load, no time pressure**. Fo
 - **Verbal Analogy** — text-only, no rendered shapes: `α inside β :: γ ? δ` + 4 candidate relation labels.
 
 Cumulative stats in localStorage. Optional hint button. Direct response to the *WM-strain vs direct-logic* critique — isolates the relational inference operation from working-memory overhead.
+
+---
+
+# Reasoning Index — pre/post assessment (`/assessment`)
+
+A norm-referenced matrix-reasoning test for measuring whether training actually transfers. Built honestly, not as a gimmick:
+
+- **Real, validated items** — the **Sandia Matrices** (Matzen et al. 2010), a free, public, normed Raven's-style item bank released by Sandia National Laboratories. Matrix reasoning is the single best proxy for fluid *g*.
+- **Parallel disjoint forms** — Form A (baseline) and Form B (follow-up) are different, **difficulty-matched** 24-item sets (zero shared items → nothing to memorize). A 48-item **Full** test gives the most reliable single estimate.
+- **Honest scoring** ([src/lib/psychometrics.js](src/lib/psychometrics.js)) — raw → a 100/15 standard scale anchored to the Sandia item difficulties, always shown with a **95% confidence interval** + empirical reliability (length-aware via Spearman-Brown; 24 items ≈ CI ±11, 48 ≈ ±7), plus a **Reliable Change Index** (Jacobson & Truax) that says whether a pre→post gain beats measurement error rather than hyping noise.
+- **Honest framing** — anchored to the Sandia norming sample (university students, few ratings per item), so it's a *tracker of your own change*, not a clinical/population IQ. An IRT (2PL EAP) scoring path is built in and activates automatically if calibrated item parameters are ever loaded.
+
+Item bank: [src/lib/sandiaBank.js](src/lib/sandiaBank.js); images under `public/assets/sandia/`. Cite: Matzen et al. 2010, *Behavior Research Methods* 42(2):525-541.
 
 ---
 
@@ -167,6 +189,7 @@ Cumulative stats in localStorage. Optional hint button. Direct response to the *
 | `nback_theme` | Light/dark |
 | `goated_synaesthesia_enabled` + `goated_synaesthesia_map` | Synaesthesia config |
 | `goated_insight_stats_v1` | Insight Mode cumulative stats |
+| `nback_assessments` | Reasoning Index results (form, raw, IQ, SEM, 95% CI, percentile, responses) |
 | `goated_transfer_ledger` | Optional user journal |
 
 Use **Stats → Export** for JSON backup, **Import** to restore.
@@ -175,7 +198,7 @@ Use **Stats → Export** for JSON backup, **Import** to restore.
 
 # What's NOT in the app (intentionally absent)
 
-- **No formal transfer measurement** — no built-in Gf proxy / matrix pre-post. Each session is independent. *This is the biggest open gap if you care about scientifically defensible transfer claims; "demonstrate transfer experimentally" remains the most impactful missing feature.*
+- **No controlled transfer *experiment*** — the **Reasoning Index** (`/assessment`) now gives a real norm-referenced pre/post matrix-reasoning measure with a Reliable Change Index, which is the within-person half of the problem. What's still absent is a *controlled study* (a randomized control group), which a solo, local-only app can't run per user. So the index honestly tracks *your* change over time; it can't prove the training *caused* it.
 - **No account / cloud sync / leaderboard / social** — single-user, local-only by design.
 - **No formal logic instruction layer** — discovery-based learning only. Rules are pre-flight briefings, not during-play teaching.
 - **No commercial monetization** — free, GitHub Sponsors funded only; compatible with CC BY-NC dependencies.
@@ -214,6 +237,46 @@ gh run rerun <last-run-id> --repo <user>/<repo>
 
 ---
 
+# Scientific basis & references
+
+The evidence behind each part of the app (also surfaced in-app via the **Studies** drawer on the start screen). The transfer question is presented honestly — the skeptical meta-analysis is included alongside the positive ones.
+
+**Working memory → fluid-intelligence transfer** (the core n-back premise)
+- Jaeggi, Buschkuehl, Jonides & Perrig (2008), *PNAS* — Improving fluid intelligence with training on working memory. https://doi.org/10.1073/pnas.0801268105
+- Au et al. (2015), *Psychonomic Bulletin & Review* — meta-analysis: small but reliable Gf gain. https://doi.org/10.3758/s13423-014-0699-x
+- Schmiedek, Lövdén & Lindenberger (2010), *Frontiers in Aging Neuroscience* — broad transfer from heavy multi-task training. https://doi.org/10.3389/fnagi.2010.00027
+- Melby-Lervåg & Hulme (2013), *Developmental Psychology* — skeptical meta-analysis (mostly near-transfer). https://doi.org/10.1037/a0028228
+
+**Relational reasoning & the Gf bottleneck** (RINT · Analogy N-Back · RST · Insight)
+- Halford, Cowan & Andrews (2007), *Trends in Cognitive Sciences* — relational complexity / the 4-place limit. https://doi.org/10.1016/j.tics.2007.04.001
+- Christoff et al. (2001), *NeuroImage* — rostrolateral PFC in relational integration. https://doi.org/10.1006/nimg.2001.0922
+
+**Cognitive maps & Successor Representation** (Trajectory N-Back · Schema Transfer)
+- Stachenfeld, Botvinick & Gershman (2017), *Nature Neuroscience* — the hippocampus as a predictive map. https://doi.org/10.1038/nn.4650
+- Behrens et al. (2018), *Neuron* — what is a cognitive map? https://doi.org/10.1016/j.neuron.2018.10.002
+- Whittington et al. (2020), *Cell* — the Tolman-Eichenbaum Machine (schema generalization). https://doi.org/10.1016/j.cell.2020.10.024
+- Park, Miller & Boorman (2021), *Nature Neuroscience* — grid-like code for a social hierarchy. https://doi.org/10.1038/s41593-021-00916-3
+
+**Selective attention & distractor control** (Decoy stream · lures)
+- Engle (2002), *Current Directions in Psychological Science* — WM capacity as executive attention. https://doi.org/10.1111/1467-8721.00160
+- Vogel, McCollough & Machizawa (2005), *Nature* — controlling access to WM. https://doi.org/10.1038/nature04171
+
+**Spaced repetition & retrieval practice** (Coach mastery scheduler)
+- Roediger & Karpicke (2006), *Psychological Science* — test-enhanced learning. https://doi.org/10.1111/j.1467-9280.2006.01693.x
+- Cepeda et al. (2006), *Psychological Bulletin* — the spacing effect, quantified. https://doi.org/10.1037/0033-2909.132.3.354
+
+**Measuring reasoning** (Reasoning Index)
+- Raven (2000), *Cognitive Psychology* — Progressive Matrices as a g measure. https://doi.org/10.1006/cogp.1999.0735
+- Matzen et al. (2010), *Behavior Research Methods* — the Sandia Matrices (item bank used). https://doi.org/10.3758/BRM.42.2.525
+- Condon & Revelle (2014), *Intelligence* — ICAR public-domain measure. https://doi.org/10.1016/j.intell.2014.01.004
+- Jacobson & Truax (1991), *J. Consulting & Clinical Psychology* — the Reliable Change Index. https://doi.org/10.1037/0022-006X.59.1.12
+
+**Neuroplasticity from training**
+- McNab et al. (2009), *Science* — prefrontal dopamine D1 changes after WM training. https://doi.org/10.1126/science.1166102
+- Finc et al. (2020), *Nature Communications* — frontoparietal network reconfiguration. https://doi.org/10.1038/s41467-020-15631-z
+
+---
+
 # Credits
 
 **Built by [Stefanos (find-1-bug)](https://github.com/find-1-bug)** with [Claude Code (Opus)](https://www.anthropic.com/claude-code) and Gemini Flash 3.5 as coding partners.
@@ -234,8 +297,7 @@ gh run rerun <last-run-id> --repo <user>/<repo>
 - Halford / Christoff / Bunge — rostrolateral PFC relational complexity literature that drove the 4-place + 5-place RST design.
 - Bjork — "desirable difficulties" framing for the hint-shaped feedback.
 
-**Cognitive-science studies cited in the in-app Studies drawer:**
-Jaeggi et al. 2008 (PNAS) · Novick et al. 2014 · Halford/Cowan/Andrews 2007 · Au et al. 2015 · Schmiedek et al. 2010 · McNab et al. 2009 · Finc et al. 2020 · Salmi et al. 2023 · Schweizer et al. 2020.
+**Cognitive-science studies:** see the **Scientific basis & references** section above (also surfaced in the in-app Studies drawer, grouped by what each finding supports, every entry linked).
 
 ---
 
