@@ -131,11 +131,22 @@ function makeMatrixItem(rng, id, hardness) {
     const vk = visualKey(cand);
     if (!seen.has(vk)) { seen.add(vk); opts.push(cand); }
   }
-  // Safety top-up with always-visible feature combos.
-  while (opts.length < 6) {
-    const cand = { ...correct, count: ((correct.count + opts.length) % 3) + 1, fill: pick(rng, FILLS), shape: usesRot ? 'triangle' : pick(rng, MATRIX_SHAPES) };
-    const vk = visualKey(cand);
-    if (!seen.has(vk)) { seen.add(vk); opts.push(cand); }
+  // Guaranteed-terminating top-up: enumerate the full distinct visual space
+  // (always ≥ 24 keys) and add any unseen cell until we have 6. Bounded by the
+  // pool size, so it can never infinite-loop.
+  if (opts.length < 6) {
+    const pool = [];
+    for (const shape of MATRIX_SHAPES) {
+      const rots = shape === 'triangle' ? [0, 1, 2, 3] : [0];
+      for (const count of COUNTS) for (const fill of FILLS) for (const rot of rots) {
+        pool.push({ shape, count, rot, fill });
+      }
+    }
+    for (const cand of shuffle(rng, pool)) {
+      if (opts.length >= 6) break;
+      const vk = visualKey(cand);
+      if (!seen.has(vk)) { seen.add(vk); opts.push(cand); }
+    }
   }
   const order = shuffle(rng, opts.slice(0, 6));
   const correctIndex = order.findIndex(o => visualKey(o) === visualKey(correct));
@@ -186,7 +197,11 @@ function makeNumberSeriesItem(rng, id) {
     const cand = answer + delta;
     if (cand > 0 && !distracts.has(cand)) { distracts.add(cand); opts.push(cand); }
   }
-  while (opts.length < 5) { const c = answer + opts.length + 1; if (!distracts.has(c)) { distracts.add(c); opts.push(c); } }
+  // Monotonic, bounded top-up (k always increases → can't infinite-loop).
+  for (let k = 1; opts.length < 5 && k <= 60; k++) {
+    const c = answer + k;
+    if (c > 0 && !distracts.has(c)) { distracts.add(c); opts.push(c); }
+  }
   const order = shuffle(rng, opts);
   return {
     id, subtest: 'number',
@@ -226,7 +241,11 @@ function makeLetterSeriesItem(rng, id) {
     const cand = toL(nums[nums.length - 1] + pick(rng, [-2, -1, 1, 2, 3, -3]));
     if (!seen.has(cand)) { seen.add(cand); opts.push(cand); }
   }
-  while (opts.length < 5) { const c = toL(nums[nums.length - 1] + opts.length + 1); if (!seen.has(c)) { seen.add(c); opts.push(c); } }
+  // Monotonic, bounded top-up (k spans the alphabet → guaranteed to fill).
+  for (let k = 1; opts.length < 5 && k <= 26; k++) {
+    const c = toL(nums[nums.length - 1] + k);
+    if (!seen.has(c)) { seen.add(c); opts.push(c); }
+  }
   const order = shuffle(rng, opts);
   return {
     id, subtest: 'letter',
