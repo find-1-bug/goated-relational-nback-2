@@ -8,6 +8,7 @@ import {
   Sparkles, Menu, X, Play, Settings2, Compass, Award
 } from 'lucide-react';
 import { COACH_PHASES } from '@/lib/gameConstants';
+import { difficultyOrder } from '@/lib/coachMastery';
 
 const TABS = [
   { id: 'intro',     label: 'Core Basics',     icon: Brain,        desc: 'N-Back introduction, play guide, and controls' },
@@ -897,17 +898,21 @@ export default function Tutorial() {
                           </tr>
                         </thead>
                         <tbody className="divide-y divide-border/40">
-                          {COACH_PHASES.map((p, idx) => {
+                          {difficultyOrder().map(({ phaseIndex: idx }, rankIdx) => {
+                            const p = COACH_PHASES[idx];
+                            // Colour by difficulty band so the ladder
+                            // visually steps from gentle to brutal.
+                            const d = p.difficulty ?? 5;
                             let phaseColor = "text-emerald-400";
-                            if (idx >= 4 && idx < 8) phaseColor = "text-cyan-400";
-                            if (idx >= 8 && idx < 12) phaseColor = "text-fuchsia-400";
-                            if (idx >= 12 && idx < 17) phaseColor = "text-amber-400";
-                            if (idx >= 17) phaseColor = "text-rose-400";
-                            
+                            if (d > 1.5) phaseColor = "text-cyan-400";
+                            if (d > 3.5) phaseColor = "text-fuchsia-400";
+                            if (d > 5.5) phaseColor = "text-amber-400";
+                            if (d > 7.5) phaseColor = "text-rose-400";
+
                             return (
                               <tr key={idx} className="hover:bg-secondary/15 transition-colors">
-                                <td className="p-2 sm:p-3 font-semibold text-foreground/80">{idx + 1}</td>
-                                <td className={`p-2 sm:p-3 font-bold ${phaseColor}`}>{p.title}</td>
+                                <td className="p-2 sm:p-3 font-semibold text-foreground/80">{rankIdx + 1}</td>
+                                <td className={`p-2 sm:p-3 font-bold ${phaseColor}`}>{p.title} <span className="text-foreground/40 font-normal">· D{p.difficulty}</span></td>
                                 <td className="p-2 sm:p-3 text-center font-bold text-foreground">{p.nLevel}</td>
                                 <td className="p-2 sm:p-3 text-center text-muted-foreground">{p.speedMs}ms</td>
                                 <td className="p-2 sm:p-3 text-center text-muted-foreground">{p.rounds}</td>

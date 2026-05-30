@@ -819,7 +819,7 @@ export const TJN_TOPOLOGY_LABELS = {
 
 export const COACH_PHASES = [
   {
-    title: "Phase A: Classic N-1 Warm-up",
+    title: "Classic N-1 Warm-up",
     difficulty: 0.5,
     nLevel: 1,
     speedMs: 3600,
@@ -829,7 +829,7 @@ export const COACH_PHASES = [
     streamsCount: 1
   },
   {
-    title: "Phase B: Classic Switch Gym",
+    title: "Classic Switch Gym",
     difficulty: 0.8,
     nLevel: 1,
     speedMs: 3300,
@@ -839,7 +839,7 @@ export const COACH_PHASES = [
     streamsCount: 1
   },
   {
-    title: "Phase C: Classic Bind Foundation",
+    title: "Classic Bind Foundation",
     difficulty: 1.0,
     nLevel: 1,
     speedMs: 3000,
@@ -849,7 +849,7 @@ export const COACH_PHASES = [
     streamsCount: 1
   },
   {
-    title: "Phase D: Classic Resist Training",
+    title: "Classic Resist Training",
     difficulty: 1.5,
     nLevel: 2,
     speedMs: 3300,
@@ -859,7 +859,7 @@ export const COACH_PHASES = [
     streamsCount: 1
   },
   {
-    title: "Phase 1: Foundational Focus",
+    title: "Foundational Focus",
     difficulty: 1.5,
     nLevel: 2,
     speedMs: 3200,
@@ -869,7 +869,7 @@ export const COACH_PHASES = [
     streamsCount: 1
   },
   {
-    title: "Phase 2: Selective Attention",
+    title: "Selective Attention",
     difficulty: 2.0,
     nLevel: 2,
     speedMs: 3000,
@@ -879,7 +879,7 @@ export const COACH_PHASES = [
     streamsCount: 1
   },
   {
-    title: "Phase 3: Interference Inoculation",
+    title: "Interference Inoculation",
     difficulty: 2.5,
     nLevel: 2,
     speedMs: 2800,
@@ -889,7 +889,7 @@ export const COACH_PHASES = [
     streamsCount: 1
   },
   {
-    title: "Phase 4: Logical Inversion",
+    title: "Logical Inversion",
     difficulty: 3.0,
     nLevel: 2,
     speedMs: 2600,
@@ -899,7 +899,7 @@ export const COACH_PHASES = [
     streamsCount: 1
   },
   {
-    title: "Phase 5: Cognitive Control",
+    title: "Cognitive Control",
     difficulty: 3.0,
     nLevel: 2,
     speedMs: 2600,
@@ -909,7 +909,7 @@ export const COACH_PHASES = [
     streamsCount: 1
   },
   {
-    title: "Phase 6: Mathematical Dual-Tasking",
+    title: "Mathematical Dual-Tasking",
     difficulty: 3.5,
     nLevel: 2,
     speedMs: 2600,
@@ -919,7 +919,7 @@ export const COACH_PHASES = [
     streamsCount: 1
   },
   {
-    title: "Phase 7: Deductive Integration",
+    title: "Deductive Integration",
     difficulty: 3.5,
     nLevel: 2,
     speedMs: 2400,
@@ -930,7 +930,7 @@ export const COACH_PHASES = [
     streamsCount: 1
   },
   {
-    title: "Phase 8: Closed-Loop Regulation",
+    title: "Closed-Loop Regulation",
     difficulty: 4.0,
     nLevel: 2,
     speedMs: 2400,
@@ -941,7 +941,7 @@ export const COACH_PHASES = [
     streamsCount: 1
   },
   {
-    title: "Phase 9: Semantic Memory Queue",
+    title: "Semantic Memory Queue",
     difficulty: 4.5,
     nLevel: 2,
     speedMs: 2200,
@@ -952,7 +952,7 @@ export const COACH_PHASES = [
     streamsCount: 1
   },
   {
-    title: "Phase 10: Relational Chaining",
+    title: "Relational Chaining",
     difficulty: 5.0,
     nLevel: 2,
     speedMs: 2200,
@@ -963,7 +963,7 @@ export const COACH_PHASES = [
     streamsCount: 1
   },
   {
-    title: "Phase 11: Cross-Modal Union",
+    title: "Cross-Modal Union",
     difficulty: 5.5,
     nLevel: 2,
     speedMs: 2000,
@@ -973,7 +973,7 @@ export const COACH_PHASES = [
     streamsCount: 1
   },
   {
-    title: "Phase 12: Rule Flexibility",
+    title: "Rule Flexibility",
     difficulty: 5.5,
     nLevel: 2,
     speedMs: 2000,
@@ -983,7 +983,7 @@ export const COACH_PHASES = [
     streamsCount: 1
   },
   {
-    title: "Phase 13: Cognitive Set-Shifting",
+    title: "Cognitive Set-Shifting",
     difficulty: 6.0,
     nLevel: 2,
     speedMs: 1800,
@@ -993,7 +993,7 @@ export const COACH_PHASES = [
     streamsCount: 1
   },
   {
-    title: "Phase 14: Sensorimotor Chaos",
+    title: "Sensorimotor Chaos",
     difficulty: 6.0,
     nLevel: 2,
     speedMs: 1700,
@@ -1003,7 +1003,7 @@ export const COACH_PHASES = [
     streamsCount: 1
   },
   {
-    title: "Phase 15: Episodic Buffer Binding",
+    title: "Episodic Buffer Binding",
     difficulty: 6.0,
     nLevel: 2,
     speedMs: 1600,
@@ -1013,7 +1013,7 @@ export const COACH_PHASES = [
     streamsCount: 1
   },
   {
-    title: "Phase 16: 2D Spatial Rotations",
+    title: "2D Spatial Rotations",
     difficulty: 6.5,
     nLevel: 2,
     speedMs: 1600,
@@ -1023,7 +1023,7 @@ export const COACH_PHASES = [
     streamsCount: 1
   },
   {
-    title: "Phase 17: 3D Transparent Rotations",
+    title: "3D Transparent Rotations",
     difficulty: 7.0,
     nLevel: 2,
     speedMs: 1600,
@@ -1033,7 +1033,7 @@ export const COACH_PHASES = [
     streamsCount: 1
   },
   {
-    title: "Phase 18: Stress Inoculation",
+    title: "Stress Inoculation",
     difficulty: 7.0,
     nLevel: 2,
     speedMs: 1500,
@@ -1043,7 +1043,7 @@ export const COACH_PHASES = [
     streamsCount: 1
   },
   {
-    title: "Phase 19: Structural Disruption",
+    title: "Structural Disruption",
     difficulty: 7.5,
     nLevel: 2,
     speedMs: 1500,
@@ -1053,7 +1053,7 @@ export const COACH_PHASES = [
     streamsCount: 1
   },
   {
-    title: "Phase 20: Dual Stream Multitasking",
+    title: "Dual Stream Multitasking",
     difficulty: 7.5,
     nLevel: 2,
     speedMs: 1400,
@@ -1063,7 +1063,7 @@ export const COACH_PHASES = [
     streamsCount: 2
   },
   {
-    title: "Phase 21: Quantum Focus",
+    title: "Quantum Focus",
     difficulty: 8.0,
     nLevel: 3,
     speedMs: 1300,
@@ -1073,7 +1073,7 @@ export const COACH_PHASES = [
     streamsCount: 2
   },
   {
-    title: "Phase 22: Hyper-Dimensional Tesseract",
+    title: "Hyper-Dimensional Tesseract",
     difficulty: 8.0,
     nLevel: 2,
     speedMs: 1400,
@@ -1083,7 +1083,7 @@ export const COACH_PHASES = [
     streamsCount: 1
   },
   {
-    title: "Phase 22.5: Analogy Crucible (visual 4-place)",
+    title: "Analogy Crucible (visual 4-place)",
     difficulty: 6.5,
     nLevel: 2,
     speedMs: 1800,
@@ -1093,7 +1093,7 @@ export const COACH_PHASES = [
     streamsCount: 1
   },
   {
-    title: "Phase 23: Relational Supercomputer",
+    title: "Relational Supercomputer",
     difficulty: 8.5,
     nLevel: 3,
     speedMs: 1300,
@@ -1104,7 +1104,7 @@ export const COACH_PHASES = [
     streamsCount: 1
   },
   {
-    title: "Phase 24: Grandmaster Crucible",
+    title: "Grandmaster Crucible",
     difficulty: 9.0,
     nLevel: 3,
     speedMs: 1200,
@@ -1114,7 +1114,7 @@ export const COACH_PHASES = [
     streamsCount: 3
   },
   {
-    title: "Phase 25: The Infinite Singularity",
+    title: "The Infinite Singularity",
     difficulty: 10.0,
     nLevel: 4,
     speedMs: 1100,
@@ -1128,7 +1128,7 @@ export const COACH_PHASES = [
   // entorhinal predictive maps, not DLPFC working memory. Map fading forces
   // true internalization of the graph rather than visual edge-checking.
   {
-    title: "Phase 26: Map Encoding (TJN Easy)",
+    title: "Map Encoding (TJN Easy)",
     difficulty: 3.0,
     nLevel: 2,
     speedMs: 2800,
@@ -1141,7 +1141,7 @@ export const COACH_PHASES = [
     streamsCount: 1
   },
   {
-    title: "Phase 27: Neighbour Recall (TJN Medium)",
+    title: "Neighbour Recall (TJN Medium)",
     difficulty: 4.0,
     nLevel: 2,
     speedMs: 2600,
@@ -1154,7 +1154,7 @@ export const COACH_PHASES = [
     streamsCount: 1
   },
   {
-    title: "Phase 28: Successor Prediction (TJN Hard)",
+    title: "Successor Prediction (TJN Hard)",
     difficulty: 5.5,
     nLevel: 2,
     speedMs: 2400,
@@ -1168,7 +1168,7 @@ export const COACH_PHASES = [
     streamsCount: 1
   },
   {
-    title: "Phase 29: Goal Revaluation (TJN Extreme)",
+    title: "Goal Revaluation (TJN Extreme)",
     difficulty: 6.5,
     nLevel: 2,
     speedMs: 2400,
@@ -1185,7 +1185,7 @@ export const COACH_PHASES = [
   // with fresh surfaces (themed maps α/β/γ). Tests whether the player encoded
   // the abstract schema rather than a specific map. Behrens et al. 2020.
   {
-    title: "Phase 30: Schema Transfer — Easy (TEM)",
+    title: "Schema Transfer — Easy (TEM)",
     difficulty: 4.5,
     nLevel: 2,
     speedMs: 2600,
@@ -1200,7 +1200,7 @@ export const COACH_PHASES = [
     streamsCount: 1
   },
   {
-    title: "Phase 31: Schema Transfer — Successor (TEM)",
+    title: "Schema Transfer — Successor (TEM)",
     difficulty: 6.5,
     nLevel: 2,
     speedMs: 2400,
@@ -1216,7 +1216,7 @@ export const COACH_PHASES = [
     streamsCount: 1
   },
   {
-    title: "Phase 32: Cross-Topology Schema Crucible",
+    title: "Cross-Topology Schema Crucible",
     difficulty: 7.0,
     nLevel: 2,
     speedMs: 2300,
@@ -1235,7 +1235,7 @@ export const COACH_PHASES = [
   // real time on a single scored stream. Withhold on decoy-category stimuli
   // even when they'd match. Engle's controlled-attention construct.
   {
-    title: "Phase 33: Selective Attention Filter",
+    title: "Selective Attention Filter",
     difficulty: 4.0,
     nLevel: 2,
     speedMs: 2400,
@@ -1251,7 +1251,7 @@ export const COACH_PHASES = [
   // panel. Modest flag count + small cap to keep the load tractable while
   // learning the new rule.
   {
-    title: "Phase 34: NRINT — Intersection",
+    title: "NRINT — Intersection",
     difficulty: 6.0,
     nLevel: 2,
     speedMs: 2200,
@@ -1261,7 +1261,7 @@ export const COACH_PHASES = [
     desc: "Nonverbal RINT under the INTERSECTION rule: target fires when the current attribute set equals the flags shared by every member of some non-empty subset of the last N stims. Tighter than union — current must be a subset of every chosen stim."
   },
   {
-    title: "Phase 35: NRINT — XOR (parity)",
+    title: "NRINT — XOR (parity)",
     difficulty: 7.0,
     nLevel: 2,
     speedMs: 2200,
@@ -1271,7 +1271,7 @@ export const COACH_PHASES = [
     desc: "Nonverbal RINT under the XOR / symmetric-difference rule: a flag is ON in current iff an odd number of the chosen subset of the last N stims have it. Parity — pairs cancel out. Drilling this trains GF(2) linear thinking under WM load."
   },
   {
-    title: "Phase 36: NRINT — Implication",
+    title: "NRINT — Implication",
     difficulty: 5.5,
     nLevel: 2,
     speedMs: 2200,
@@ -1281,7 +1281,7 @@ export const COACH_PHASES = [
     desc: "Nonverbal RINT under the IMPLICATION rule: target fires when there exists a non-empty stim s in the last N whose flag set is contained in current (s → current). The most permissive rule of the five — sharper distractor pressure to compensate."
   },
   {
-    title: "Phase 37: NRINT — Biconditional / Equivalence",
+    title: "NRINT — Biconditional / Equivalence",
     difficulty: 7.0,
     nLevel: 2,
     speedMs: 2200,
@@ -1297,7 +1297,7 @@ export const COACH_PHASES = [
   // apply a fixed one. The engine samples one rule per trial in proportion to
   // the weights.
   {
-    title: "Phase 38: NRINT — Mixed Logic Lite (Union + XOR)",
+    title: "NRINT — Mixed Logic Lite (Union + XOR)",
     difficulty: 6.5,
     nLevel: 2,
     speedMs: 2400,
@@ -1307,7 +1307,7 @@ export const COACH_PHASES = [
     desc: "Nonverbal RINT with TWO rules in rotation — Union (default, ~67% of trials) and XOR (~33%). The engine picks one rule per trial; you have to recognise which logic is operative on the current stim. Lighter intro to multi-rule mode."
   },
   {
-    title: "Phase 39: NRINT — Full Logic Mix (all 5)",
+    title: "NRINT — Full Logic Mix (all 5)",
     difficulty: 8.0,
     nLevel: 2,
     speedMs: 2600,

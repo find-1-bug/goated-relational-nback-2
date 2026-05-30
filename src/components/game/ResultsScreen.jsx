@@ -3,7 +3,7 @@ import { Button } from '@/components/ui/button';
 import { Brain, RotateCcw, ArrowLeft, TrendingUp } from 'lucide-react';
 import { motion } from 'framer-motion';
 import { calculateResults, computeNextNLevel } from '@/lib/gameEngine';
-import { migrateCoachState, updateMastery, MASTERY_INTERVALS } from '@/lib/coachMastery';
+import { migrateCoachState, updateMastery, MASTERY_INTERVALS, phaseDisplayTitle, rankOf } from '@/lib/coachMastery';
 import { COACH_PHASES } from '@/lib/gameConstants';
 
 function StatBlock({ label, value, suffix = '', color = 'text-foreground' }) {
@@ -124,7 +124,7 @@ export default function ResultsScreen({ gameState, onRestart, onBack }) {
 
         if (afterFrontier > beforeFrontier) {
           setPhaseUpgradeState('up');
-          setCoachProgressionText(`🚀 Phase ${playedPhaseIndex + 1} mastered (Lvl ${afterLvl}). Frontier advanced to ${COACH_PHASES[afterFrontier].title}.`);
+          setCoachProgressionText(`🚀 Phase ${rankOf(playedPhaseIndex) + 1} mastered (Lvl ${afterLvl}). Frontier advanced to ${phaseDisplayTitle(afterFrontier)}.`);
         } else if (afterLvl > beforeLvl) {
           setCoachProgressionText(`✓ Mastery Lvl ${afterLvl} on Phase ${playedPhaseIndex + 1}. Next review in ${MASTERY_INTERVALS[afterLvl]} sessions.`);
         } else if (afterLvl < beforeLvl) {

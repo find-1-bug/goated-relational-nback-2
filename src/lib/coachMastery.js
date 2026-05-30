@@ -159,6 +159,19 @@ export function updateMastery(state, playedPhaseIndex, accuracy, totalPhases) {
   return next;
 }
 
+// Display title for a phase: "Phase {rank+1}: {descriptive title}" where
+// rank is the position in difficulty order (1-indexed). Titles in
+// gameConstants no longer hard-code "Phase NN:" prefixes since build-order
+// numbering diverged from difficulty-rank ordering and looked scrambled in
+// the dropdown. This helper restores a stable, monotonic numbering that
+// matches the order the Coach actually walks the ladder.
+export function phaseDisplayTitle(buildIdx) {
+  const phase = COACH_PHASES[buildIdx];
+  if (!phase) return '';
+  const rank = rankOf(buildIdx);
+  return rank >= 0 ? `Phase ${rank + 1}: ${phase.title}` : phase.title;
+}
+
 // Compact summary string for UI ("Lvl 3 · review in 7" or "Not attempted").
 export function masteryLabel(masteryEntry, currentSessionN) {
   if (!masteryEntry || masteryEntry.attempts === 0) return 'Not attempted';

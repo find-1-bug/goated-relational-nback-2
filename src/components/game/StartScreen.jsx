@@ -3,7 +3,7 @@ import { Button } from '@/components/ui/button';
 import { Brain, Zap, TrendingUp, Layers, GitBranch, Shuffle, ChevronDown, ChevronUp, Plus, Minus, Eye, Compass } from 'lucide-react';
 import { motion, AnimatePresence } from 'framer-motion';
 import { RELATIONSHIP_CATEGORIES, setTokenWeights, getTokenWeights, filterTransitiveRelationships, COACH_PHASES, TJN_TIERS, TJN_TIER_META, TJN_TOPOLOGY_LABELS, TJN_DEFAULT_TIER, TJN_DEFAULT_TOPOLOGY, TJN_DEFAULT_NODES, TJN_HARD_K } from '@/lib/gameConstants';
-import { migrateCoachState, pickNextPhase, masteryLabel, difficultyOrder } from '@/lib/coachMastery';
+import { migrateCoachState, pickNextPhase, masteryLabel, difficultyOrder, phaseDisplayTitle } from '@/lib/coachMastery';
 import { NRINT_FLAGS, NRINT_FLAG_META, NRINT_MATCH_RULES, NRINT_MATCH_RULE_META } from '@/lib/gameEngine';
 import { getSettings, saveSettings } from '@/lib/localStorageManager';
 
@@ -892,7 +892,7 @@ export default function StartScreen({ onStart, suggestedN, lastSettings }) {
             <span className={`text-[9px] font-mono uppercase tracking-widest border px-1.5 py-0.5 rounded ${reasonCls}`}>{reasonLabel}</span>
           </div>
           <div className="text-[11px] font-mono font-bold text-fuchsia-400">
-            {previewPhase.title || "Phase 1: Foundational Focus"}
+            {phaseDisplayTitle(previewPhaseIdx) || "Phase 1: Classic N-1 Warm-up"}
           </div>
           <p className="text-[9px] font-mono text-muted-foreground/90 max-w-sm mx-auto leading-normal">
             "{previewPhase.desc || ""}"
@@ -916,7 +916,7 @@ export default function StartScreen({ onStart, suggestedN, lastSettings }) {
             Rank: <strong className="text-emerald-400">{coachState.rankName}</strong>
           </div>
           <div className="text-[9px] font-mono text-muted-foreground/60 italic">
-            Sessions played: {coachState.sessionCount || 0} · Frontier: {COACH_PHASES[coachState.phaseIndex || 0]?.title || '—'} · D{COACH_PHASES[coachState.phaseIndex || 0]?.difficulty ?? '?'}
+            Sessions played: {coachState.sessionCount || 0} · Frontier: {phaseDisplayTitle(coachState.phaseIndex || 0) || '—'} · D{COACH_PHASES[coachState.phaseIndex || 0]?.difficulty ?? '?'}
           </div>
           {/* Manual phase selector — pick any phase to test without losing
               real curriculum progress. Selecting "My progress" clears the
@@ -934,13 +934,15 @@ export default function StartScreen({ onStart, suggestedN, lastSettings }) {
               <option value="">Auto (mastery-scheduled)</option>
               {/* Sorted by difficulty (low → high) so the dropdown reflects
                   the actual progression, not the historical build order. */}
-              {difficultyOrder().map(({ phaseIndex: i }) => {
+              {difficultyOrder().map(({ phaseIndex: i }, rankIdx) => {
                 const p = COACH_PHASES[i];
                 const m = coachState.phaseMastery?.[i];
-                const lvlStr = m && m.attempts > 0 ? ` [Lvl ${m.masteryLevel}]` : ' [new]';
+                // Drop the "new" suffix — its absence already conveys
+                // "not attempted yet". Keep [Lvl N] for played phases.
+                const lvlStr = m && m.attempts > 0 ? ` · Lvl ${m.masteryLevel}` : '';
                 return (
                   <option key={i} value={i}>
-                    D{p.difficulty} · {p.title}{lvlStr}
+                    Phase {rankIdx + 1}: {p.title} · D{p.difficulty}{lvlStr}
                   </option>
                 );
               })}
@@ -2122,7 +2124,7 @@ export default function StartScreen({ onStart, suggestedN, lastSettings }) {
                   tjnSchemaBlocks: currentPhase.tjnSchemaBlocks || tjnSchemaBlocks,
                   wrapperMorphStyle,
                   autopilot: true,
-                  phaseTitle: currentPhase.title,
+                  phaseTitle: phaseDisplayTitle(launchPhaseIndex),
                   coachPickedPhaseIndex: launchPhaseIndex,
                   coachPickReason: pickResult.reason,
                 },
