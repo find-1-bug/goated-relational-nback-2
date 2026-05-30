@@ -94,6 +94,7 @@ export default function Game() {
   const [nrintEnabledFlags, setNrintEnabledFlags] = useState(null);
   const [nrintHideLegend, setNrintHideLegend] = useState(false);
   const [nrintMaxPerTrial, setNrintMaxPerTrial] = useState(0);
+  const [nrintMatchRule, setNrintMatchRule] = useState('union');
   const [decoyFilterRule, setDecoyFilterRule] = useState('never_target');
   const [decoyFilterRandom, setDecoyFilterRandom] = useState(true);
   const [decoyFilterCategories, setDecoyFilterCategories] = useState([]);
@@ -136,6 +137,7 @@ export default function Game() {
     setNrintEnabledFlags(extraSettings?.nrintEnabledFlags || null);
     setNrintHideLegend(!!extraSettings?.nrintHideLegend);
     setNrintMaxPerTrial(Number(extraSettings?.nrintMaxPerTrial) || 0);
+    setNrintMatchRule(extraSettings?.nrintMatchRule || 'union');
     setDecoyFilterRule(extraSettings?.decoyFilterRule || 'never_target');
     setDecoyFilterRandom(extraSettings?.decoyFilterRandom !== false);
     setDecoyFilterCategories(Array.isArray(extraSettings?.decoyFilterCategories) ? extraSettings.decoyFilterCategories : []);
@@ -171,6 +173,7 @@ export default function Game() {
         nrintEnabledFlags: extraSettings?.nrintEnabledFlags || null,
         nrintHideLegend: !!extraSettings?.nrintHideLegend,
         nrintMaxPerTrial: Number(extraSettings?.nrintMaxPerTrial) || 0,
+        nrintMatchRule: extraSettings?.nrintMatchRule || 'union',
         decoyFilterRule: extraSettings?.decoyFilterRule || 'never_target',
         decoyFilterRandom: extraSettings?.decoyFilterRandom !== false,
         decoyFilterCategories: Array.isArray(extraSettings?.decoyFilterCategories) ? extraSettings.decoyFilterCategories : [],
@@ -265,6 +268,7 @@ export default function Game() {
           nrintEnabledFlags={nrintEnabledFlags}
           nrintHideLegend={nrintHideLegend}
           nrintMaxPerTrial={nrintMaxPerTrial}
+          nrintMatchRule={nrintMatchRule}
           decoyFilterRule={decoyFilterRule}
           decoyFilterRandom={decoyFilterRandom}
           decoyFilterCategories={decoyFilterCategories}

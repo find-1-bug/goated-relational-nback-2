@@ -154,7 +154,8 @@ function evaluateStimulusForMode({ stim, mode, history, typeHistory, rintState, 
     const tail = history.slice(-effectiveN).filter(s => s?.rel === 'NRINT_COMPOSITE');
     if (tail.length < effectiveN) return false;
     const enabledFlags = stim?._nrintEnabledFlags || NRINT_DEFAULT_FLAGS;
-    return attrsReachableFromSubset(tail, stim.attrs || emptyAttrs(), enabledFlags);
+    const rule = stim?._nrintMatchRule || 'union';
+    return nrintRuleSatisfied(rule, tail, stim.attrs || emptyAttrs(), enabledFlags);
   }
   if (mode === 'type') {
     if (!isTypeNbackMatch(typeHistory, stim.rel, effectiveN)) return false;
@@ -523,13 +524,161 @@ function pickReachableAttrs(tail, enabledFlags = NRINT_FLAGS, maxPerTrial = 0) {
   return null;
 }
 
+// ── Additional NRINT match rules (Grapist request) ─────────────────────────
+// Beyond subset-union, the engine supports three more logical aggregations
+// over the last-N tail. Each has the same shape: a reachability check and a
+// target picker that produces an attrs set satisfying the rule.
+export const NRINT_MATCH_RULES = ['union', 'intersection', 'xor', 'implication'];
+export const NRINT_MATCH_RULE_META = {
+  union:        { label: 'Union',        desc: 'current = ∪ of some non-empty subset of last N (default)' },
+  intersection: { label: 'Intersection', desc: 'current = ∩ of some non-empty subset of last N (must be non-empty)' },
+  xor:          { label: 'XOR',          desc: 'current = symmetric difference of some non-empty subset (parity: flag ON iff odd count of subset members have it)' },
+  implication:  { label: 'Implication',  desc: '∃ a non-empty stim s in last N with s ⊆ current (s logically implies current)' },
+};
+
+// Intersection: ∃ non-empty subset S of tail with ∩_{s∈S} s.attrs == current.
+// Equivalently: there's at least one tail stim whose attrs ⊇ current, AND for
+// every flag NOT in current at least one such superset stim has that flag off.
+function attrsReachableByIntersection(tail, currentAttrs, enabledFlags = NRINT_FLAGS) {
+  if (enabledFlags.every(f => !currentAttrs[f])) return false; // disallow empty
+  const supersets = (tail || []).filter(s => s?.attrs && enabledFlags.every(f => !currentAttrs[f] || s.attrs[f]));
+  if (!supersets.length) return false;
+  for (const f of enabledFlags) {
+    if (currentAttrs[f]) continue;
+    if (!supersets.some(s => !s.attrs[f])) return false;
+  }
+  return true;
+}
+
+// XOR: ∃ non-empty subset S of tail with the GF(2) sum (symmetric difference)
+// of {s.attrs} equal to current. Equivalent to: current ∈ linear span of tail
+// vectors over GF(2). Standard Gauss-Jordan rank check.
+function attrsReachableByXor(tail, currentAttrs, enabledFlags = NRINT_FLAGS) {
+  if (enabledFlags.every(f => !currentAttrs[f])) return false;
+  const usable = (tail || []).filter(s => s?.attrs);
+  if (!usable.length) return false;
+  const N = enabledFlags.length;
+  const vecs = usable.map(s => enabledFlags.map(f => s.attrs[f] ? 1 : 0));
+  const target = enabledFlags.map(f => currentAttrs[f] ? 1 : 0);
+  const basis = [];
+  for (let v of vecs) {
+    v = [...v];
+    for (const b of basis) {
+      const pivot = b.indexOf(1);
+      if (pivot >= 0 && v[pivot] === 1) {
+        for (let i = 0; i < N; i++) v[i] ^= b[i];
+      }
+    }
+    if (v.some(x => x === 1)) basis.push(v);
+  }
+  const t = [...target];
+  for (const b of basis) {
+    const pivot = b.indexOf(1);
+    if (pivot >= 0 && t[pivot] === 1) {
+      for (let i = 0; i < N; i++) t[i] ^= b[i];
+    }
+  }
+  return t.every(x => x === 0);
+}
+
+// Implication: ∃ a non-empty stim s in tail with s ⊆ current (s "implies" current).
+function attrsReachableByImplication(tail, currentAttrs, enabledFlags = NRINT_FLAGS) {
+  if (enabledFlags.every(f => !currentAttrs[f])) return false;
+  return (tail || []).some(s => {
+    const a = s?.attrs;
+    if (!a) return false;
+    const nonempty = enabledFlags.some(f => a[f]);
+    if (!nonempty) return false;
+    return enabledFlags.every(f => !a[f] || currentAttrs[f]);
+  });
+}
+
+export function nrintRuleSatisfied(rule, tail, currentAttrs, enabledFlags = NRINT_FLAGS) {
+  switch (rule) {
+    case 'intersection': return attrsReachableByIntersection(tail, currentAttrs, enabledFlags);
+    case 'xor':          return attrsReachableByXor(tail, currentAttrs, enabledFlags);
+    case 'implication':  return attrsReachableByImplication(tail, currentAttrs, enabledFlags);
+    case 'union':
+    default:             return attrsReachableFromSubset(tail, currentAttrs, enabledFlags);
+  }
+}
+
+function pickIntersectionAttrs(tail, enabledFlags, maxPerTrial) {
+  const usable = (tail || []).filter(s => s?.attrs && enabledFlags.some(f => s.attrs[f]));
+  if (!usable.length) return null;
+  for (let attempt = 0; attempt < 14; attempt++) {
+    const k = 1 + Math.floor(Math.random() * Math.min(usable.length, 3));
+    const subset = [...usable].sort(() => Math.random() - 0.5).slice(0, k);
+    const cand = emptyAttrs();
+    enabledFlags.forEach(f => { cand[f] = subset.every(s => !!s.attrs[f]); });
+    if (enabledFlags.some(f => cand[f])) return cand; // intersection ≤ each ≤ cap
+  }
+  const a = usable[Math.floor(Math.random() * usable.length)].attrs;
+  const out = emptyAttrs();
+  enabledFlags.forEach(f => { out[f] = !!a[f]; });
+  return out;
+}
+
+function pickXorAttrs(tail, enabledFlags, maxPerTrial) {
+  const usable = (tail || []).filter(s => s?.attrs);
+  if (usable.length < 1) return null;
+  const withinCap = (a) => !maxPerTrial || maxPerTrial <= 0 || attrsCount(a, enabledFlags) <= maxPerTrial;
+  for (let attempt = 0; attempt < 16; attempt++) {
+    const maxK = Math.max(2, Math.min(usable.length, 4));
+    const k = 2 + Math.floor(Math.random() * (maxK - 1));
+    const subset = [...usable].sort(() => Math.random() - 0.5).slice(0, Math.min(k, usable.length));
+    if (subset.length < 2) continue;
+    const cand = emptyAttrs();
+    enabledFlags.forEach(f => {
+      let n = 0;
+      for (const s of subset) if (s.attrs[f]) n++;
+      cand[f] = (n % 2) === 1;
+    });
+    if (enabledFlags.some(f => cand[f]) && withinCap(cand)) return cand;
+  }
+  // Fallback: a single tail stim's attrs (XOR of one = itself; still in span).
+  for (const s of [...usable].sort(() => Math.random() - 0.5)) {
+    if (enabledFlags.some(f => s.attrs[f])) {
+      const out = emptyAttrs();
+      enabledFlags.forEach(f => { out[f] = !!s.attrs[f]; });
+      return out;
+    }
+  }
+  return null;
+}
+
+function pickImplicationAttrs(tail, enabledFlags, maxPerTrial) {
+  const usable = (tail || []).filter(s => s?.attrs && enabledFlags.some(f => s.attrs[f]));
+  if (!usable.length) return null;
+  const base = usable[Math.floor(Math.random() * usable.length)].attrs;
+  const cand = emptyAttrs();
+  enabledFlags.forEach(f => { cand[f] = !!base[f]; });
+  const offFlags = enabledFlags.filter(f => !cand[f]);
+  const cap = maxPerTrial && maxPerTrial > 0 ? maxPerTrial : enabledFlags.length;
+  const room = Math.max(0, cap - attrsCount(cand, enabledFlags));
+  const extras = Math.min(offFlags.length, room, Math.floor(Math.random() * 3));
+  const shuffled = offFlags.sort(() => Math.random() - 0.5);
+  for (let i = 0; i < extras; i++) cand[shuffled[i]] = true;
+  return cand;
+}
+
+function pickReachableAttrsByRule(rule, tail, enabledFlags, maxPerTrial) {
+  switch (rule) {
+    case 'intersection': return pickIntersectionAttrs(tail, enabledFlags, maxPerTrial);
+    case 'xor':          return pickXorAttrs(tail, enabledFlags, maxPerTrial);
+    case 'implication':  return pickImplicationAttrs(tail, enabledFlags, maxPerTrial);
+    case 'union':
+    default:             return pickReachableAttrs(tail, enabledFlags, maxPerTrial);
+  }
+}
+
 // Pick attrs that are NOT reachable as a subset-union of the tail. The
 // engine uses this for non-target trials; we keep candidates within the
 // enabled-flag set so disabling a flag really means it's silenced.
-function pickNonMatchingAttrs(tail, enabledFlags = NRINT_FLAGS, maxPerTrial = 0) {
-  for (let i = 0; i < 20; i++) {
+function pickNonMatchingAttrs(tail, enabledFlags = NRINT_FLAGS, maxPerTrial = 0, rule = 'union') {
+  for (let i = 0; i < 24; i++) {
     const cand = randomAttrs(enabledFlags, maxPerTrial);
-    if (!attrsReachableFromSubset(tail, cand, enabledFlags)) return cand;
+    if (!nrintRuleSatisfied(rule, tail, cand, enabledFlags)) return cand;
   }
   // Force a non-empty unreachable attrs by adding a flag that no tail stim has.
   const out = randomAttrs(enabledFlags, maxPerTrial);
@@ -539,10 +688,11 @@ function pickNonMatchingAttrs(tail, enabledFlags = NRINT_FLAGS, maxPerTrial = 0)
       // Respect the cap: if already at cap, free a slot before adding.
       const capped = capAttrs(out, maxPerTrial && maxPerTrial > 0 ? maxPerTrial - 1 : 0, enabledFlags);
       capped[f] = true;
-      return capped;
+      if (!nrintRuleSatisfied(rule, tail, capped, enabledFlags)) return capped;
     }
   }
-  return out;
+  // Last resort: empty attrs (rules disallow empty current → guaranteed non-target).
+  return emptyAttrs();
 }
 
 function makeNRINTStim(attrs) {
@@ -564,7 +714,7 @@ function makeNRINTStim(attrs) {
 // streamConfig: { trialMode, binaryMode, binaryOp, hierHistory } for Hierarchical and Binary Logic
 const DECOY_FILTER_TRIAL_RATE = 0.35; // fraction of trials drawn from decoy categories
 
-function generateOneStreamStimulus({ history, typeHistory, rintState, pool, effectiveN, trialMode, matchChance, hasDistractors, hasLures = false, negationMode = false, trialIndex, hierHistory, binaryMode, binaryOp, signalOnly = false, baseStim = null, alienCube = false, alienSquare = false, alienTesseract = false, alienSettings = {}, nrintEnabledFlags = NRINT_DEFAULT_FLAGS, nrintHideLegend = false, nrintMaxPerTrial = 0, decoyCats = [], decoyFilterRule = 'never_target', customLureRate = null, customNegationRate = null, modes = [] }) {
+function generateOneStreamStimulus({ history, typeHistory, rintState, pool, effectiveN, trialMode, matchChance, hasDistractors, hasLures = false, negationMode = false, trialIndex, hierHistory, binaryMode, binaryOp, signalOnly = false, baseStim = null, alienCube = false, alienSquare = false, alienTesseract = false, alienSettings = {}, nrintEnabledFlags = NRINT_DEFAULT_FLAGS, nrintHideLegend = false, nrintMaxPerTrial = 0, nrintMatchRule = 'union', decoyCats = [], decoyFilterRule = 'never_target', customLureRate = null, customNegationRate = null, modes = [] }) {
    let stim, isPrimaryTarget = false, isPositionTarget = false, nextRINTState = rintState;
    const canTarget = history.length >= effectiveN;
 
@@ -595,33 +745,31 @@ function generateOneStreamStimulus({ history, typeHistory, rintState, pool, effe
     stim = cctResult.stim;
     isPrimaryTarget = cctResult.isTarget;
   } else if (trialMode === 'nrint') {
-    // Nonverbal cross-attribute RINT: current attrs must be expressible as
-    // the union of some non-empty subset of the last N stims (Grapist's
-    // revised rule). Per-session enabledFlags controls which attribute
-    // dimensions are active.
+    // Nonverbal cross-attribute RINT. Match rule is configurable (Grapist
+    // request): 'union' (default) | 'intersection' | 'xor' | 'implication'.
+    // Per-session enabledFlags controls which attribute dimensions are active;
+    // the per-trial cap bounds tracking load.
     const flags = (nrintEnabledFlags && nrintEnabledFlags.length) ? nrintEnabledFlags : NRINT_DEFAULT_FLAGS;
-    // Clamp the cap to the enabled-flag count; 0 = no cap. A cap below the
-    // count makes each trial show at most that many features (Grapist's
-    // tracking-load request) while leaving the union rule intact.
     const cap = (nrintMaxPerTrial && nrintMaxPerTrial > 0) ? Math.min(nrintMaxPerTrial, flags.length) : 0;
+    const rule = nrintMatchRule || 'union';
     const tail = history.slice(-effectiveN).filter(s => s?.rel === 'NRINT_COMPOSITE');
     const haveChain = tail.length >= effectiveN;
     let attrs;
     if (haveChain && Math.random() < matchChance) {
-      attrs = pickReachableAttrs(tail, flags, cap) || randomAttrs(flags, cap);
-      isPrimaryTarget = attrsReachableFromSubset(tail, attrs, flags);
+      attrs = pickReachableAttrsByRule(rule, tail, flags, cap) || randomAttrs(flags, cap);
+      isPrimaryTarget = nrintRuleSatisfied(rule, tail, attrs, flags);
     } else if (haveChain) {
-      attrs = pickNonMatchingAttrs(tail, flags, cap);
+      attrs = pickNonMatchingAttrs(tail, flags, cap, rule);
       isPrimaryTarget = false;
     } else {
       attrs = randomAttrs(flags, cap);
       isPrimaryTarget = false;
     }
     stim = makeNRINTStim(attrs);
-    // Carry the per-session config on the stim so evaluators / renderer
-    // can honour enabled-flag and hide-legend settings without needing
-    // a separate channel.
+    // Carry per-session config on the stim so the evaluator / renderer can
+    // honour enabled-flag, hide-legend and the active match rule.
     stim._nrintEnabledFlags = flags;
+    stim._nrintMatchRule = rule;
     if (nrintHideLegend) stim._nrintHideLegend = true;
   } else if (trialMode === 'type') {
     const forcedRel = Math.random() < matchChance ? pickTypeNbackTargetRel(typeHistory, finalPool, effectiveN) : null;
@@ -838,7 +986,7 @@ function randomBinaryConfig(effectiveN) {
 
 // ─── State Creation ──────────────────────────────────────────────────────────
 
-export function createGameState({ nLevel, modes, relationshipPool, totalRounds, extraStreams = [], alienSettings = {}, streamA = null, nrintEnabledFlags = null, nrintHideLegend = false, nrintMaxPerTrial = 0, decoyFilterRule = 'never_target', decoyFilterRandom = true, decoyFilterCategories = [], initialSpeedMs = 2800, wrapperMorphStyle = 'shift', rstDifficulty = 'easy', tjnTier = TJN_DEFAULT_TIER, tjnTopology = TJN_DEFAULT_TOPOLOGY, tjnNodes = TJN_DEFAULT_NODES, tjnK = TJN_HARD_K, tjnSchemaMode = false, tjnSchemaBlocks = 3 } = {}) {
+export function createGameState({ nLevel, modes, relationshipPool, totalRounds, extraStreams = [], alienSettings = {}, streamA = null, nrintEnabledFlags = null, nrintHideLegend = false, nrintMaxPerTrial = 0, nrintMatchRule = 'union', decoyFilterRule = 'never_target', decoyFilterRandom = true, decoyFilterCategories = [], initialSpeedMs = 2800, wrapperMorphStyle = 'shift', rstDifficulty = 'easy', tjnTier = TJN_DEFAULT_TIER, tjnTopology = TJN_DEFAULT_TOPOLOGY, tjnNodes = TJN_DEFAULT_NODES, tjnK = TJN_HARD_K, tjnSchemaMode = false, tjnSchemaBlocks = 3 } = {}) {
   const opts = { tjnSchemaMode, tjnSchemaBlocks };
   const numExtra = extraStreams.length;
   const totalStreams = 1 + numExtra;
@@ -956,6 +1104,7 @@ export function createGameState({ nLevel, modes, relationshipPool, totalRounds, 
     nrintEnabledFlags: (nrintEnabledFlags && nrintEnabledFlags.length) ? nrintEnabledFlags : NRINT_DEFAULT_FLAGS,
     nrintHideLegend: !!nrintHideLegend,
     nrintMaxPerTrial: Number(nrintMaxPerTrial) || 0,
+    nrintMatchRule: NRINT_MATCH_RULES.includes(nrintMatchRule) ? nrintMatchRule : 'union',
     initialSpeedMs,
     adaptiveSpeedMs: initialSpeedMs,
     adaptiveLureRate: 0.20,
@@ -1283,6 +1432,7 @@ export function generateNextStimulus(state) {
   const nrintEnabledFlags = state.nrintEnabledFlags || NRINT_DEFAULT_FLAGS;
   const nrintHideLegend = !!state.nrintHideLegend;
   const nrintMaxPerTrial = Number(state.nrintMaxPerTrial) || 0;
+  const nrintMatchRule = NRINT_MATCH_RULES.includes(state.nrintMatchRule) ? state.nrintMatchRule : 'union';
   const customLureRate = state.adaptiveLureRate !== undefined ? state.adaptiveLureRate : null;
   const customNegationRate = state.adaptiveNegationRate !== undefined ? state.adaptiveNegationRate : null;
 
@@ -1304,6 +1454,7 @@ export function generateNextStimulus(state) {
     nrintEnabledFlags,
     nrintHideLegend,
     nrintMaxPerTrial,
+    nrintMatchRule,
     decoyCats: decoyCatsFor(0),
     decoyFilterRule,
     customLureRate,

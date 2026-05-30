@@ -4,7 +4,7 @@ import { Brain, Zap, TrendingUp, Layers, GitBranch, Shuffle, ChevronDown, Chevro
 import { motion, AnimatePresence } from 'framer-motion';
 import { RELATIONSHIP_CATEGORIES, setTokenWeights, getTokenWeights, filterTransitiveRelationships, COACH_PHASES, TJN_TIERS, TJN_TIER_META, TJN_TOPOLOGY_LABELS, TJN_DEFAULT_TIER, TJN_DEFAULT_TOPOLOGY, TJN_DEFAULT_NODES, TJN_HARD_K } from '@/lib/gameConstants';
 import { migrateCoachState, pickNextPhase, masteryLabel } from '@/lib/coachMastery';
-import { NRINT_FLAGS, NRINT_FLAG_META } from '@/lib/gameEngine';
+import { NRINT_FLAGS, NRINT_FLAG_META, NRINT_MATCH_RULES, NRINT_MATCH_RULE_META } from '@/lib/gameEngine';
 
 // Build a weighted pool from category weights + enabled rels
 // Each category's rels are repeated proportionally to its weight
@@ -465,6 +465,10 @@ export default function StartScreen({ onStart, suggestedN, lastSettings }) {
   // Max simultaneous attributes per trial (Grapist request). 0 = no cap.
   // Lets the player bound tracking load when many flags are enabled.
   const [nrintMaxPerTrial, setNrintMaxPerTrial] = React.useState(Number(lastSettings?.nrintMaxPerTrial) || 0);
+  // Match rule: union (default) / intersection / xor / implication (Grapist req).
+  const [nrintMatchRule, setNrintMatchRule] = React.useState(
+    NRINT_MATCH_RULES.includes(lastSettings?.nrintMatchRule) ? lastSettings.nrintMatchRule : 'union'
+  );
   // RST family difficulty (Easy / Medium / Hard). Easy = Distinction only,
   // Medium = +Comparison, Hard = +Analogy (true 4-place). Family is picked
   // at session start from the difficulty pool and stays fixed for the run.
@@ -1335,9 +1339,36 @@ export default function StartScreen({ onStart, suggestedN, lastSettings }) {
               </div>
               {nrintMaxPerTrial > 0 && nrintMaxPerTrial < nrintEnabledFlags.length && (
                 <p className="text-[10px] font-mono text-fuchsia-400/80">
-                  Each stim will show at most {nrintMaxPerTrial} of the {nrintEnabledFlags.length} enabled feature{nrintMaxPerTrial === 1 ? '' : 's'}. The union match rule still applies.
+                  Each stim will show at most {nrintMaxPerTrial} of the {nrintEnabledFlags.length} enabled feature{nrintMaxPerTrial === 1 ? '' : 's'}.
                 </p>
               )}
+            </div>
+            {/* Match rule selector — what counts as a target over the last-N tail. */}
+            <div className="pt-2 border-t border-fuchsia-500/20 space-y-1.5">
+              <div className="flex items-center justify-between gap-3 flex-wrap">
+                <div className="flex-1 min-w-0">
+                  <span className="text-xs font-mono text-foreground">Match rule</span>
+                  <p className="text-[10px] font-mono text-muted-foreground/70">How a target is recognised over the last N stims.</p>
+                </div>
+                <span className="text-[10px] font-mono text-fuchsia-400/70">{NRINT_MATCH_RULE_META[nrintMatchRule].label.toLowerCase()}</span>
+              </div>
+              <div className="grid grid-cols-2 sm:grid-cols-4 gap-1.5">
+                {NRINT_MATCH_RULES.map(r => {
+                  const m = NRINT_MATCH_RULE_META[r];
+                  const on = nrintMatchRule === r;
+                  return (
+                    <button key={r}
+                      onClick={() => setNrintMatchRule(r)}
+                      title={m.desc}
+                      className={`flex flex-col items-start gap-0.5 px-2 py-2 rounded text-left border transition-colors ${on
+                        ? 'bg-fuchsia-500/20 border-fuchsia-400 text-fuchsia-100 font-semibold'
+                        : 'bg-secondary/40 border-border text-muted-foreground hover:border-muted-foreground/50'}`}>
+                      <span className="text-xs font-mono uppercase tracking-wide">{m.label}</span>
+                    </button>
+                  );
+                })}
+              </div>
+              <p className="text-[10px] font-mono text-fuchsia-400/80 leading-relaxed">{NRINT_MATCH_RULE_META[nrintMatchRule].desc}</p>
             </div>
           </div>
         )}
@@ -1927,6 +1958,7 @@ export default function StartScreen({ onStart, suggestedN, lastSettings }) {
                   nrintEnabledFlags,
                   nrintHideLegend,
                   nrintMaxPerTrial,
+                  nrintMatchRule,
                   // Decoy filter: a phase may force config; else use the user's.
                   decoyFilterRule: currentPhase.decoyFilterRule || decoyFilterRule,
                   decoyFilterRandom: 'decoyFilterRandom' in currentPhase ? currentPhase.decoyFilterRandom : decoyFilterRandom,
@@ -1970,7 +2002,7 @@ export default function StartScreen({ onStart, suggestedN, lastSettings }) {
                 rstKeyDisplay: KEY_OPTIONS.find(k => k.code === streamARSTKey)?.display || 'R',
                 streamType: streamAType,
               };
-              onStart(nLevel, modes, finalPool, rounds, speedMs, { catWeights, useCustomMix, rels: selectedRels, tokenWeights, streamA: streamAWithPosition, extraStreams, streams: [streamAWithPosition, ...extraStreams], alienSettings, carouselSettings, nrintEnabledFlags, nrintHideLegend, nrintMaxPerTrial, decoyFilterRule, decoyFilterRandom, decoyFilterCategories, rstDifficulty, tjnTier, tjnTopology, tjnNodes, tjnK, tjnSchemaMode, tjnSchemaBlocks, wrapperMorphStyle, autopilot: false }, noobMode);
+              onStart(nLevel, modes, finalPool, rounds, speedMs, { catWeights, useCustomMix, rels: selectedRels, tokenWeights, streamA: streamAWithPosition, extraStreams, streams: [streamAWithPosition, ...extraStreams], alienSettings, carouselSettings, nrintEnabledFlags, nrintHideLegend, nrintMaxPerTrial, nrintMatchRule, decoyFilterRule, decoyFilterRandom, decoyFilterCategories, rstDifficulty, tjnTier, tjnTopology, tjnNodes, tjnK, tjnSchemaMode, tjnSchemaBlocks, wrapperMorphStyle, autopilot: false }, noobMode);
             }}
             className="flex-1 h-12 px-6 font-mono font-semibold text-xs sm:text-sm tracking-wide bg-secondary hover:bg-secondary/85 text-foreground border border-border"
           >
