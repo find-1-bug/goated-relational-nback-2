@@ -820,6 +820,7 @@ export const TJN_TOPOLOGY_LABELS = {
 export const COACH_PHASES = [
   {
     title: "Phase A: Classic N-1 Warm-up",
+    difficulty: 0.5,
     nLevel: 1,
     speedMs: 3600,
     rounds: 18,
@@ -829,6 +830,7 @@ export const COACH_PHASES = [
   },
   {
     title: "Phase B: Classic Switch Gym",
+    difficulty: 0.8,
     nLevel: 1,
     speedMs: 3300,
     rounds: 20,
@@ -838,6 +840,7 @@ export const COACH_PHASES = [
   },
   {
     title: "Phase C: Classic Bind Foundation",
+    difficulty: 1.0,
     nLevel: 1,
     speedMs: 3000,
     rounds: 20,
@@ -847,6 +850,7 @@ export const COACH_PHASES = [
   },
   {
     title: "Phase D: Classic Resist Training",
+    difficulty: 1.5,
     nLevel: 2,
     speedMs: 3300,
     rounds: 20,
@@ -856,6 +860,7 @@ export const COACH_PHASES = [
   },
   {
     title: "Phase 1: Foundational Focus",
+    difficulty: 1.5,
     nLevel: 2,
     speedMs: 3200,
     rounds: 20,
@@ -865,6 +870,7 @@ export const COACH_PHASES = [
   },
   {
     title: "Phase 2: Selective Attention",
+    difficulty: 2.0,
     nLevel: 2,
     speedMs: 3000,
     rounds: 20,
@@ -874,6 +880,7 @@ export const COACH_PHASES = [
   },
   {
     title: "Phase 3: Interference Inoculation",
+    difficulty: 2.5,
     nLevel: 2,
     speedMs: 2800,
     rounds: 22,
@@ -883,6 +890,7 @@ export const COACH_PHASES = [
   },
   {
     title: "Phase 4: Logical Inversion",
+    difficulty: 3.0,
     nLevel: 2,
     speedMs: 2600,
     rounds: 24,
@@ -892,6 +900,7 @@ export const COACH_PHASES = [
   },
   {
     title: "Phase 5: Cognitive Control",
+    difficulty: 3.0,
     nLevel: 2,
     speedMs: 2600,
     rounds: 25,
@@ -901,6 +910,7 @@ export const COACH_PHASES = [
   },
   {
     title: "Phase 6: Mathematical Dual-Tasking",
+    difficulty: 3.5,
     nLevel: 2,
     speedMs: 2600,
     rounds: 25,
@@ -910,6 +920,7 @@ export const COACH_PHASES = [
   },
   {
     title: "Phase 7: Deductive Integration",
+    difficulty: 3.5,
     nLevel: 2,
     speedMs: 2400,
     rounds: 25,
@@ -920,6 +931,7 @@ export const COACH_PHASES = [
   },
   {
     title: "Phase 8: Closed-Loop Regulation",
+    difficulty: 4.0,
     nLevel: 2,
     speedMs: 2400,
     rounds: 26,
@@ -930,6 +942,7 @@ export const COACH_PHASES = [
   },
   {
     title: "Phase 9: Semantic Memory Queue",
+    difficulty: 4.5,
     nLevel: 2,
     speedMs: 2200,
     rounds: 26,
@@ -940,6 +953,7 @@ export const COACH_PHASES = [
   },
   {
     title: "Phase 10: Relational Chaining",
+    difficulty: 5.0,
     nLevel: 2,
     speedMs: 2200,
     rounds: 28,
@@ -950,6 +964,7 @@ export const COACH_PHASES = [
   },
   {
     title: "Phase 11: Cross-Modal Union",
+    difficulty: 5.5,
     nLevel: 2,
     speedMs: 2000,
     rounds: 28,
@@ -959,6 +974,7 @@ export const COACH_PHASES = [
   },
   {
     title: "Phase 12: Rule Flexibility",
+    difficulty: 5.5,
     nLevel: 2,
     speedMs: 2000,
     rounds: 30,
@@ -968,6 +984,7 @@ export const COACH_PHASES = [
   },
   {
     title: "Phase 13: Cognitive Set-Shifting",
+    difficulty: 6.0,
     nLevel: 2,
     speedMs: 1800,
     rounds: 30,
@@ -977,6 +994,7 @@ export const COACH_PHASES = [
   },
   {
     title: "Phase 14: Sensorimotor Chaos",
+    difficulty: 6.0,
     nLevel: 2,
     speedMs: 1700,
     rounds: 30,
@@ -986,6 +1004,7 @@ export const COACH_PHASES = [
   },
   {
     title: "Phase 15: Episodic Buffer Binding",
+    difficulty: 6.0,
     nLevel: 2,
     speedMs: 1600,
     rounds: 30,
@@ -995,6 +1014,7 @@ export const COACH_PHASES = [
   },
   {
     title: "Phase 16: 2D Spatial Rotations",
+    difficulty: 6.5,
     nLevel: 2,
     speedMs: 1600,
     rounds: 30,
@@ -1004,6 +1024,7 @@ export const COACH_PHASES = [
   },
   {
     title: "Phase 17: 3D Transparent Rotations",
+    difficulty: 7.0,
     nLevel: 2,
     speedMs: 1600,
     rounds: 32,
@@ -1013,6 +1034,7 @@ export const COACH_PHASES = [
   },
   {
     title: "Phase 18: Stress Inoculation",
+    difficulty: 7.0,
     nLevel: 2,
     speedMs: 1500,
     rounds: 32,
@@ -1022,6 +1044,7 @@ export const COACH_PHASES = [
   },
   {
     title: "Phase 19: Structural Disruption",
+    difficulty: 7.5,
     nLevel: 2,
     speedMs: 1500,
     rounds: 35,
@@ -1031,6 +1054,7 @@ export const COACH_PHASES = [
   },
   {
     title: "Phase 20: Dual Stream Multitasking",
+    difficulty: 7.5,
     nLevel: 2,
     speedMs: 1400,
     rounds: 35,
@@ -1040,6 +1064,7 @@ export const COACH_PHASES = [
   },
   {
     title: "Phase 21: Quantum Focus",
+    difficulty: 8.0,
     nLevel: 3,
     speedMs: 1300,
     rounds: 35,
@@ -1049,6 +1074,7 @@ export const COACH_PHASES = [
   },
   {
     title: "Phase 22: Hyper-Dimensional Tesseract",
+    difficulty: 8.0,
     nLevel: 2,
     speedMs: 1400,
     rounds: 38,
@@ -1058,6 +1084,7 @@ export const COACH_PHASES = [
   },
   {
     title: "Phase 22.5: Analogy Crucible (visual 4-place)",
+    difficulty: 6.5,
     nLevel: 2,
     speedMs: 1800,
     rounds: 30,
@@ -1067,6 +1094,7 @@ export const COACH_PHASES = [
   },
   {
     title: "Phase 23: Relational Supercomputer",
+    difficulty: 8.5,
     nLevel: 3,
     speedMs: 1300,
     rounds: 40,
@@ -1077,6 +1105,7 @@ export const COACH_PHASES = [
   },
   {
     title: "Phase 24: Grandmaster Crucible",
+    difficulty: 9.0,
     nLevel: 3,
     speedMs: 1200,
     rounds: 42,
@@ -1086,6 +1115,7 @@ export const COACH_PHASES = [
   },
   {
     title: "Phase 25: The Infinite Singularity",
+    difficulty: 10.0,
     nLevel: 4,
     speedMs: 1100,
     rounds: 45,
@@ -1099,6 +1129,7 @@ export const COACH_PHASES = [
   // true internalization of the graph rather than visual edge-checking.
   {
     title: "Phase 26: Map Encoding (TJN Easy)",
+    difficulty: 3.0,
     nLevel: 2,
     speedMs: 2800,
     rounds: 22,
@@ -1111,6 +1142,7 @@ export const COACH_PHASES = [
   },
   {
     title: "Phase 27: Neighbour Recall (TJN Medium)",
+    difficulty: 4.0,
     nLevel: 2,
     speedMs: 2600,
     rounds: 24,
@@ -1123,6 +1155,7 @@ export const COACH_PHASES = [
   },
   {
     title: "Phase 28: Successor Prediction (TJN Hard)",
+    difficulty: 5.5,
     nLevel: 2,
     speedMs: 2400,
     rounds: 26,
@@ -1136,6 +1169,7 @@ export const COACH_PHASES = [
   },
   {
     title: "Phase 29: Goal Revaluation (TJN Extreme)",
+    difficulty: 6.5,
     nLevel: 2,
     speedMs: 2400,
     rounds: 28,
@@ -1152,6 +1186,7 @@ export const COACH_PHASES = [
   // the abstract schema rather than a specific map. Behrens et al. 2020.
   {
     title: "Phase 30: Schema Transfer — Easy (TEM)",
+    difficulty: 4.5,
     nLevel: 2,
     speedMs: 2600,
     rounds: 27,
@@ -1166,6 +1201,7 @@ export const COACH_PHASES = [
   },
   {
     title: "Phase 31: Schema Transfer — Successor (TEM)",
+    difficulty: 6.5,
     nLevel: 2,
     speedMs: 2400,
     rounds: 27,
@@ -1181,6 +1217,7 @@ export const COACH_PHASES = [
   },
   {
     title: "Phase 32: Cross-Topology Schema Crucible",
+    difficulty: 7.0,
     nLevel: 2,
     speedMs: 2300,
     rounds: 30,
@@ -1199,6 +1236,7 @@ export const COACH_PHASES = [
   // even when they'd match. Engle's controlled-attention construct.
   {
     title: "Phase 33: Selective Attention Filter",
+    difficulty: 4.0,
     nLevel: 2,
     speedMs: 2400,
     rounds: 26,
@@ -1214,6 +1252,7 @@ export const COACH_PHASES = [
   // learning the new rule.
   {
     title: "Phase 34: NRINT — Intersection",
+    difficulty: 6.0,
     nLevel: 2,
     speedMs: 2200,
     rounds: 26,
@@ -1223,6 +1262,7 @@ export const COACH_PHASES = [
   },
   {
     title: "Phase 35: NRINT — XOR (parity)",
+    difficulty: 7.0,
     nLevel: 2,
     speedMs: 2200,
     rounds: 28,
@@ -1232,6 +1272,7 @@ export const COACH_PHASES = [
   },
   {
     title: "Phase 36: NRINT — Implication",
+    difficulty: 5.5,
     nLevel: 2,
     speedMs: 2200,
     rounds: 28,
@@ -1241,6 +1282,7 @@ export const COACH_PHASES = [
   },
   {
     title: "Phase 37: NRINT — Biconditional / Equivalence",
+    difficulty: 7.0,
     nLevel: 2,
     speedMs: 2200,
     rounds: 28,

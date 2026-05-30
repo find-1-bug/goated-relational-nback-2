@@ -7,7 +7,7 @@ import {
 import { Link } from 'react-router-dom';
 import { getSessions, deleteSession, exportData, importData, getAssessments } from '@/lib/localStorageManager';
 import { COACH_PHASES } from '@/lib/gameConstants';
-import { migrateCoachState } from '@/lib/coachMastery';
+import { migrateCoachState, rankOf } from '@/lib/coachMastery';
 
 export default function Stats() {
   const [sessions, setSessions] = useState([]);
@@ -322,8 +322,8 @@ export default function Stats() {
                 <Award className="w-10 h-10 text-emerald-400 animate-bounce" />
               </div>
               <div className="flex-1 space-y-1">
-                <div className="text-[10px] font-mono uppercase tracking-widest font-bold text-emerald-400">Current Coach Auto-Curriculum Rank</div>
-                <h3 className="text-lg font-mono font-bold text-foreground">Level {coachState.phaseIndex + 1}: {COACH_PHASES[coachState.phaseIndex]?.title || 'Initiate'}</h3>
+                <div className="text-[10px] font-mono uppercase tracking-widest font-bold text-emerald-400">Current Coach frontier (difficulty-ordered)</div>
+                <h3 className="text-lg font-mono font-bold text-foreground">{COACH_PHASES[coachState.phaseIndex]?.title || 'Initiate'} <span className="text-cyan-400 text-base">· D{COACH_PHASES[coachState.phaseIndex]?.difficulty ?? '?'}</span></h3>
                 <p className="text-[11px] font-mono text-muted-foreground leading-relaxed max-w-lg">
                   {COACH_PHASES[coachState.phaseIndex]?.desc || 'Start Coach Autopilot training to elevate cognitive baseline parameters.'}
                 </p>
@@ -338,7 +338,7 @@ export default function Stats() {
             <div className="rounded-xl bg-secondary/35 border border-border/80 p-4 shadow-inner space-y-3 shrink-0">
               <div className="flex items-center justify-between font-mono text-xs font-bold text-foreground border-b border-border/40 pb-2">
                 <span>STAGE BASICS PROGRESSION</span>
-                <span className="text-cyan-400">{Math.round(((coachState.phaseIndex + 1) / COACH_PHASES.length) * 100)}% COMPLETE</span>
+                <span className="text-cyan-400">{Math.round(((Math.max(0, rankOf(coachState.phaseIndex || 0)) + 1) / COACH_PHASES.length) * 100)}% COMPLETE</span>
               </div>
               <div className="grid grid-cols-5 sm:grid-cols-10 gap-1.5">
                 {Array.from({ length: COACH_PHASES.length }).map((_, idx) => {
@@ -395,7 +395,7 @@ export default function Stats() {
                 <span className="px-1.5 py-0.5 rounded ring-1 ring-violet-400/70 text-violet-300">review due</span>
               </div>
               <div className="text-[10px] font-mono text-muted-foreground/70">
-                Sessions played: <strong className="text-foreground">{coachState.sessionCount || 0}</strong> · Frontier: Phase <strong className="text-primary">{(coachState.phaseIndex || 0) + 1}</strong> · Phases mastered (L≥2): <strong className="text-emerald-400">{Object.values(coachState.phaseMastery || {}).filter(m => m.masteryLevel >= 2).length}</strong>
+                Sessions played: <strong className="text-foreground">{coachState.sessionCount || 0}</strong> · Frontier: <strong className="text-primary">{COACH_PHASES[coachState.phaseIndex || 0]?.title || '—'} (D{COACH_PHASES[coachState.phaseIndex || 0]?.difficulty ?? '?'})</strong> · Phases mastered (L≥2): <strong className="text-emerald-400">{Object.values(coachState.phaseMastery || {}).filter(m => m.masteryLevel >= 2).length}</strong>
               </div>
             </div>
 

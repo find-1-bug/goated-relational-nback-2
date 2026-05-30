@@ -3,7 +3,7 @@ import { Button } from '@/components/ui/button';
 import { Brain, Zap, TrendingUp, Layers, GitBranch, Shuffle, ChevronDown, ChevronUp, Plus, Minus, Eye, Compass } from 'lucide-react';
 import { motion, AnimatePresence } from 'framer-motion';
 import { RELATIONSHIP_CATEGORIES, setTokenWeights, getTokenWeights, filterTransitiveRelationships, COACH_PHASES, TJN_TIERS, TJN_TIER_META, TJN_TOPOLOGY_LABELS, TJN_DEFAULT_TIER, TJN_DEFAULT_TOPOLOGY, TJN_DEFAULT_NODES, TJN_HARD_K } from '@/lib/gameConstants';
-import { migrateCoachState, pickNextPhase, masteryLabel } from '@/lib/coachMastery';
+import { migrateCoachState, pickNextPhase, masteryLabel, difficultyOrder } from '@/lib/coachMastery';
 import { NRINT_FLAGS, NRINT_FLAG_META, NRINT_MATCH_RULES, NRINT_MATCH_RULE_META } from '@/lib/gameEngine';
 
 // Build a weighted pool from category weights + enabled rels
@@ -834,7 +834,7 @@ export default function StartScreen({ onStart, suggestedN, lastSettings }) {
             <span className="text-muted-foreground">N={previewPhase.nLevel || 2} · {previewPhase.speedMs || 3200}ms</span>
           </div>
           <div className="text-[9px] font-mono text-muted-foreground/60 italic">
-            Sessions played: {coachState.sessionCount || 0} · Frontier: Phase {(coachState.phaseIndex || 0) + 1}
+            Sessions played: {coachState.sessionCount || 0} · Frontier: {COACH_PHASES[coachState.phaseIndex || 0]?.title || '—'} · D{COACH_PHASES[coachState.phaseIndex || 0]?.difficulty ?? '?'}
           </div>
           {/* Manual phase selector — pick any phase to test without losing
               real curriculum progress. Selecting "My progress" clears the
@@ -850,12 +850,15 @@ export default function StartScreen({ onStart, suggestedN, lastSettings }) {
               className="flex-1 bg-secondary border border-border rounded px-2 py-1 text-[10px] font-mono text-foreground"
             >
               <option value="">Auto (mastery-scheduled)</option>
-              {COACH_PHASES.map((p, i) => {
+              {/* Sorted by difficulty (low → high) so the dropdown reflects
+                  the actual progression, not the historical build order. */}
+              {difficultyOrder().map(({ phaseIndex: i }) => {
+                const p = COACH_PHASES[i];
                 const m = coachState.phaseMastery?.[i];
                 const lvlStr = m && m.attempts > 0 ? ` [Lvl ${m.masteryLevel}]` : ' [new]';
                 return (
                   <option key={i} value={i}>
-                    {i + 1}. {p.title.replace(/^Phase [\d.]+:\s*/, '')}{lvlStr}
+                    D{p.difficulty} · {p.title}{lvlStr}
                   </option>
                 );
               })}
