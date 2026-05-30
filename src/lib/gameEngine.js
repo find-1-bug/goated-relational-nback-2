@@ -528,12 +528,13 @@ function pickReachableAttrs(tail, enabledFlags = NRINT_FLAGS, maxPerTrial = 0) {
 // Beyond subset-union, the engine supports three more logical aggregations
 // over the last-N tail. Each has the same shape: a reachability check and a
 // target picker that produces an attrs set satisfying the rule.
-export const NRINT_MATCH_RULES = ['union', 'intersection', 'xor', 'implication'];
+export const NRINT_MATCH_RULES = ['union', 'intersection', 'xor', 'implication', 'biconditional'];
 export const NRINT_MATCH_RULE_META = {
-  union:        { label: 'Union',        desc: 'current = ∪ of some non-empty subset of last N (default)' },
-  intersection: { label: 'Intersection', desc: 'current = ∩ of some non-empty subset of last N (must be non-empty)' },
-  xor:          { label: 'XOR',          desc: 'current = symmetric difference of some non-empty subset (parity: flag ON iff odd count of subset members have it)' },
-  implication:  { label: 'Implication',  desc: '∃ a non-empty stim s in last N with s ⊆ current (s logically implies current)' },
+  union:         { label: 'Union',         desc: 'current = ∪ of some non-empty subset of last N (default)' },
+  intersection:  { label: 'Intersection',  desc: 'current = ∩ of some non-empty subset of last N (must be non-empty)' },
+  xor:           { label: 'XOR',           desc: 'current = symmetric difference of some non-empty subset (parity: flag ON iff odd count of subset members have it)' },
+  implication:   { label: 'Implication',   desc: '∃ a non-empty stim s in last N with s ⊆ current (s logically implies current)' },
+  biconditional: { label: 'Biconditional', desc: 'current = the flags where ALL members of some subset (size ≥ 2) agree — i.e. the agreement / equivalence set' },
 };
 
 // Intersection: ∃ non-empty subset S of tail with ∩_{s∈S} s.attrs == current.
@@ -581,6 +582,38 @@ function attrsReachableByXor(tail, currentAttrs, enabledFlags = NRINT_FLAGS) {
   return t.every(x => x === 0);
 }
 
+// Biconditional / equivalence: ∃ a subset S of tail with |S| ≥ 2 such that
+// current = { f : every member of S has the same value at f } = (∩ s.attrs) ∪
+// (∩ ¬s.attrs). For two stims this is exactly A ↔ B (flags where they agree).
+// Tail size is bounded by N, so brute-force over 2^N subsets is cheap.
+function attrsReachableByBiconditional(tail, currentAttrs, enabledFlags = NRINT_FLAGS) {
+  if (enabledFlags.every(f => !currentAttrs[f])) return false;
+  const usable = (tail || []).filter(s => s?.attrs);
+  const n = usable.length;
+  if (n < 2) return false;
+  for (let mask = 0; mask < (1 << n); mask++) {
+    // bit-count ≥ 2
+    let count = 0;
+    for (let i = 0; i < n; i++) if (mask & (1 << i)) count++;
+    if (count < 2) continue;
+    let allMatch = true;
+    for (const f of enabledFlags) {
+      let v = null;
+      let agrees = true;
+      for (let i = 0; i < n; i++) {
+        if (!(mask & (1 << i))) continue;
+        const x = !!usable[i].attrs[f];
+        if (v === null) v = x;
+        else if (x !== v) { agrees = false; break; }
+      }
+      // bic[f] = agrees ? 1 : 0
+      if ((agrees ? 1 : 0) !== (currentAttrs[f] ? 1 : 0)) { allMatch = false; break; }
+    }
+    if (allMatch) return true;
+  }
+  return false;
+}
+
 // Implication: ∃ a non-empty stim s in tail with s ⊆ current (s "implies" current).
 function attrsReachableByImplication(tail, currentAttrs, enabledFlags = NRINT_FLAGS) {
   if (enabledFlags.every(f => !currentAttrs[f])) return false;
@@ -595,11 +628,12 @@ function attrsReachableByImplication(tail, currentAttrs, enabledFlags = NRINT_FL
 
 export function nrintRuleSatisfied(rule, tail, currentAttrs, enabledFlags = NRINT_FLAGS) {
   switch (rule) {
-    case 'intersection': return attrsReachableByIntersection(tail, currentAttrs, enabledFlags);
-    case 'xor':          return attrsReachableByXor(tail, currentAttrs, enabledFlags);
-    case 'implication':  return attrsReachableByImplication(tail, currentAttrs, enabledFlags);
+    case 'intersection':  return attrsReachableByIntersection(tail, currentAttrs, enabledFlags);
+    case 'xor':           return attrsReachableByXor(tail, currentAttrs, enabledFlags);
+    case 'implication':   return attrsReachableByImplication(tail, currentAttrs, enabledFlags);
+    case 'biconditional': return attrsReachableByBiconditional(tail, currentAttrs, enabledFlags);
     case 'union':
-    default:             return attrsReachableFromSubset(tail, currentAttrs, enabledFlags);
+    default:              return attrsReachableFromSubset(tail, currentAttrs, enabledFlags);
   }
 }
 
@@ -662,13 +696,32 @@ function pickImplicationAttrs(tail, enabledFlags, maxPerTrial) {
   return cand;
 }
 
+function pickBiconditionalAttrs(tail, enabledFlags, maxPerTrial) {
+  const usable = (tail || []).filter(s => s?.attrs);
+  if (usable.length < 2) return null;
+  const withinCap = (a) => !maxPerTrial || maxPerTrial <= 0 || attrsCount(a, enabledFlags) <= maxPerTrial;
+  for (let attempt = 0; attempt < 16; attempt++) {
+    const maxK = Math.min(usable.length, 4);
+    const k = 2 + Math.floor(Math.random() * (maxK - 1));
+    const subset = [...usable].sort(() => Math.random() - 0.5).slice(0, k);
+    const cand = emptyAttrs();
+    enabledFlags.forEach(f => {
+      const v0 = !!subset[0].attrs[f];
+      cand[f] = subset.every(s => !!s.attrs[f] === v0);
+    });
+    if (enabledFlags.some(f => cand[f]) && withinCap(cand)) return cand;
+  }
+  return null;
+}
+
 function pickReachableAttrsByRule(rule, tail, enabledFlags, maxPerTrial) {
   switch (rule) {
-    case 'intersection': return pickIntersectionAttrs(tail, enabledFlags, maxPerTrial);
-    case 'xor':          return pickXorAttrs(tail, enabledFlags, maxPerTrial);
-    case 'implication':  return pickImplicationAttrs(tail, enabledFlags, maxPerTrial);
+    case 'intersection':  return pickIntersectionAttrs(tail, enabledFlags, maxPerTrial);
+    case 'xor':           return pickXorAttrs(tail, enabledFlags, maxPerTrial);
+    case 'implication':   return pickImplicationAttrs(tail, enabledFlags, maxPerTrial);
+    case 'biconditional': return pickBiconditionalAttrs(tail, enabledFlags, maxPerTrial);
     case 'union':
-    default:             return pickReachableAttrs(tail, enabledFlags, maxPerTrial);
+    default:              return pickReachableAttrs(tail, enabledFlags, maxPerTrial);
   }
 }
 

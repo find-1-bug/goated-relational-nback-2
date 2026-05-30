@@ -1352,7 +1352,7 @@ export default function StartScreen({ onStart, suggestedN, lastSettings }) {
                 </div>
                 <span className="text-[10px] font-mono text-fuchsia-400/70">{NRINT_MATCH_RULE_META[nrintMatchRule].label.toLowerCase()}</span>
               </div>
-              <div className="grid grid-cols-2 sm:grid-cols-4 gap-1.5">
+              <div className="grid grid-cols-2 sm:grid-cols-3 md:grid-cols-5 gap-1.5">
                 {NRINT_MATCH_RULES.map(r => {
                   const m = NRINT_MATCH_RULE_META[r];
                   const on = nrintMatchRule === r;
