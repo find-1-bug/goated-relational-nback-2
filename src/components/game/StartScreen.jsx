@@ -5,6 +5,7 @@ import { motion, AnimatePresence } from 'framer-motion';
 import { RELATIONSHIP_CATEGORIES, setTokenWeights, getTokenWeights, filterTransitiveRelationships, COACH_PHASES, TJN_TIERS, TJN_TIER_META, TJN_TOPOLOGY_LABELS, TJN_DEFAULT_TIER, TJN_DEFAULT_TOPOLOGY, TJN_DEFAULT_NODES, TJN_HARD_K } from '@/lib/gameConstants';
 import { migrateCoachState, pickNextPhase, masteryLabel, difficultyOrder } from '@/lib/coachMastery';
 import { NRINT_FLAGS, NRINT_FLAG_META, NRINT_MATCH_RULES, NRINT_MATCH_RULE_META } from '@/lib/gameEngine';
+import { getSettings, saveSettings } from '@/lib/localStorageManager';
 
 // Build a weighted pool from category weights + enabled rels
 // Each category's rels are repeated proportionally to its weight
@@ -252,6 +253,9 @@ const CAROUSEL_SPEED_OPTIONS = [
 
 function StreamRow({ label, labelColor, borderColor, keyCode, positionKeyCode, cctKeyCode, rstKeyCode, showPositionKey, showCCTKey, showRSTKey, onKeyChange, onPositionKeyChange, onCCTKeyChange, onRSTKeyChange, allStreamKeys, thisKey, thisPositionKey, thisCCTKey, thisRSTKey, onRemove, streamType, onStreamTypeChange }) {
   const isCCT = streamType === 'cct';
+  // Default-collapsed key bindings: most users keep defaults — only expose the
+  // 4 select dropdowns when the user opts in. Keeps the streams panel scannable.
+  const [showKeys, setShowKeys] = React.useState(false);
   return (
     <div className={`rounded-lg bg-secondary/50 border ${borderColor} p-2 space-y-1.5`}>
       <div className="flex items-center gap-2 flex-wrap">
@@ -277,6 +281,14 @@ function StreamRow({ label, labelColor, borderColor, keyCode, positionKeyCode, c
             </button>
           </div>
         )}
+        <button
+          type="button"
+          onClick={() => setShowKeys(v => !v)}
+          className={`${onRemove ? '' : 'ml-auto'} text-[10px] font-mono text-muted-foreground/70 hover:text-foreground transition-colors shrink-0 px-1.5 py-0.5`}
+          title="Customize key bindings"
+        >
+          {showKeys ? '× keys' : '⋯ keys'}
+        </button>
         {onRemove && (
           <button onClick={onRemove}
             className="ml-auto w-6 h-6 rounded bg-secondary border border-border text-muted-foreground hover:text-destructive hover:border-destructive/50 flex items-center justify-center transition-colors text-sm shrink-0">
@@ -284,6 +296,7 @@ function StreamRow({ label, labelColor, borderColor, keyCode, positionKeyCode, c
           </button>
         )}
       </div>
+      {showKeys && (<>
       <div className="flex items-center gap-2">
         {showPositionKey && <span className="text-xs font-mono text-muted-foreground/60 w-8 shrink-0">REL</span>}
         <select
@@ -342,6 +355,7 @@ function StreamRow({ label, labelColor, borderColor, keyCode, positionKeyCode, c
           </select>
         </div>
       )}
+      </>)}
     </div>
   );
 }
@@ -635,6 +649,21 @@ export default function StartScreen({ onStart, suggestedN, lastSettings }) {
   });
   const [showTokenMix, setShowTokenMix] = React.useState(false);
   const [showEnhancementModes, setShowEnhancementModes] = React.useState(false);
+  // Declutter (sokuichi feedback): the StartScreen used to dump every panel by
+  // default. Now the Coach card + a single "Advanced settings" expander are
+  // the default view; everything else stays one click away and persists.
+  const initialUI = (lastSettings && lastSettings.uiPreferences) || {};
+  const [showAdvanced, setShowAdvanced] = React.useState(!!initialUI.showAdvanced);
+  const [showCoachDetails, setShowCoachDetails] = React.useState(!!initialUI.showCoachDetails);
+  React.useEffect(() => {
+    // Persist UI prefs alongside the existing lastGame snapshot so users only
+    // get the default-collapsed view once.
+    try {
+      const cur = getSettings();
+      const nextLastGame = { ...(cur.lastGame || {}), uiPreferences: { showAdvanced, showCoachDetails } };
+      saveSettings({ ...cur, lastGame: nextLastGame });
+    } catch (_) { /* localStorage may be unavailable; OK to ignore */ }
+  }, [showAdvanced, showCoachDetails]);
 
   const TOKEN_META = [
     { id: 'meaningful',    label: 'Words',       color: '#22d3ee', desc: 'Real words (sun, fire, mind…)' },
@@ -828,10 +857,23 @@ export default function StartScreen({ onStart, suggestedN, lastSettings }) {
           <p className="text-[9px] font-mono text-muted-foreground/90 max-w-sm mx-auto leading-normal">
             "{previewPhase.desc || ""}"
           </p>
+          {/* One inline summary row stays visible: mastery + difficulty/N/speed. */}
           <div className="flex justify-between items-center text-[10px] font-mono border-t border-border/40 pt-2 px-1 gap-2 flex-wrap">
-            <span className="text-muted-foreground">Rank: <strong className="text-emerald-400">{coachState.rankName}</strong></span>
             <span className="text-muted-foreground">Mastery: <strong className="text-violet-300">{masteryLabel(coachState.phaseMastery?.[previewPhaseIdx], coachState.sessionCount || 0)}</strong></span>
-            <span className="text-muted-foreground">N={previewPhase.nLevel || 2} · {previewPhase.speedMs || 3200}ms</span>
+            <span className="text-muted-foreground">D{previewPhase.difficulty ?? '?'} · N={previewPhase.nLevel || 2} · {previewPhase.speedMs || 3200}ms</span>
+          </div>
+          {/* Coach details (Rank / Sessions / Frontier / Test-phase override) —
+              collapsed by default to keep the card scannable. */}
+          <button
+            onClick={() => setShowCoachDetails(v => !v)}
+            className="w-full flex items-center justify-center gap-1 pt-1 text-[10px] font-mono text-muted-foreground/70 hover:text-foreground transition-colors"
+          >
+            {showCoachDetails ? <ChevronUp className="w-3 h-3" /> : <ChevronDown className="w-3 h-3" />}
+            Coach details
+          </button>
+          {showCoachDetails && (<>
+          <div className="text-[10px] font-mono text-muted-foreground pt-1 border-t border-border/40">
+            Rank: <strong className="text-emerald-400">{coachState.rankName}</strong>
           </div>
           <div className="text-[9px] font-mono text-muted-foreground/60 italic">
             Sessions played: {coachState.sessionCount || 0} · Frontier: {COACH_PHASES[coachState.phaseIndex || 0]?.title || '—'} · D{COACH_PHASES[coachState.phaseIndex || 0]?.difficulty ?? '?'}
@@ -873,6 +915,7 @@ export default function StartScreen({ onStart, suggestedN, lastSettings }) {
               </button>
             )}
           </div>
+          </>)}
         </div>
           );
         })()}
@@ -922,6 +965,28 @@ export default function StartScreen({ onStart, suggestedN, lastSettings }) {
             <TrendingUp className="w-3.5 h-3.5" /> Transfer Ledger
           </Button>
         </div>
+
+        {/* Advanced settings — every per-mode panel and toggle lives behind
+            this one expander. Default collapsed for first-time visitors
+            (sokuichi feedback: "ui is pretty cluttered"). Setting persists
+            via lastSettings.uiPreferences. */}
+        <div className="space-y-2">
+          <button
+            onClick={() => setShowAdvanced(v => !v)}
+            className="w-full flex items-center justify-between px-3 py-2.5 rounded-lg bg-secondary/60 border border-border hover:border-muted-foreground/40 transition-colors"
+          >
+            <span className="text-xs font-mono text-muted-foreground uppercase tracking-widest">Advanced settings</span>
+            <div className="flex items-center gap-3">
+              <span className="text-[10px] font-mono text-muted-foreground/70">N={nLevel} · {modes.length} {modes.length === 1 ? 'mode' : 'modes'} · {1 + extraStreams.length} {extraStreams.length === 0 ? 'stream' : 'streams'}</span>
+              {showAdvanced ? <ChevronUp className="w-3.5 h-3.5 text-muted-foreground" /> : <ChevronDown className="w-3.5 h-3.5 text-muted-foreground" />}
+            </div>
+          </button>
+        </div>
+
+        <AnimatePresence>
+        {showAdvanced && (
+        <motion.div initial={{ height: 0, opacity: 0 }} animate={{ height: 'auto', opacity: 1 }} exit={{ height: 0, opacity: 0 }} className="overflow-hidden">
+        <div className="space-y-6 pt-2">
 
         {/* N-Level spinner */}
         <div className="space-y-2">
@@ -1272,7 +1337,7 @@ export default function StartScreen({ onStart, suggestedN, lastSettings }) {
 
         {/* Nonverbal RINT Settings */}
         {nrintActive && (
-          <div className="space-y-3 rounded-lg bg-fuchsia-500/5 border border-fuchsia-500/30 p-3">
+          <div className="space-y-3 rounded-lg bg-secondary/30 border border-border p-3">
             <div className="flex items-center justify-between flex-wrap gap-2">
               <label className="text-xs font-mono text-fuchsia-300 uppercase tracking-widest">Nonverbal RINT Settings</label>
               <span className="text-[10px] font-mono text-fuchsia-400/70">{nrintEnabledFlags.length}/{NRINT_FLAGS.length} attrs active</span>
@@ -1378,7 +1443,7 @@ export default function StartScreen({ onStart, suggestedN, lastSettings }) {
 
         {/* Trajectory N-Back / Schema Transfer (SR + TEM) Settings */}
         {tjnActive && (
-          <div className="space-y-3 rounded-lg bg-indigo-500/5 border border-indigo-500/30 p-3">
+          <div className="space-y-3 rounded-lg bg-secondary/30 border border-border p-3">
             <div className="flex items-center justify-between flex-wrap gap-2">
               <label className="text-xs font-mono text-indigo-300 uppercase tracking-widest">Trajectory N-Back · Predictive Map</label>
               <span className="text-[10px] font-mono text-indigo-400/70">Stachenfeld 2017 · Behrens 2020</span>
@@ -1483,7 +1548,7 @@ export default function StartScreen({ onStart, suggestedN, lastSettings }) {
 
         {/* Decoy Filter (selective attention) settings */}
         {decoyFilterActive && (
-          <div className="space-y-3 rounded-lg bg-amber-500/5 border border-amber-500/30 p-3">
+          <div className="space-y-3 rounded-lg bg-secondary/30 border border-border p-3">
             <div className="flex items-center justify-between flex-wrap gap-2">
               <label className="text-xs font-mono text-amber-300 uppercase tracking-widest">Decoy Filter · Selective Attention</label>
               <span className="text-[10px] font-mono text-amber-400/70">{activeDecoyCategories.length} categories in pool</span>
@@ -1557,7 +1622,7 @@ export default function StartScreen({ onStart, suggestedN, lastSettings }) {
 
         {/* RST Settings (only when RST Side-Task is enabled) */}
         {rstOverlayActive && (
-          <div className="space-y-3 rounded-lg bg-violet-500/5 border border-violet-500/30 p-3">
+          <div className="space-y-3 rounded-lg bg-secondary/30 border border-border p-3">
             <div className="flex items-center justify-between flex-wrap gap-2">
               <label className="text-xs font-mono text-violet-300 uppercase tracking-widest">RST Side-Task · Difficulty</label>
               <span className="text-[10px] font-mono text-violet-400/70">family pool</span>
@@ -1823,6 +1888,11 @@ export default function StartScreen({ onStart, suggestedN, lastSettings }) {
             />
           </button>
         </div>
+
+        </div>
+        </motion.div>
+        )}
+        </AnimatePresence>
 
         {/* Pre-session rule briefing — surfaces the rule for each currently
             active mode (either user's manual selection OR the test phase's

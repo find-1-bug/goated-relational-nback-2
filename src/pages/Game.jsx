@@ -8,7 +8,7 @@ import ThemeToggle from '@/components/ThemeToggle';
 import { calculateResults, computeNextNLevel } from '@/lib/gameEngine';
 import { addSession, saveSettings, getSettings } from '@/lib/localStorageManager';
 import { AnimatePresence, motion } from 'framer-motion';
-import { Brain } from 'lucide-react';
+import { Brain, Menu as MenuIcon, BookOpen, Activity, Sparkles, GraduationCap, Heart } from 'lucide-react';
 import { Button } from '@/components/ui/button';
 
 // Evidence base, grouped by the app aspect each study supports. Every entry
@@ -113,6 +113,7 @@ export default function Game() {
   const [startTime, setStartTime] = useState(null);
   const [gameRunId, setGameRunId] = useState(0);
   const [showStudies, setShowStudies] = useState(false);
+  const [showMenu, setShowMenu] = useState(false);
 
   // Persisted settings restored on mount
   const [lastSettings, setLastSettings] = useState(() => {
@@ -299,38 +300,57 @@ export default function Game() {
           onBack={handleBack}
         />
       )}
-      {/* Top nav — stats & tutorial links from start screen only (exit handled by GameScreen) */}
-      <div className="fixed top-3 right-3 z-10 flex gap-2 flex-wrap justify-end max-w-[calc(100vw-1.5rem)]" style={{ top: 'max(0.75rem, env(safe-area-inset-top))' }}>
+      {/* Top nav — collapsed into a single Menu (≡) to reduce clutter (sokuichi feedback).
+          ThemeToggle + InstallAppButton stay inline; everything else lives in the dropdown. */}
+      <div className="fixed top-3 right-3 z-30 flex gap-2 justify-end" style={{ top: 'max(0.75rem, env(safe-area-inset-top))' }}>
         {screen === 'start' && (
           <>
             <ThemeToggle />
             <InstallAppButton />
-            <button
-              onClick={() => setShowStudies(true)}
-              className="px-2.5 sm:px-3 py-1.5 rounded-lg bg-emerald-500/15 border border-emerald-500/50 text-emerald-400 hover:bg-emerald-500/25 hover:border-emerald-500 text-xs font-mono font-semibold transition-colors"
-            >
-              Studies
-            </button>
-            <Link to="/insight" className="px-2.5 sm:px-3 py-1.5 rounded-lg bg-amber-500/15 border border-amber-500/50 text-amber-400 hover:bg-amber-500/25 hover:border-amber-500 text-xs font-mono font-semibold transition-colors">
-              Insight
-            </Link>
-            <Link to="/assessment" className="px-2.5 sm:px-3 py-1.5 rounded-lg bg-cyan-500/15 border border-cyan-500/50 text-cyan-400 hover:bg-cyan-500/25 hover:border-cyan-500 text-xs font-mono font-semibold transition-colors">
-              Snapshot
-            </Link>
-            <Link to="/tutorial" className="px-2.5 sm:px-3 py-1.5 rounded-lg bg-accent/15 border border-accent/50 text-accent hover:bg-accent/25 hover:border-accent text-xs font-mono font-semibold transition-colors">
-              Tutorial
-            </Link>
-            <Link to="/stats" className="px-2.5 sm:px-3 py-1.5 rounded-lg bg-chart-3/15 border border-chart-3/50 text-chart-3 hover:bg-chart-3/25 hover:border-chart-3 text-xs font-mono font-semibold transition-colors">
-              Stats
-            </Link>
-            <a
-              href="https://github.com/sponsors/find-1-bug"
-              target="_blank"
-              rel="noopener noreferrer"
-              className="px-2.5 sm:px-3 py-1.5 rounded-lg bg-rose-500/15 border border-rose-500/50 text-rose-400 hover:bg-rose-500/25 hover:border-rose-500 text-xs font-mono font-semibold transition-colors flex items-center gap-1 shadow-[0_0_8px_rgba(244,63,94,0.15)] hover:shadow-[0_0_12px_rgba(244,63,94,0.3)]"
-            >
-              <span className="animate-pulse">❤️</span> Donate
-            </a>
+            <div className="relative">
+              <button
+                onClick={() => setShowMenu(v => !v)}
+                aria-label="Open menu"
+                className="px-2.5 sm:px-3 py-1.5 rounded-lg bg-secondary border border-border text-foreground hover:border-muted-foreground/60 text-xs font-mono font-semibold transition-colors flex items-center gap-1.5"
+              >
+                <MenuIcon className="w-3.5 h-3.5" /> Menu
+              </button>
+              {showMenu && (
+                <>
+                  {/* Click-outside backdrop */}
+                  <div className="fixed inset-0 z-30" onClick={() => setShowMenu(false)} />
+                  <div className="absolute right-0 mt-2 w-52 rounded-lg bg-card border border-border shadow-2xl z-40 overflow-hidden font-mono">
+                    <button
+                      onClick={() => { setShowMenu(false); setShowStudies(true); }}
+                      className="w-full text-left px-3 py-2 text-xs hover:bg-secondary/50 flex items-center gap-2 text-emerald-400"
+                    >
+                      <BookOpen className="w-3.5 h-3.5" /> Studies
+                    </button>
+                    <Link to="/assessment" onClick={() => setShowMenu(false)} className="block px-3 py-2 text-xs hover:bg-secondary/50 flex items-center gap-2 text-cyan-400">
+                      <Brain className="w-3.5 h-3.5" /> Snapshot (Reasoning Index)
+                    </Link>
+                    <Link to="/insight" onClick={() => setShowMenu(false)} className="block px-3 py-2 text-xs hover:bg-secondary/50 flex items-center gap-2 text-amber-400">
+                      <Sparkles className="w-3.5 h-3.5" /> Insight
+                    </Link>
+                    <Link to="/tutorial" onClick={() => setShowMenu(false)} className="block px-3 py-2 text-xs hover:bg-secondary/50 flex items-center gap-2 text-accent">
+                      <GraduationCap className="w-3.5 h-3.5" /> Tutorial
+                    </Link>
+                    <Link to="/stats" onClick={() => setShowMenu(false)} className="block px-3 py-2 text-xs hover:bg-secondary/50 flex items-center gap-2 text-chart-3">
+                      <Activity className="w-3.5 h-3.5" /> Stats
+                    </Link>
+                    <a
+                      href="https://github.com/sponsors/find-1-bug"
+                      target="_blank"
+                      rel="noopener noreferrer"
+                      onClick={() => setShowMenu(false)}
+                      className="block px-3 py-2 text-xs hover:bg-secondary/50 flex items-center gap-2 text-rose-400 border-t border-border/60"
+                    >
+                      <Heart className="w-3.5 h-3.5 animate-pulse" /> Donate
+                    </a>
+                  </div>
+                </>
+              )}
+            </div>
           </>
         )}
       </div>
