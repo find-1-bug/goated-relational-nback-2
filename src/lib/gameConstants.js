@@ -1206,6 +1206,47 @@ export const COACH_PHASES = [
     decoyFilterRule: 'never_target',
     decoyFilterRandom: true,
     desc: "Single stream, but certain relation CATEGORIES are decoys you must IGNORE — withhold even if they match (pressing a decoy = false alarm). The decoy categories are randomized per session and shown on the stream. Trains selective attention / distractor inhibition while holding the N-back load."
+  },
+  // ── NRINT match-rule ladder (Grapist request) ──────────────────────────────
+  // Practices each non-default Nonverbal RINT logical rule in its own phase so
+  // the new rule selector gets a curriculum, not just a setting buried in the
+  // panel. Modest flag count + small cap to keep the load tractable while
+  // learning the new rule.
+  {
+    title: "Phase 34: NRINT — Intersection",
+    nLevel: 2,
+    speedMs: 2200,
+    rounds: 26,
+    modes: ['nonverbal_rint', 'feedback_per_trial', 'adaptive_closed_loop'],
+    nrintMatchRule: 'intersection',
+    desc: "Nonverbal RINT under the INTERSECTION rule: target fires when the current attribute set equals the flags shared by every member of some non-empty subset of the last N stims. Tighter than union — current must be a subset of every chosen stim."
+  },
+  {
+    title: "Phase 35: NRINT — XOR (parity)",
+    nLevel: 2,
+    speedMs: 2200,
+    rounds: 28,
+    modes: ['nonverbal_rint', 'feedback_per_trial', 'adaptive_closed_loop'],
+    nrintMatchRule: 'xor',
+    desc: "Nonverbal RINT under the XOR / symmetric-difference rule: a flag is ON in current iff an odd number of the chosen subset of the last N stims have it. Parity — pairs cancel out. Drilling this trains GF(2) linear thinking under WM load."
+  },
+  {
+    title: "Phase 36: NRINT — Implication",
+    nLevel: 2,
+    speedMs: 2200,
+    rounds: 28,
+    modes: ['nonverbal_rint', 'feedback_per_trial', 'adaptive_closed_loop'],
+    nrintMatchRule: 'implication',
+    desc: "Nonverbal RINT under the IMPLICATION rule: target fires when there exists a non-empty stim s in the last N whose flag set is contained in current (s → current). The most permissive rule of the five — sharper distractor pressure to compensate."
+  },
+  {
+    title: "Phase 37: NRINT — Biconditional / Equivalence",
+    nLevel: 2,
+    speedMs: 2200,
+    rounds: 28,
+    modes: ['nonverbal_rint', 'feedback_per_trial', 'adaptive_closed_loop'],
+    nrintMatchRule: 'biconditional',
+    desc: "Nonverbal RINT under the BICONDITIONAL / equivalence rule: current equals the flags where every member of some subset of size ≥ 2 of the last N stims agrees (the consensus / agreement set; for two stims this is exactly A ↔ B). The strictest rule — flag-by-flag agreement across multiple stims."
   }
 ];
 

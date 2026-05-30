@@ -220,6 +220,9 @@ export default function Game() {
       // Whether a decoy filter was active (type-based selective attention),
       // for the Stats "Selective Attention" with/without comparison.
       decoyFilterActive: (state.modes || []).includes('decoy_filter'),
+      // Tag the active NRINT match rule when NRINT was on, so Stats can
+      // break accuracy down per rule.
+      nrintMatchRule: (state.modes || []).includes('nonverbal_rint') ? (state.nrintMatchRule || 'union') : null,
       phaseTitle: state.phaseTitle || '',
       trials: state.allTrials || [] // trials saved during gameplay
     };

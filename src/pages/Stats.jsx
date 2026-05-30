@@ -714,6 +714,39 @@ export default function Stats() {
               )}
             </div>
 
+            {/* NRINT per-rule accuracy breakdown (Grapist's match rules) */}
+            {(() => {
+              const nrintSessions = sessions.filter(s => s.nrintMatchRule);
+              if (!nrintSessions.length) return null;
+              const rules = ['union', 'intersection', 'xor', 'implication', 'biconditional'];
+              const rows = rules.map(r => {
+                const matched = nrintSessions.filter(s => s.nrintMatchRule === r);
+                const avg = matched.length ? Math.round(matched.reduce((a, x) => a + (x.accuracy || 0), 0) / matched.length) : null;
+                return { rule: r, count: matched.length, avg };
+              });
+              return (
+                <div className="rounded-xl bg-fuchsia-500/5 border border-fuchsia-500/30 p-4 space-y-3">
+                  <div className="flex items-center justify-between flex-wrap gap-2">
+                    <h3 className="text-xs font-mono font-bold uppercase tracking-widest text-fuchsia-300">Nonverbal RINT · per match rule</h3>
+                    <span className="text-[10px] font-mono text-fuchsia-400/70">{nrintSessions.length} NRINT sessions</span>
+                  </div>
+                  <p className="text-[10px] font-mono text-muted-foreground/80">Average accuracy under each of the 5 NRINT logical rules — Union (default), Intersection, XOR, Implication, Biconditional.</p>
+                  <div className="grid grid-cols-2 sm:grid-cols-5 gap-2 font-mono text-center">
+                    {rows.map(r => {
+                      const accColor = r.avg == null ? 'text-muted-foreground' : r.avg >= 75 ? 'text-emerald-400' : r.avg >= 55 ? 'text-cyan-400' : 'text-amber-400';
+                      return (
+                        <div key={r.rule} className="rounded-lg bg-background/40 border border-border p-2">
+                          <div className={`text-lg font-bold ${accColor}`}>{r.avg == null ? '—' : `${r.avg}%`}</div>
+                          <div className="text-[9px] uppercase tracking-widest text-fuchsia-300">{r.rule}</div>
+                          <div className="text-[8px] text-muted-foreground">{r.count}x</div>
+                        </div>
+                      );
+                    })}
+                  </div>
+                </div>
+              );
+            })()}
+
             {/* Synaesthesia Training Performance Card */}
             <div className="rounded-xl bg-gradient-to-br from-indigo-900/10 to-indigo-950/20 border border-indigo-500/20 p-4 shadow-lg space-y-4">
               <div className="flex items-center justify-between">

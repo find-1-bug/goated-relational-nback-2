@@ -1958,7 +1958,8 @@ export default function StartScreen({ onStart, suggestedN, lastSettings }) {
                   nrintEnabledFlags,
                   nrintHideLegend,
                   nrintMaxPerTrial,
-                  nrintMatchRule,
+                  // Coach-phase NRINT match rule overrides the manual selector.
+                  nrintMatchRule: currentPhase.nrintMatchRule || nrintMatchRule,
                   // Decoy filter: a phase may force config; else use the user's.
                   decoyFilterRule: currentPhase.decoyFilterRule || decoyFilterRule,
                   decoyFilterRandom: 'decoyFilterRandom' in currentPhase ? currentPhase.decoyFilterRandom : decoyFilterRandom,
