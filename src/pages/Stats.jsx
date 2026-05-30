@@ -714,15 +714,43 @@ export default function Stats() {
               )}
             </div>
 
-            {/* NRINT per-rule accuracy breakdown (Grapist's match rules) */}
+            {/* NRINT per-rule accuracy breakdown (Grapist's match rules).
+                With multi-rule + weighted sessions, single-rule sessions
+                contribute their overall accuracy to that rule's row, while
+                multi-rule sessions break down to per-trial granularity using
+                each trial's recorded _nrintMatchRule (one of the 5 sampled
+                that trial). This keeps the aggregate honest across mixes. */}
             {(() => {
               const nrintSessions = sessions.filter(s => s.nrintMatchRule);
               if (!nrintSessions.length) return null;
               const rules = ['union', 'intersection', 'xor', 'implication', 'biconditional'];
+              const isMultiRule = (s) => {
+                const w = s.nrintMatchRuleWeights;
+                if (!w || typeof w !== 'object') return false;
+                const active = rules.filter(r => Number(w[r]) > 0);
+                return active.length > 1;
+              };
               const rows = rules.map(r => {
-                const matched = nrintSessions.filter(s => s.nrintMatchRule === r);
-                const avg = matched.length ? Math.round(matched.reduce((a, x) => a + (x.accuracy || 0), 0) / matched.length) : null;
-                return { rule: r, count: matched.length, avg };
+                // Single-rule sessions for rule r: contribute their overall accuracy
+                const singleMatched = nrintSessions.filter(s => !isMultiRule(s) && s.nrintMatchRule === r);
+                const singleAccs = singleMatched.map(s => Number(s.accuracy) || 0);
+                // Multi-rule sessions: count per-trial hits/totals for trials sampled to r
+                let multiHits = 0, multiTotal = 0, multiSessionCount = 0;
+                nrintSessions.filter(isMultiRule).forEach(s => {
+                  const ts = (s.trials || []).filter(t => t?.responseType === 'relation' && t?.stimulus?._nrintMatchRule === r);
+                  if (ts.length) {
+                    multiSessionCount++;
+                    multiTotal += ts.length;
+                    multiHits += ts.filter(t => t.correct).length;
+                  }
+                });
+                const singleAcc = singleAccs.length ? singleAccs.reduce((a, x) => a + x, 0) / singleAccs.length : null;
+                const multiAcc = multiTotal > 0 ? (multiHits / multiTotal) * 100 : null;
+                let avg = null;
+                if (singleAcc != null && multiAcc != null) avg = Math.round((singleAcc * singleMatched.length + multiAcc * multiSessionCount) / (singleMatched.length + multiSessionCount));
+                else if (singleAcc != null) avg = Math.round(singleAcc);
+                else if (multiAcc != null) avg = Math.round(multiAcc);
+                return { rule: r, count: singleMatched.length + multiSessionCount, avg };
               });
               return (
                 <div className="rounded-xl bg-fuchsia-500/5 border border-fuchsia-500/30 p-4 space-y-3">

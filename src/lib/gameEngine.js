@@ -537,6 +537,46 @@ export const NRINT_MATCH_RULE_META = {
   biconditional: { label: 'Biconditional', desc: 'current = the flags where ALL members of some subset (size ≥ 2) agree — i.e. the agreement / equivalence set' },
 };
 
+// Default weights: only union is enabled (preserves legacy behavior).
+export const NRINT_DEFAULT_RULE_WEIGHTS = { union: 1, intersection: 0, xor: 0, implication: 0, biconditional: 0 };
+
+// Normalize a "rule spec" to a weights object. Accepts either:
+//   - a legacy string (one of NRINT_MATCH_RULES) → { [rule]: 1, others: 0 }
+//   - an object map { rule: weight, ... }
+// Returns a clean object with all 5 keys, integer-coerced non-negative
+// weights. If the result has every weight = 0, falls back to union=1 so the
+// engine never sees an empty distribution.
+export function normalizeNrintRuleWeights(spec) {
+  const out = { union: 0, intersection: 0, xor: 0, implication: 0, biconditional: 0 };
+  if (typeof spec === 'string' && NRINT_MATCH_RULES.includes(spec)) {
+    out[spec] = 1;
+    return out;
+  }
+  if (spec && typeof spec === 'object') {
+    for (const r of NRINT_MATCH_RULES) {
+      const w = Number(spec[r]);
+      out[r] = Number.isFinite(w) && w > 0 ? w : 0;
+    }
+  }
+  const total = NRINT_MATCH_RULES.reduce((s, r) => s + out[r], 0);
+  if (total <= 0) out.union = 1;
+  return out;
+}
+
+// Pick a single rule for the current trial by weight. Multi-rule + weights
+// support (Grapist request) — when multiple rules have weight > 0, each trial
+// independently samples one according to the weights' relative frequency.
+export function pickNrintRuleByWeights(weights) {
+  const w = normalizeNrintRuleWeights(weights);
+  const total = NRINT_MATCH_RULES.reduce((s, r) => s + w[r], 0);
+  let r = Math.random() * total;
+  for (const rule of NRINT_MATCH_RULES) {
+    r -= w[rule];
+    if (r <= 0) return rule;
+  }
+  return 'union';
+}
+
 // Intersection: ∃ non-empty subset S of tail with ∩_{s∈S} s.attrs == current.
 // Equivalently: there's at least one tail stim whose attrs ⊇ current, AND for
 // every flag NOT in current at least one such superset stim has that flag off.
@@ -767,7 +807,7 @@ function makeNRINTStim(attrs) {
 // streamConfig: { trialMode, binaryMode, binaryOp, hierHistory } for Hierarchical and Binary Logic
 const DECOY_FILTER_TRIAL_RATE = 0.35; // fraction of trials drawn from decoy categories
 
-function generateOneStreamStimulus({ history, typeHistory, rintState, pool, effectiveN, trialMode, matchChance, hasDistractors, hasLures = false, negationMode = false, trialIndex, hierHistory, binaryMode, binaryOp, signalOnly = false, baseStim = null, alienCube = false, alienSquare = false, alienTesseract = false, alienSettings = {}, nrintEnabledFlags = NRINT_DEFAULT_FLAGS, nrintHideLegend = false, nrintMaxPerTrial = 0, nrintMatchRule = 'union', decoyCats = [], decoyFilterRule = 'never_target', customLureRate = null, customNegationRate = null, modes = [] }) {
+function generateOneStreamStimulus({ history, typeHistory, rintState, pool, effectiveN, trialMode, matchChance, hasDistractors, hasLures = false, negationMode = false, trialIndex, hierHistory, binaryMode, binaryOp, signalOnly = false, baseStim = null, alienCube = false, alienSquare = false, alienTesseract = false, alienSettings = {}, nrintEnabledFlags = NRINT_DEFAULT_FLAGS, nrintHideLegend = false, nrintMaxPerTrial = 0, nrintMatchRule = 'union', nrintMatchRuleWeights = null, decoyCats = [], decoyFilterRule = 'never_target', customLureRate = null, customNegationRate = null, modes = [] }) {
    let stim, isPrimaryTarget = false, isPositionTarget = false, nextRINTState = rintState;
    const canTarget = history.length >= effectiveN;
 
@@ -798,13 +838,17 @@ function generateOneStreamStimulus({ history, typeHistory, rintState, pool, effe
     stim = cctResult.stim;
     isPrimaryTarget = cctResult.isTarget;
   } else if (trialMode === 'nrint') {
-    // Nonverbal cross-attribute RINT. Match rule is configurable (Grapist
-    // request): 'union' (default) | 'intersection' | 'xor' | 'implication'.
+    // Nonverbal cross-attribute RINT. Multi-rule + weights support (Grapist
+    // request, follow-up to the original single-rule selector): the engine
+    // accepts a weights object; each trial independently samples one rule by
+    // weight. Single-rule mode is the special case of one rule with weight ≥ 1
+    // and all others zero — same behavior as before, no migration churn.
     // Per-session enabledFlags controls which attribute dimensions are active;
     // the per-trial cap bounds tracking load.
     const flags = (nrintEnabledFlags && nrintEnabledFlags.length) ? nrintEnabledFlags : NRINT_DEFAULT_FLAGS;
     const cap = (nrintMaxPerTrial && nrintMaxPerTrial > 0) ? Math.min(nrintMaxPerTrial, flags.length) : 0;
-    const rule = nrintMatchRule || 'union';
+    const ruleSpec = nrintMatchRuleWeights || nrintMatchRule || 'union';
+    const rule = pickNrintRuleByWeights(ruleSpec);
     const tail = history.slice(-effectiveN).filter(s => s?.rel === 'NRINT_COMPOSITE');
     const haveChain = tail.length >= effectiveN;
     let attrs;
@@ -1039,7 +1083,7 @@ function randomBinaryConfig(effectiveN) {
 
 // ─── State Creation ──────────────────────────────────────────────────────────
 
-export function createGameState({ nLevel, modes, relationshipPool, totalRounds, extraStreams = [], alienSettings = {}, streamA = null, nrintEnabledFlags = null, nrintHideLegend = false, nrintMaxPerTrial = 0, nrintMatchRule = 'union', decoyFilterRule = 'never_target', decoyFilterRandom = true, decoyFilterCategories = [], initialSpeedMs = 2800, wrapperMorphStyle = 'shift', rstDifficulty = 'easy', tjnTier = TJN_DEFAULT_TIER, tjnTopology = TJN_DEFAULT_TOPOLOGY, tjnNodes = TJN_DEFAULT_NODES, tjnK = TJN_HARD_K, tjnSchemaMode = false, tjnSchemaBlocks = 3 } = {}) {
+export function createGameState({ nLevel, modes, relationshipPool, totalRounds, extraStreams = [], alienSettings = {}, streamA = null, nrintEnabledFlags = null, nrintHideLegend = false, nrintMaxPerTrial = 0, nrintMatchRule = 'union', nrintMatchRuleWeights = null, decoyFilterRule = 'never_target', decoyFilterRandom = true, decoyFilterCategories = [], initialSpeedMs = 2800, wrapperMorphStyle = 'shift', rstDifficulty = 'easy', tjnTier = TJN_DEFAULT_TIER, tjnTopology = TJN_DEFAULT_TOPOLOGY, tjnNodes = TJN_DEFAULT_NODES, tjnK = TJN_HARD_K, tjnSchemaMode = false, tjnSchemaBlocks = 3 } = {}) {
   const opts = { tjnSchemaMode, tjnSchemaBlocks };
   const numExtra = extraStreams.length;
   const totalStreams = 1 + numExtra;
@@ -1158,6 +1202,7 @@ export function createGameState({ nLevel, modes, relationshipPool, totalRounds, 
     nrintHideLegend: !!nrintHideLegend,
     nrintMaxPerTrial: Number(nrintMaxPerTrial) || 0,
     nrintMatchRule: NRINT_MATCH_RULES.includes(nrintMatchRule) ? nrintMatchRule : 'union',
+    nrintMatchRuleWeights: normalizeNrintRuleWeights(nrintMatchRuleWeights || nrintMatchRule),
     initialSpeedMs,
     adaptiveSpeedMs: initialSpeedMs,
     adaptiveLureRate: 0.20,
@@ -1486,6 +1531,7 @@ export function generateNextStimulus(state) {
   const nrintHideLegend = !!state.nrintHideLegend;
   const nrintMaxPerTrial = Number(state.nrintMaxPerTrial) || 0;
   const nrintMatchRule = NRINT_MATCH_RULES.includes(state.nrintMatchRule) ? state.nrintMatchRule : 'union';
+  const nrintMatchRuleWeights = state.nrintMatchRuleWeights || normalizeNrintRuleWeights(nrintMatchRule);
   const customLureRate = state.adaptiveLureRate !== undefined ? state.adaptiveLureRate : null;
   const customNegationRate = state.adaptiveNegationRate !== undefined ? state.adaptiveNegationRate : null;
 
@@ -1508,6 +1554,7 @@ export function generateNextStimulus(state) {
     nrintHideLegend,
     nrintMaxPerTrial,
     nrintMatchRule,
+    nrintMatchRuleWeights,
     decoyCats: decoyCatsFor(0),
     decoyFilterRule,
     customLureRate,
@@ -1557,6 +1604,8 @@ export function generateNextStimulus(state) {
       nrintEnabledFlags,
       nrintHideLegend,
       nrintMaxPerTrial,
+      nrintMatchRule,
+      nrintMatchRuleWeights,
       decoyCats: decoyCatsFor(1 + i),
       decoyFilterRule,
       customLureRate,

@@ -480,9 +480,49 @@ export default function StartScreen({ onStart, suggestedN, lastSettings }) {
   // Lets the player bound tracking load when many flags are enabled.
   const [nrintMaxPerTrial, setNrintMaxPerTrial] = React.useState(Number(lastSettings?.nrintMaxPerTrial) || 0);
   // Match rule: union (default) / intersection / xor / implication (Grapist req).
-  const [nrintMatchRule, setNrintMatchRule] = React.useState(
-    NRINT_MATCH_RULES.includes(lastSettings?.nrintMatchRule) ? lastSettings.nrintMatchRule : 'union'
-  );
+  // Weights object (Grapist follow-up). Multiple rules can be enabled with
+  // per-rule weight controlling per-trial sampling frequency. Legacy single-
+  // rule sessions migrate to { [oldRule]: 1, others: 0 }.
+  const [nrintMatchRuleWeights, setNrintMatchRuleWeights] = React.useState(() => {
+    const blank = { union: 0, intersection: 0, xor: 0, implication: 0, biconditional: 0 };
+    const saved = lastSettings?.nrintMatchRuleWeights;
+    if (saved && typeof saved === 'object') {
+      const out = { ...blank };
+      NRINT_MATCH_RULES.forEach(r => {
+        const w = Number(saved[r]);
+        out[r] = Number.isFinite(w) && w > 0 ? w : 0;
+      });
+      const total = NRINT_MATCH_RULES.reduce((s, r) => s + out[r], 0);
+      if (total > 0) return out;
+    }
+    // Legacy single-string migration
+    const legacy = lastSettings?.nrintMatchRule;
+    if (NRINT_MATCH_RULES.includes(legacy)) {
+      return { ...blank, [legacy]: 1 };
+    }
+    return { ...blank, union: 1 };
+  });
+  const nrintWeightTotal = NRINT_MATCH_RULES.reduce((s, r) => s + (nrintMatchRuleWeights[r] || 0), 0);
+  const nrintEnabledRules = NRINT_MATCH_RULES.filter(r => (nrintMatchRuleWeights[r] || 0) > 0);
+  // Legacy single-string mirror — used as fallback for Stats / sessions and
+  // for downstream code that only knows the old shape. With one rule enabled
+  // it's that rule; with multi-rule it's just the most-weighted one (and
+  // weights stays authoritative).
+  const nrintMatchRule = nrintEnabledRules.length
+    ? nrintEnabledRules.reduce((a, b) => (nrintMatchRuleWeights[a] >= nrintMatchRuleWeights[b] ? a : b))
+    : 'union';
+  const setNrintRuleWeight = (rule, weight) => setNrintMatchRuleWeights(prev => ({ ...prev, [rule]: Math.max(0, Math.min(10, Number(weight) || 0)) }));
+  const toggleNrintRule = (rule) => setNrintMatchRuleWeights(prev => {
+    const cur = prev[rule] || 0;
+    // Toggling OFF the last enabled rule is blocked — at least one must stay
+    // on so the engine has a non-empty distribution.
+    if (cur > 0) {
+      const others = NRINT_MATCH_RULES.filter(r => r !== rule).reduce((s, r) => s + (prev[r] || 0), 0);
+      if (others === 0) return prev;
+      return { ...prev, [rule]: 0 };
+    }
+    return { ...prev, [rule]: 1 };
+  });
   // RST family difficulty (Easy / Medium / Hard). Easy = Distinction only,
   // Medium = +Comparison, Hard = +Analogy (true 4-place). Family is picked
   // at session start from the difficulty pool and stays fixed for the run.
@@ -1411,32 +1451,65 @@ export default function StartScreen({ onStart, suggestedN, lastSettings }) {
                 </p>
               )}
             </div>
-            {/* Match rule selector — what counts as a target over the last-N tail. */}
+            {/* Match rules (multi-select with per-rule weights) — what counts
+                as a target over the last-N tail. With one rule enabled this
+                behaves identically to the original single-rule mode; with
+                multiple rules enabled the engine samples one rule per trial
+                in proportion to the weights. Grapist follow-up. */}
             <div className="pt-2 border-t border-fuchsia-500/20 space-y-1.5">
               <div className="flex items-center justify-between gap-3 flex-wrap">
                 <div className="flex-1 min-w-0">
-                  <span className="text-xs font-mono text-foreground">Match rule</span>
-                  <p className="text-[10px] font-mono text-muted-foreground/70">How a target is recognised over the last N stims.</p>
+                  <span className="text-xs font-mono text-foreground">Match rules · per-rule weights</span>
+                  <p className="text-[10px] font-mono text-muted-foreground/70">Enable one or more; weight controls per-trial frequency.</p>
                 </div>
-                <span className="text-[10px] font-mono text-fuchsia-400/70">{NRINT_MATCH_RULE_META[nrintMatchRule].label.toLowerCase()}</span>
+                <span className="text-[10px] font-mono text-fuchsia-400/70">{nrintEnabledRules.length} active</span>
               </div>
-              <div className="grid grid-cols-2 sm:grid-cols-3 md:grid-cols-5 gap-1.5">
+              <div className="space-y-1">
                 {NRINT_MATCH_RULES.map(r => {
                   const m = NRINT_MATCH_RULE_META[r];
-                  const on = nrintMatchRule === r;
+                  const weight = nrintMatchRuleWeights[r] || 0;
+                  const on = weight > 0;
+                  const pct = on && nrintWeightTotal > 0 ? Math.round((weight / nrintWeightTotal) * 100) : 0;
                   return (
-                    <button key={r}
-                      onClick={() => setNrintMatchRule(r)}
-                      title={m.desc}
-                      className={`flex flex-col items-start gap-0.5 px-2 py-2 rounded text-left border transition-colors ${on
-                        ? 'bg-fuchsia-500/20 border-fuchsia-400 text-fuchsia-100 font-semibold'
-                        : 'bg-secondary/40 border-border text-muted-foreground hover:border-muted-foreground/50'}`}>
-                      <span className="text-xs font-mono uppercase tracking-wide">{m.label}</span>
-                    </button>
+                    <div key={r}
+                      className={`flex items-center gap-2 px-2 py-1.5 rounded border transition-colors ${on
+                        ? 'bg-fuchsia-500/10 border-fuchsia-400/50'
+                        : 'bg-secondary/30 border-border'}`}>
+                      <button
+                        type="button"
+                        onClick={() => toggleNrintRule(r)}
+                        title={m.desc}
+                        className={`shrink-0 w-20 px-2 py-1 rounded text-[11px] font-mono uppercase tracking-wide text-left ${on
+                          ? 'bg-fuchsia-500/30 text-fuchsia-100 font-semibold'
+                          : 'bg-secondary/60 text-muted-foreground hover:text-foreground'}`}>
+                        {m.label}
+                      </button>
+                      <input
+                        type="range"
+                        min="0"
+                        max="10"
+                        step="1"
+                        value={weight}
+                        onChange={e => setNrintRuleWeight(r, e.target.value)}
+                        disabled={!on}
+                        className="flex-1 accent-fuchsia-400 disabled:opacity-30"
+                        title="Weight (0 = off, higher = more frequent)"
+                      />
+                      <span className={`shrink-0 w-12 text-right text-[10px] font-mono ${on ? 'text-fuchsia-300' : 'text-muted-foreground/50'}`}>
+                        {on ? `${weight} · ${pct}%` : 'off'}
+                      </span>
+                    </div>
                   );
                 })}
               </div>
-              <p className="text-[10px] font-mono text-fuchsia-400/80 leading-relaxed">{NRINT_MATCH_RULE_META[nrintMatchRule].desc}</p>
+              {nrintEnabledRules.length === 1 && (
+                <p className="text-[10px] font-mono text-fuchsia-400/80 leading-relaxed">{NRINT_MATCH_RULE_META[nrintEnabledRules[0]].desc}</p>
+              )}
+              {nrintEnabledRules.length > 1 && (
+                <p className="text-[10px] font-mono text-fuchsia-400/80 leading-relaxed">
+                  Each trial independently picks a rule by weight: {nrintEnabledRules.map(r => `${NRINT_MATCH_RULE_META[r].label} ${Math.round((nrintMatchRuleWeights[r] / nrintWeightTotal) * 100)}%`).join(' · ')}.
+                </p>
+              )}
             </div>
           </div>
         )}
@@ -2033,6 +2106,7 @@ export default function StartScreen({ onStart, suggestedN, lastSettings }) {
                   nrintMaxPerTrial,
                   // Coach-phase NRINT match rule overrides the manual selector.
                   nrintMatchRule: currentPhase.nrintMatchRule || nrintMatchRule,
+                  nrintMatchRuleWeights: currentPhase.nrintMatchRuleWeights || (currentPhase.nrintMatchRule ? { union: 0, intersection: 0, xor: 0, implication: 0, biconditional: 0, [currentPhase.nrintMatchRule]: 1 } : nrintMatchRuleWeights),
                   // Decoy filter: a phase may force config; else use the user's.
                   decoyFilterRule: currentPhase.decoyFilterRule || decoyFilterRule,
                   decoyFilterRandom: 'decoyFilterRandom' in currentPhase ? currentPhase.decoyFilterRandom : decoyFilterRandom,
@@ -2076,7 +2150,7 @@ export default function StartScreen({ onStart, suggestedN, lastSettings }) {
                 rstKeyDisplay: KEY_OPTIONS.find(k => k.code === streamARSTKey)?.display || 'R',
                 streamType: streamAType,
               };
-              onStart(nLevel, modes, finalPool, rounds, speedMs, { catWeights, useCustomMix, rels: selectedRels, tokenWeights, streamA: streamAWithPosition, extraStreams, streams: [streamAWithPosition, ...extraStreams], alienSettings, carouselSettings, nrintEnabledFlags, nrintHideLegend, nrintMaxPerTrial, nrintMatchRule, decoyFilterRule, decoyFilterRandom, decoyFilterCategories, rstDifficulty, tjnTier, tjnTopology, tjnNodes, tjnK, tjnSchemaMode, tjnSchemaBlocks, wrapperMorphStyle, autopilot: false }, noobMode);
+              onStart(nLevel, modes, finalPool, rounds, speedMs, { catWeights, useCustomMix, rels: selectedRels, tokenWeights, streamA: streamAWithPosition, extraStreams, streams: [streamAWithPosition, ...extraStreams], alienSettings, carouselSettings, nrintEnabledFlags, nrintHideLegend, nrintMaxPerTrial, nrintMatchRule, nrintMatchRuleWeights, decoyFilterRule, decoyFilterRandom, decoyFilterCategories, rstDifficulty, tjnTier, tjnTopology, tjnNodes, tjnK, tjnSchemaMode, tjnSchemaBlocks, wrapperMorphStyle, autopilot: false }, noobMode);
             }}
             className="flex-1 h-12 px-6 font-mono font-semibold text-xs sm:text-sm tracking-wide bg-secondary hover:bg-secondary/85 text-foreground border border-border"
           >
