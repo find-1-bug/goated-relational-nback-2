@@ -758,7 +758,7 @@ export default function Stats() {
                     <h3 className="text-xs font-mono font-bold uppercase tracking-widest text-fuchsia-300">Nonverbal RINT · per match rule</h3>
                     <span className="text-[10px] font-mono text-fuchsia-400/70">{nrintSessions.length} NRINT sessions</span>
                   </div>
-                  <p className="text-[10px] font-mono text-muted-foreground/80">Average accuracy under each of the 5 NRINT logical rules — Union (default), Intersection, XOR, Implication, Biconditional.</p>
+                  <p className="text-[10px] font-mono text-muted-foreground/80">Average accuracy under each of the 5 NRINT logical rules — Union (default), Intersection, XOR, Implication, Biconditional. Multi-rule sessions break down per-trial via the recorded rule on each trial.</p>
                   <div className="grid grid-cols-2 sm:grid-cols-5 gap-2 font-mono text-center">
                     {rows.map(r => {
                       const accColor = r.avg == null ? 'text-muted-foreground' : r.avg >= 75 ? 'text-emerald-400' : r.avg >= 55 ? 'text-cyan-400' : 'text-amber-400';
@@ -771,6 +771,45 @@ export default function Stats() {
                       );
                     })}
                   </div>
+                  {/* Multi-rule sessions block — surfaces the rule mix used
+                      and the realised per-trial frequencies (which can drift
+                      from the configured weights on short sessions). */}
+                  {(() => {
+                    const multi = nrintSessions.filter(isMultiRule);
+                    if (!multi.length) return null;
+                    // Aggregate realised per-rule trial counts across multi sessions
+                    const realised = { union: 0, intersection: 0, xor: 0, implication: 0, biconditional: 0 };
+                    let total = 0;
+                    multi.forEach(s => {
+                      (s.trials || []).forEach(t => {
+                        if (t?.responseType === 'relation' && rules.includes(t?.stimulus?._nrintMatchRule)) {
+                          realised[t.stimulus._nrintMatchRule]++;
+                          total++;
+                        }
+                      });
+                    });
+                    return (
+                      <div className="pt-3 border-t border-fuchsia-500/20 space-y-2">
+                        <div className="flex items-center justify-between flex-wrap gap-2">
+                          <span className="text-[10px] font-mono uppercase tracking-widest text-fuchsia-300/90">Multi-rule sessions</span>
+                          <span className="text-[10px] font-mono text-fuchsia-400/70">{multi.length} session{multi.length === 1 ? '' : 's'} · {total} trial{total === 1 ? '' : 's'}</span>
+                        </div>
+                        <p className="text-[10px] font-mono text-muted-foreground/80">
+                          Realised per-trial rule frequency across all multi-rule sessions (sampled by configured weights; short sessions can drift from target).
+                        </p>
+                        <div className="flex flex-wrap gap-1.5">
+                          {rules.filter(r => realised[r] > 0).map(r => {
+                            const pct = total ? Math.round((realised[r] / total) * 100) : 0;
+                            return (
+                              <span key={r} className="text-[10px] font-mono px-2 py-0.5 rounded bg-fuchsia-500/15 border border-fuchsia-500/30 text-fuchsia-200">
+                                {r} {pct}% <span className="text-fuchsia-400/60">({realised[r]})</span>
+                              </span>
+                            );
+                          })}
+                        </div>
+                      </div>
+                    );
+                  })()}
                 </div>
               );
             })()}

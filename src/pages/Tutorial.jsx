@@ -946,6 +946,21 @@ export default function Tutorial() {
                       </div>
                     </div>
 
+                    {/* Ex 1b — NRINT multi-rule sampling */}
+                    <div className="rounded-lg bg-secondary/20 border border-fuchsia-500/40 p-5 space-y-2">
+                      <strong className="text-fuchsia-300 block font-mono">Nonverbal RINT — Multi-rule sampling (Grapist follow-up)</strong>
+                      <p className="text-muted-foreground leading-relaxed">
+                        Enable any combination of the 5 logical rules with per-rule weights. Each trial independently samples one rule by weight, so the player has to recognise which logic is active on the current stim — not just apply a fixed rule. Weights are relative frequencies, not probabilities; the engine normalises them.
+                      </p>
+                      <div className="rounded bg-background/50 border border-border p-3 space-y-1 font-mono text-[11px]">
+                        <div>Weights: <span className="text-cyan-300">Union 2</span> · <span className="text-amber-300">XOR 1</span> · <span className="text-violet-300">Implication 1</span> &rarr; per-trial probabilities <span className="text-cyan-300">50%</span> / <span className="text-amber-300">25%</span> / <span className="text-violet-300">25%</span></div>
+                        <div className="pt-1 text-muted-foreground/70">Over a 28-trial session that's ~14 Union trials, ~7 XOR, ~7 Implication (drift ±2 per run). Stats break down accuracy per rule using each trial&apos;s recorded rule.</div>
+                        <div className="pt-2">Trial 5 (rule sampled = <span className="text-amber-300 font-bold">XOR</span>): T1={`{touch, glow}`}, T2={`{glow, hollow}`}, T3={`{touch}`}. Current={`{hollow}`}. T1⊕T2⊕T3 = {`{hollow}`} (touch cancels, glow cancels) &rarr; <span className="text-emerald-400 font-bold">TARGET</span>.</div>
+                        <div>Trial 6 (rule sampled = <span className="text-cyan-300 font-bold">Union</span>): same tail. Current={`{hollow}`}. T2 has hollow + glow → excluded (glow ∉ current). No subset unions to {`{hollow}`} &rarr; <span className="text-rose-400 font-bold">not a target</span>.</div>
+                        <div className="pt-1 text-muted-foreground/70">Same tail, different rule, different verdict. That&apos;s the load.</div>
+                      </div>
+                    </div>
+
                     {/* Ex 2 */}
                     <div className="rounded-lg bg-secondary/20 border border-border/80 p-5 space-y-2">
                       <strong className="text-fuchsia-300 block font-mono">CCT Arithmetic updating (N = 2)</strong>

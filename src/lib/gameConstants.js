@@ -1289,6 +1289,32 @@ export const COACH_PHASES = [
     modes: ['nonverbal_rint', 'feedback_per_trial', 'adaptive_closed_loop'],
     nrintMatchRule: 'biconditional',
     desc: "Nonverbal RINT under the BICONDITIONAL / equivalence rule: current equals the flags where every member of some subset of size ≥ 2 of the last N stims agrees (the consensus / agreement set; for two stims this is exactly A ↔ B). The strictest rule — flag-by-flag agreement across multiple stims."
+  },
+  // ── NRINT multi-rule + weights ladder (Grapist follow-up) ──────────────────
+  // After each rule has been drilled in isolation (phases 34-37), the multi-
+  // rule phases mix several rules with per-rule weights so the player has to
+  // recognise which logical rule is active on the current trial, not just
+  // apply a fixed one. The engine samples one rule per trial in proportion to
+  // the weights.
+  {
+    title: "Phase 38: NRINT — Mixed Logic Lite (Union + XOR)",
+    difficulty: 6.5,
+    nLevel: 2,
+    speedMs: 2400,
+    rounds: 28,
+    modes: ['nonverbal_rint', 'feedback_per_trial', 'adaptive_closed_loop'],
+    nrintMatchRuleWeights: { union: 2, intersection: 0, xor: 1, implication: 0, biconditional: 0 },
+    desc: "Nonverbal RINT with TWO rules in rotation — Union (default, ~67% of trials) and XOR (~33%). The engine picks one rule per trial; you have to recognise which logic is operative on the current stim. Lighter intro to multi-rule mode."
+  },
+  {
+    title: "Phase 39: NRINT — Full Logic Mix (all 5)",
+    difficulty: 8.0,
+    nLevel: 2,
+    speedMs: 2600,
+    rounds: 30,
+    modes: ['nonverbal_rint', 'feedback_per_trial', 'adaptive_closed_loop'],
+    nrintMatchRuleWeights: { union: 2, intersection: 1, xor: 1, implication: 1, biconditional: 1 },
+    desc: "Nonverbal RINT with ALL FIVE logical rules in rotation, Union slightly favoured (~33%). Each trial independently samples one rule by weight; you must recognise which rule is active and apply it. The top of the NRINT ladder — exercises rule-switching under WM load."
   }
 ];
 
