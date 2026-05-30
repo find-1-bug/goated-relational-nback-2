@@ -6,7 +6,8 @@
   "scripts": {
     "dev": "vite",
     "icons": "node scripts/generate-icons.mjs",
-    "build": "node scripts/generate-icons.mjs && vite build",
+    "bg": "node scripts/generate-bg.mjs",
+    "build": "node scripts/generate-icons.mjs && node scripts/generate-bg.mjs && vite build",
     "lint": "eslint . --quiet",
     "lint:fix": "eslint . --fix",
     "preview": "vite preview",
