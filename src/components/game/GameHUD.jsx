@@ -1,6 +1,7 @@
 import React from 'react';
+import { NRINT_MATCH_RULE_META } from '@/lib/gameEngine';
 
-export default function GameHUD({ round, totalRounds, nLevel, effectiveN, hitsA, missesA, falseAlarmsA, correctRejectionsA = 0, modes = [], numStreams }) {
+export default function GameHUD({ round, totalRounds, nLevel, effectiveN, hitsA, missesA, falseAlarmsA, correctRejectionsA = 0, modes = [], numStreams, currentNrintRule = null, nrintIsMultiRule = false }) {
   const isImpossible = modes.includes('impossible');
   const isNRINT = modes.includes('nonverbal_rint');
   const isTJN = modes.includes('trajectory_nback');
@@ -36,8 +37,20 @@ export default function GameHUD({ round, totalRounds, nLevel, effectiveN, hitsA,
             </div>
           )}
           {isNRINT && (
-            <div className="px-1.5 sm:px-2 py-0.5 rounded bg-fuchsia-500/10 border border-fuchsia-500/30 whitespace-nowrap">
-              <span className="font-mono text-[10px] sm:text-xs font-semibold text-fuchsia-400">NRINT</span>
+            <div
+              className={`px-1.5 sm:px-2 py-0.5 rounded border whitespace-nowrap ${nrintIsMultiRule
+                ? 'bg-fuchsia-500/15 border-fuchsia-400/60 animate-pulse-soft'
+                : 'bg-fuchsia-500/10 border-fuchsia-500/30'}`}
+              title={currentNrintRule
+                ? `Active rule on this trial: ${NRINT_MATCH_RULE_META[currentNrintRule]?.label || currentNrintRule}${nrintIsMultiRule ? ' (multi-rule mode — sampled per trial)' : ''}`
+                : 'Nonverbal RINT'}
+            >
+              <span className="font-mono text-[10px] sm:text-xs font-semibold text-fuchsia-400">
+                NRINT
+                {currentNrintRule && (
+                  <span className="text-fuchsia-200 font-bold"> · {(NRINT_MATCH_RULE_META[currentNrintRule]?.label || currentNrintRule).toUpperCase()}</span>
+                )}
+              </span>
             </div>
           )}
           {isTJN && (

@@ -643,6 +643,12 @@ export default function GameScreen({ nLevel, modes, relationshipPool, totalRound
             correctRejectionsA={gameState.correctRejectionsA}
             modes={modes}
             numStreams={allStreams.length}
+            currentNrintRule={gameState.currentStimulusA?._nrintMatchRule}
+            nrintIsMultiRule={(() => {
+              const w = gameState.nrintMatchRuleWeights;
+              if (!w) return false;
+              return Object.values(w).filter(v => Number(v) > 0).length > 1;
+            })()}
           />
         </div>
         {onExit && (
