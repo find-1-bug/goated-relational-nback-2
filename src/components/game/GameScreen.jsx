@@ -6,6 +6,7 @@ import {
   generateNextStimulus,
   processResponses,
   advanceRound,
+  NRINT_MATCH_RULE_META,
 } from '@/lib/gameEngine';
 import {
   WIPE_DURATION,
@@ -643,12 +644,6 @@ export default function GameScreen({ nLevel, modes, relationshipPool, totalRound
             correctRejectionsA={gameState.correctRejectionsA}
             modes={modes}
             numStreams={allStreams.length}
-            currentNrintRule={gameState.currentStimulusA?._nrintMatchRule}
-            nrintIsMultiRule={(() => {
-              const w = gameState.nrintMatchRuleWeights;
-              if (!w) return false;
-              return Object.values(w).filter(v => Number(v) > 0).length > 1;
-            })()}
           />
         </div>
         {onExit && (
@@ -718,6 +713,19 @@ export default function GameScreen({ nLevel, modes, relationshipPool, totalRound
                     );
                   })() : (
                     <StreamModeBadge mode={allTrialModes[idx]} />
+                  )}
+                  {/* Per-stream NRINT rule chip — surfaces the rule the
+                      engine sampled for THIS stream THIS trial. Each NRINT
+                      stream samples its own rule from the configured
+                      weights, so when multiple streams + multi-rule weights
+                      are active each block can show a different rule. */}
+                  {s.stimulus?._nrintMatchRule && (
+                    <span
+                      className="px-1.5 py-0.5 rounded border border-fuchsia-500/60 bg-fuchsia-500/15 text-fuchsia-200 font-mono text-[10px] font-bold uppercase tracking-wider leading-none"
+                      title={`NRINT rule on this trial: ${NRINT_MATCH_RULE_META[s.stimulus._nrintMatchRule]?.label || s.stimulus._nrintMatchRule}`}
+                    >
+                      {NRINT_MATCH_RULE_META[s.stimulus._nrintMatchRule]?.label?.toUpperCase() || s.stimulus._nrintMatchRule.toUpperCase()}
+                    </span>
                   )}
                   {/* Decoy Filter — per-stream "ignore these categories" reminder. */}
                   {(gameState.streamDecoyCats?.[idx]?.length > 0) && (
