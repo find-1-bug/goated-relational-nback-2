@@ -5,7 +5,7 @@ import { Button } from '@/components/ui/button';
 import {
   ChevronLeft, Brain, Zap, Layers, Gamepad2,
   GitBranch, Eye, Volume2, ShieldAlert,
-  Sparkles, Menu, X, Play, Settings2, Compass, Award
+  Sparkles, Menu, X, Play, Settings2, Compass, Award, TrendingUp
 } from 'lucide-react';
 import { COACH_PHASES } from '@/lib/gameConstants';
 import { difficultyOrder } from '@/lib/coachMastery';
@@ -827,6 +827,31 @@ export default function Tutorial() {
                     </p>
                     <p className="text-[13px] text-muted-foreground leading-relaxed">
                       <strong className="text-amber-300">Honest limits:</strong> it's anchored to the Sandia 2010 norming study (university-student sample, few ratings per item), so it's an index for tracking <em>your own change over time</em> — not a clinical or population-normed IQ. Read the confidence interval and the change, not the bare number.
+                    </p>
+                  </div>
+                  {/* Capacity Credits — probe-based far-transfer + training Δ-IQ + g */}
+                  <div className="rounded-lg bg-fuchsia-500/10 border border-fuchsia-500/30 p-5 space-y-2">
+                    <div className="flex items-center gap-2">
+                      <TrendingUp className="w-5 h-5 text-fuchsia-400" />
+                      <h3 className="text-xs font-bold uppercase tracking-wider text-fuchsia-300">Capacity Credits — what the chip row means (and doesn't)</h3>
+                    </div>
+                    <p className="text-[13px] text-muted-foreground leading-relaxed">
+                      The Coach card now shows three numbers — <strong className="text-emerald-300">g</strong> (training credit), <strong className="text-cyan-300">ΔIQ</strong> (training-estimated trajectory), and <strong className="text-fuchsia-300">FT %</strong> (Far Transfer Score). Each one answers a different question and is computed from a different signal.
+                    </p>
+                    <p className="text-[13px] text-muted-foreground leading-relaxed">
+                      <strong className="text-emerald-300">g — training credit.</strong> Cumulative score that grows every session as <code>difficulty × accuracy × duration × mode-diversity</code>. It rewards showing up and putting in quality reps. Treat it like XP. It is <strong>engagement, not a cognitive measure</strong> — don't read it as an IQ proxy.
+                    </p>
+                    <p className="text-[13px] text-muted-foreground leading-relaxed">
+                      <strong className="text-fuchsia-300">Far Transfer Score — probe wins.</strong> The app watches your session config (mode set, N-band, NRINT rule, stream count, …). When you switch enough features from your recent baseline, the session is tagged as a <strong>switch probe</strong>. When you replay a phase you'd already attempted ≥ 5 sessions ago, it's a <strong>recheck</strong>. Each probe's outcome is <strong className="text-emerald-300">Hold</strong> (accuracy held), <strong className="text-amber-300">Partial</strong> (small drop), or <strong className="text-rose-300">Drop</strong> (large drop) vs. the baseline. The Far Transfer % is an EMA of the last 12 probe outcomes — what fraction of switches you weather without losing accuracy.
+                    </p>
+                    <p className="text-[13px] text-muted-foreground leading-relaxed">
+                      <strong className="text-cyan-300">Training ΔIQ — probe-gated trajectory.</strong> Updates <em>only</em> on probe sessions, scaled by phase difficulty. Drop probes subtract a small amount. Playing the same config repeatedly grows g but does not move ΔIQ. This makes the IQ-trajectory honest — it requires transfer evidence to register.
+                    </p>
+                    <p className="text-[13px] text-muted-foreground leading-relaxed">
+                      <strong className="text-cyan-200">Ground truth.</strong> The validated Δ-IQ comes from the <strong>Reasoning Index</strong> above — paired Sandia Matrices pre + post with a 95% CI and Reliable Change Index. The Stats panel surfaces both side-by-side; if the training estimate runs hot vs. the validated index, a calibration banner says so.
+                    </p>
+                    <p className="text-[13px] text-muted-foreground leading-relaxed">
+                      <strong className="text-amber-300">What this is and isn't.</strong> It's a transparent, probe-based training instrument inspired by the broader literature on n-back transfer hygiene (Jaeggi et al. 2008, Au et al. 2015, Owen et al. 2010, Soveri et al. 2017). It is <em>not</em> a clinical or population-normed IQ test, and the training estimate is not a substitute for a validated assessment. The Reasoning Index is the only number in this app you should treat as a real Δ-IQ.
                     </p>
                   </div>
                   {/* Synaesthesia */}

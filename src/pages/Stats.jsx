@@ -8,6 +8,7 @@ import { Link } from 'react-router-dom';
 import { getSessions, deleteSession, exportData, importData, getAssessments } from '@/lib/localStorageManager';
 import { COACH_PHASES } from '@/lib/gameConstants';
 import { migrateCoachState, rankOf, phaseDisplayTitle } from '@/lib/coachMastery';
+import { computeCapacityCredits, tierLabel, FAR_TRANSFER_TIERS } from '@/lib/farTransfer';
 
 export default function Stats() {
   const [sessions, setSessions] = useState([]);
@@ -212,6 +213,167 @@ export default function Stats() {
                     <div><div className={`text-xl font-bold ${delta == null ? 'text-muted-foreground' : delta > 0 ? 'text-emerald-400' : delta < 0 ? 'text-rose-400' : 'text-foreground'}`}>{delta == null ? '—' : `${delta > 0 ? '+' : ''}${delta}`}</div><div className="text-[9px] uppercase tracking-widest text-muted-foreground">Δ index</div></div>
                   </div>
                   <Link to="/assessment" className="text-[11px] text-cyan-400 hover:text-cyan-300 underline">Open →</Link>
+                </div>
+              );
+            })()}
+
+            {/* Capacity Credits — probe-based far-transfer score, training
+                Δ-IQ trajectory, cumulative g (engagement). Sits next to the
+                validated Reasoning Index above so the user reads training
+                estimate vs. ground truth in one glance. */}
+            {(() => {
+              const credits = computeCapacityCredits(sessions, coachState, getAssessments(), COACH_PHASES);
+              if (!credits) return null;
+              const t = credits.totals;
+              const probeCount = credits.probes.counts.total;
+              const tierTextColor = ({
+                early: 'text-amber-300', consolidating: 'text-cyan-300',
+                transferring: 'text-emerald-300', broad: 'text-fuchsia-300', no_evidence: 'text-muted-foreground/70',
+              })[t.tier] || 'text-muted-foreground';
+              return (
+                <div id="capacity-credits" className="rounded-xl bg-fuchsia-500/5 border border-fuchsia-500/30 p-4 space-y-4">
+                  <div className="flex items-center justify-between flex-wrap gap-2">
+                    <div>
+                      <h3 className="text-xs font-mono font-bold uppercase tracking-widest text-fuchsia-300">Capacity Credits</h3>
+                      <p className="text-[10px] font-mono text-muted-foreground">Probe-based far-transfer + training-IQ trajectory. Volume vs. evidence.</p>
+                    </div>
+                    <span className="text-[10px] font-mono text-muted-foreground">
+                      {probeCount} probe{probeCount === 1 ? '' : 's'} · {credits.probes.counts.switch} switch · {credits.probes.counts.recheck} recheck
+                    </span>
+                  </div>
+
+                  {/* Headline trio */}
+                  <div className="grid grid-cols-1 sm:grid-cols-3 gap-3 font-mono text-center">
+                    <div className="rounded-lg bg-background/40 border border-border p-3">
+                      <div className="text-2xl font-bold text-emerald-300">{t.gTotal.toLocaleString()}</div>
+                      <div className="text-[10px] uppercase tracking-widest text-muted-foreground mt-1">g · training credit</div>
+                      <div className="text-[9px] text-muted-foreground/60 italic mt-1">engagement metric</div>
+                    </div>
+                    <div className="rounded-lg bg-background/40 border border-border p-3">
+                      <div className={`text-2xl font-bold ${t.iqCreditTotal >= 0 ? 'text-cyan-300' : 'text-amber-300'}`}>
+                        {t.iqCreditTotal >= 0 ? '+' : ''}{t.iqCreditTotal.toFixed(2)}
+                      </div>
+                      <div className="text-[10px] uppercase tracking-widest text-muted-foreground mt-1">ΔIQ · training estimate</div>
+                      <div className="text-[9px] text-muted-foreground/60 italic mt-1">probe-gated · drops on Drop</div>
+                    </div>
+                    <div className="rounded-lg bg-background/40 border border-border p-3">
+                      <div className={`text-2xl font-bold ${tierTextColor}`}>
+                        {t.farTransferPct == null ? '—' : `${t.farTransferPct}%`}
+                      </div>
+                      <div className="text-[10px] uppercase tracking-widest text-muted-foreground mt-1">Far Transfer · {tierLabel(t.tier)}</div>
+                      <div className="text-[9px] text-muted-foreground/60 italic mt-1">
+                        {t.farTransferPct == null
+                          ? `play varied configs · ${Math.max(0, 3 - probeCount)} more probes needed`
+                          : `EMA of last ${Math.min(12, probeCount)} probe outcomes`}
+                      </div>
+                    </div>
+                  </div>
+
+                  {/* Ground-truth callout (Sandia pre/post vs. training estimate). */}
+                  {credits.ground.sandiaDelta && (
+                    <div className={`rounded-lg p-3 border ${
+                      credits.ground.calibration === 'hot'
+                        ? 'bg-amber-500/10 border-amber-500/40'
+                        : credits.ground.calibration === 'cool'
+                          ? 'bg-cyan-500/10 border-cyan-500/40'
+                          : 'bg-emerald-500/10 border-emerald-500/40'}`}>
+                      <div className="text-[10px] font-mono uppercase tracking-widest text-fuchsia-300/90 mb-2">Ground-truth check</div>
+                      <div className="flex items-center justify-between flex-wrap gap-3 font-mono text-xs">
+                        <div>
+                          <div className="text-muted-foreground text-[10px] uppercase tracking-wider">Training-estimated</div>
+                          <div className={`text-lg font-bold ${t.iqCreditTotal >= 0 ? 'text-cyan-300' : 'text-amber-300'}`}>
+                            {t.iqCreditTotal >= 0 ? '+' : ''}{t.iqCreditTotal.toFixed(2)} IQ
+                          </div>
+                        </div>
+                        <div>
+                          <div className="text-muted-foreground text-[10px] uppercase tracking-wider">Validated Reasoning Index Δ</div>
+                          <div className={`text-lg font-bold ${
+                            credits.ground.sandiaDelta.deltaIQ > 0 ? 'text-emerald-300'
+                              : credits.ground.sandiaDelta.deltaIQ < 0 ? 'text-rose-300' : 'text-foreground'
+                          }`}>
+                            {credits.ground.sandiaDelta.deltaIQ > 0 ? '+' : ''}{credits.ground.sandiaDelta.deltaIQ} IQ
+                          </div>
+                          <div className="text-[9px] text-muted-foreground">
+                            95% CI [{credits.ground.sandiaDelta.ci95[0]} → {credits.ground.sandiaDelta.ci95[1]}] · RCI {credits.ground.sandiaDelta.reliable ? '✓' : '✗'}
+                          </div>
+                        </div>
+                      </div>
+                      <p className="text-[10px] font-mono text-muted-foreground/80 mt-2 italic">
+                        {credits.ground.calibration === 'hot'
+                          ? 'Training trajectory is running hot vs. the validated Reasoning Index — engagement is real, IQ change is smaller.'
+                          : credits.ground.calibration === 'cool'
+                            ? 'Validated IQ delta exceeds the training estimate — you may be transferring more than the trajectory captures.'
+                            : 'Training estimate is aligned with the validated Reasoning Index.'}
+                      </p>
+                    </div>
+                  )}
+                  {!credits.ground.sandiaDelta && (
+                    <div className="rounded-lg bg-cyan-500/5 border border-cyan-500/30 p-3">
+                      <p className="text-[10px] font-mono text-cyan-300/90">
+                        Take a Reasoning Index now, then again in 4+ weeks, to register a validated Δ-IQ alongside the training estimate. <Link to="/assessment" className="underline">Open Reasoning Index →</Link>
+                      </p>
+                    </div>
+                  )}
+
+                  {/* Probe ledger (last 10 probes) */}
+                  {probeCount > 0 && (
+                    <div className="space-y-2">
+                      <div className="text-[10px] font-mono uppercase tracking-widest text-fuchsia-300/90">Recent probes</div>
+                      <div className="overflow-x-auto">
+                        <table className="w-full font-mono text-[10px]">
+                          <thead>
+                            <tr className="text-muted-foreground border-b border-border/40">
+                              <th className="text-left py-1 pr-2">When</th>
+                              <th className="text-left py-1 pr-2">Kind</th>
+                              <th className="text-left py-1 pr-2">Outcome</th>
+                              <th className="text-right py-1 pr-2">Acc</th>
+                              <th className="text-right py-1 pr-2">Baseline</th>
+                              <th className="text-right py-1 pr-2">Δ</th>
+                              <th className="text-right py-1">ΔIQ</th>
+                            </tr>
+                          </thead>
+                          <tbody>
+                            {credits.perSession.filter(r => r.probeKind).slice(-10).reverse().map((r, i) => (
+                              <tr key={i} className="border-b border-border/20">
+                                <td className="py-1 pr-2 text-muted-foreground">{r.createdDate ? new Date(r.createdDate).toLocaleDateString() : '—'}</td>
+                                <td className="py-1 pr-2 text-foreground/80">{r.probeKind}</td>
+                                <td className={`py-1 pr-2 font-bold ${
+                                  r.probeOutcome === 'Hold' ? 'text-emerald-300'
+                                    : r.probeOutcome === 'Partial' ? 'text-amber-300' : 'text-rose-300'
+                                }`}>{r.probeOutcome}</td>
+                                <td className="py-1 pr-2 text-right text-foreground/80">{r.accuracy}%</td>
+                                <td className="py-1 pr-2 text-right text-muted-foreground">{r.probeBaseline != null ? `${r.probeBaseline}%` : '—'}</td>
+                                <td className={`py-1 pr-2 text-right ${r.probeDelta >= 0 ? 'text-emerald-300' : 'text-rose-300'}`}>{r.probeDelta >= 0 ? '+' : ''}{r.probeDelta}</td>
+                                <td className={`py-1 text-right font-bold ${r.iqCredit >= 0 ? 'text-cyan-300' : 'text-amber-300'}`}>{r.iqCredit >= 0 ? '+' : ''}{r.iqCredit.toFixed(2)}</td>
+                              </tr>
+                            ))}
+                          </tbody>
+                        </table>
+                      </div>
+                    </div>
+                  )}
+
+                  {/* Methodology */}
+                  <details className="text-[10px] font-mono text-muted-foreground/80">
+                    <summary className="cursor-pointer hover:text-foreground">Methodology</summary>
+                    <div className="mt-2 space-y-2 leading-relaxed">
+                      <p>
+                        <strong>g</strong> accumulates from every session as difficulty × (accuracy / 100) × duration factor × mode-diversity bonus. It is an engagement metric only — not a cognitive measure.
+                      </p>
+                      <p>
+                        <strong>Probes</strong> fire automatically. A <em>switch probe</em> fires when this session&apos;s config (mode set, N-band, NRINT rule, stream count, …) differs from your recent baseline by ≥ 2 features. A <em>recheck</em> fires when you replay a phase whose mastery record is ≥ 5 sessions old. The probe outcome is <strong>Hold</strong> (accuracy held), <strong>Partial</strong> (small drop), or <strong>Drop</strong> (large drop) vs. the baseline.
+                      </p>
+                      <p>
+                        <strong>Far Transfer Score</strong> is the EMA of the last 12 probe outcomes (Hold = 1.0, Partial = 0.5, Drop = 0), scaled to 0–100%. Tiers: {FAR_TRANSFER_TIERS.map(t2 => t2.label).join(' · ')}.
+                      </p>
+                      <p>
+                        <strong>Training ΔIQ</strong> updates only on probe sessions — playing the same config repeatedly grows g but not ΔIQ. Drop probes subtract a small amount, so the trajectory can move down. Validated Reasoning Index Δ-IQ stays as the ground truth above.
+                      </p>
+                      <p className="text-muted-foreground/60 italic">
+                        References on n-back transfer hygiene: Jaeggi et al. 2008, Au et al. 2015, Owen et al. 2010. This is a training tool, not a clinical instrument.
+                      </p>
+                    </div>
+                  </details>
                 </div>
               );
             })()}

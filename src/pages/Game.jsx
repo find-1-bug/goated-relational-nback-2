@@ -6,7 +6,10 @@ import ResultsScreen from '@/components/game/ResultsScreen';
 import InstallAppButton from '@/components/InstallAppButton';
 import ThemeToggle from '@/components/ThemeToggle';
 import { calculateResults, computeNextNLevel } from '@/lib/gameEngine';
-import { addSession, saveSettings, getSettings } from '@/lib/localStorageManager';
+import { addSession, saveSettings, getSettings, getSessions } from '@/lib/localStorageManager';
+import { computeSessionCredits } from '@/lib/farTransfer';
+import { migrateCoachState } from '@/lib/coachMastery';
+import { COACH_PHASES } from '@/lib/gameConstants';
 import { AnimatePresence, motion } from 'framer-motion';
 import { Brain, Menu as MenuIcon, BookOpen, Activity, Sparkles, GraduationCap, Heart } from 'lucide-react';
 import { Button } from '@/components/ui/button';
@@ -234,8 +237,27 @@ export default function Game() {
       nrintMatchRule: (state.modes || []).includes('nonverbal_rint') ? (state.nrintMatchRule || 'union') : null,
       nrintMatchRuleWeights: (state.modes || []).includes('nonverbal_rint') ? (state.nrintMatchRuleWeights || null) : null,
       phaseTitle: state.phaseTitle || '',
+      coachPickedPhaseIndex,
+      coachPickReason,
       trials: state.allTrials || [] // trials saved during gameplay
     };
+    // Capacity Credits — compute g + probe outcome + training Δ-IQ for this
+    // session against the user's prior history + Coach mastery state. Pure
+    // function; persisted onto the session record so later reads avoid
+    // recomputation cost and the probe history is stable.
+    try {
+      const priorSessions = getSessions();
+      const coachStateRaw = localStorage.getItem('goated_coach_state');
+      const coachState = migrateCoachState(coachStateRaw ? JSON.parse(coachStateRaw) : null);
+      const credits = computeSessionCredits(sessionData, priorSessions, coachState, COACH_PHASES);
+      sessionData.gThisSession = credits.g;
+      sessionData.iqCreditThisSession = credits.iqCredit;
+      sessionData.probeKind = credits.probe.kind;
+      sessionData.probeOutcome = credits.probe.outcome;
+      sessionData.probeDelta = credits.probe.delta;
+      sessionData.probeBaselineAcc = credits.probe.baselineAcc;
+      sessionData.probeBaselineSource = credits.probe.baselineSource;
+    } catch (_) { /* never block session persistence on credits compute */ }
     addSession(sessionData);
 
     setFinalState(state);

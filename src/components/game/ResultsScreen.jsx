@@ -4,6 +4,7 @@ import { Brain, RotateCcw, ArrowLeft, TrendingUp } from 'lucide-react';
 import { motion } from 'framer-motion';
 import { calculateResults, computeNextNLevel } from '@/lib/gameEngine';
 import { migrateCoachState, updateMastery, MASTERY_INTERVALS, phaseDisplayTitle, rankOf } from '@/lib/coachMastery';
+import { getSessions } from '@/lib/localStorageManager';
 import { COACH_PHASES } from '@/lib/gameConstants';
 
 function StatBlock({ label, value, suffix = '', color = 'text-foreground' }) {
@@ -244,6 +245,56 @@ export default function ResultsScreen({ gameState, onRestart, onBack }) {
             )}
           </div>
         )}
+
+        {/* Capacity credit earned this session — drawn from the session
+            record that handleFinish just persisted. Shows g earned, training
+            ΔIQ delta, and the probe outcome chip (when this session counted
+            as a probe). */}
+        {(() => {
+          const sessions = getSessions();
+          const justSaved = sessions[sessions.length - 1];
+          if (!justSaved || (justSaved.gThisSession == null && justSaved.iqCreditThisSession == null)) return null;
+          const g = Number(justSaved.gThisSession) || 0;
+          const iq = Number(justSaved.iqCreditThisSession) || 0;
+          const probeKind = justSaved.probeKind;
+          const probeOutcome = justSaved.probeOutcome;
+          const probeDelta = justSaved.probeDelta;
+          const outcomeColor = probeOutcome === 'Hold'
+            ? 'bg-emerald-500/20 border-emerald-400/60 text-emerald-200'
+            : probeOutcome === 'Partial'
+              ? 'bg-amber-500/20 border-amber-400/60 text-amber-200'
+              : 'bg-rose-500/20 border-rose-400/60 text-rose-200';
+          return (
+            <div className="rounded-xl bg-fuchsia-500/5 border border-fuchsia-500/30 p-3 space-y-1.5 font-mono">
+              <div className="flex items-center justify-between gap-2 flex-wrap">
+                <span className="text-[10px] uppercase tracking-widest text-fuchsia-300">Capacity credit</span>
+                <span className="flex items-center gap-3 text-xs">
+                  <span className="text-emerald-300">+{g} <span className="text-muted-foreground/70 text-[10px]">g</span></span>
+                  <span className={iq >= 0 ? 'text-cyan-300' : 'text-amber-300'}>
+                    {iq >= 0 ? '+' : ''}{iq.toFixed(2)} <span className="text-muted-foreground/70 text-[10px]">ΔIQ</span>
+                  </span>
+                </span>
+              </div>
+              {probeKind && probeOutcome && (
+                <div className="flex items-center justify-between gap-2 flex-wrap text-[10px]">
+                  <span className={`px-1.5 py-0.5 rounded border ${outcomeColor} uppercase tracking-wider font-bold`}>
+                    {probeKind} probe · {probeOutcome}
+                  </span>
+                  <span className="text-muted-foreground/80">
+                    {probeOutcome === 'Hold' && 'Accuracy held under changed conditions.'}
+                    {probeOutcome === 'Partial' && `Small drop vs. baseline (Δ ${probeDelta}%).`}
+                    {probeOutcome === 'Drop' && `Did not hold under switch (Δ ${probeDelta}%).`}
+                  </span>
+                </div>
+              )}
+              {!probeKind && (
+                <div className="text-[10px] text-muted-foreground/70 italic">
+                  No probe fired — same-config training. g grows on volume; ΔIQ updates only on probe wins.
+                </div>
+              )}
+            </div>
+          );
+        })()}
 
         {/* Overall */}
         <div className="text-center py-4 border-y border-border">

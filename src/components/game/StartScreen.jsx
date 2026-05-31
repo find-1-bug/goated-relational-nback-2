@@ -4,8 +4,9 @@ import { Brain, Zap, TrendingUp, Layers, GitBranch, Shuffle, ChevronDown, Chevro
 import { motion, AnimatePresence } from 'framer-motion';
 import { RELATIONSHIP_CATEGORIES, setTokenWeights, getTokenWeights, filterTransitiveRelationships, COACH_PHASES, TJN_TIERS, TJN_TIER_META, TJN_TOPOLOGY_LABELS, TJN_DEFAULT_TIER, TJN_DEFAULT_TOPOLOGY, TJN_DEFAULT_NODES, TJN_HARD_K } from '@/lib/gameConstants';
 import { migrateCoachState, pickNextPhase, masteryLabel, difficultyOrder, phaseDisplayTitle } from '@/lib/coachMastery';
+import { computeCapacityCredits, tierLabel } from '@/lib/farTransfer';
 import { NRINT_FLAGS, NRINT_FLAG_META, NRINT_MATCH_RULES, NRINT_MATCH_RULE_META } from '@/lib/gameEngine';
-import { getSettings, saveSettings } from '@/lib/localStorageManager';
+import { getSettings, saveSettings, getSessions, getAssessments } from '@/lib/localStorageManager';
 
 // Build a weighted pool from category weights + enabled rels
 // Each category's rels are repeated proportionally to its weight
@@ -397,6 +398,16 @@ export default function StartScreen({ onStart, suggestedN, lastSettings }) {
   // null = use the real coach progress; otherwise override with the picked
   // index. Cleared when user clicks "Reset to my progress".
   const [testPhaseIndex, setTestPhaseIndex] = React.useState(null);
+
+  // Capacity Credits — derived from session history + coach state + paired
+  // Reasoning Index assessments. Memoised; recomputes only when coachState
+  // changes (i.e. when a finished session lands on disk).
+  const capacityCredits = React.useMemo(() => {
+    try {
+      return computeCapacityCredits(getSessions(), coachState, getAssessments(), COACH_PHASES);
+    } catch (_) { return null; }
+  // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [coachState.sessionCount]);
   const effectivePhaseIndex = testPhaseIndex !== null ? testPhaseIndex : (coachState.phaseIndex || 0);
   // Pre-session rule briefing toggle — default expanded; veterans can collapse.
   const [showRuleBrief, setShowRuleBrief] = React.useState(true);
@@ -902,6 +913,36 @@ export default function StartScreen({ onStart, suggestedN, lastSettings }) {
             <span className="text-muted-foreground">Mastery: <strong className="text-violet-300">{masteryLabel(coachState.phaseMastery?.[previewPhaseIdx], coachState.sessionCount || 0)}</strong></span>
             <span className="text-muted-foreground">D{previewPhase.difficulty ?? '?'} · N={previewPhase.nLevel || 2} · {previewPhase.speedMs || 3200}ms</span>
           </div>
+          {/* Capacity Credits chip row — g (engagement), ΔIQ (training
+              estimate, probe-gated), Far Transfer Score (rolling probe wins).
+              Click anywhere to jump to the Stats breakdown. */}
+          {capacityCredits && (
+            <button
+              type="button"
+              onClick={() => { window.location.hash = '#/stats?panel=credits'; }}
+              className="w-full flex items-center justify-between text-[10px] font-mono px-1 py-1 rounded hover:bg-secondary/40 transition-colors"
+              title="Click for the Capacity Credits breakdown"
+            >
+              <span className="flex items-center gap-1.5" title="Training credit — volume × quality. Engagement, not a cognitive measure.">
+                <span className="text-muted-foreground">g</span>
+                <strong className="text-emerald-300">{capacityCredits.totals.gTotal.toLocaleString()}</strong>
+              </span>
+              <span className="flex items-center gap-1.5" title="Training-estimated Δ-IQ trajectory. Updates on probe wins only; validated Δ-IQ comes from the Reasoning Index.">
+                <span className="text-muted-foreground">ΔIQ</span>
+                <strong className={capacityCredits.totals.iqCreditTotal >= 0 ? 'text-cyan-300' : 'text-amber-300'}>
+                  {capacityCredits.totals.iqCreditTotal >= 0 ? '+' : ''}{capacityCredits.totals.iqCreditTotal.toFixed(2)}
+                </strong>
+              </span>
+              <span className="flex items-center gap-1.5" title="Far Transfer Score — rolling probe-win % across switch + recheck probes.">
+                <span className="text-muted-foreground">FT</span>
+                {capacityCredits.totals.farTransferPct == null ? (
+                  <strong className="text-muted-foreground/70">—</strong>
+                ) : (
+                  <strong className="text-fuchsia-300">{capacityCredits.totals.farTransferPct}% <span className="text-muted-foreground/60 font-normal">{tierLabel(capacityCredits.totals.tier)}</span></strong>
+                )}
+              </span>
+            </button>
+          )}
           {/* Coach details (Rank / Sessions / Frontier / Test-phase override) —
               collapsed by default to keep the card scannable. */}
           <button
