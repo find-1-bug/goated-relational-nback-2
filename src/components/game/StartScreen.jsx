@@ -920,25 +920,28 @@ export default function StartScreen({ onStart, suggestedN, lastSettings }) {
             <button
               type="button"
               onClick={() => { window.location.hash = '#/stats?panel=credits'; }}
-              className="w-full flex items-center justify-between text-[10px] font-mono px-1 py-1 rounded hover:bg-secondary/40 transition-colors"
+              className="w-full flex items-center justify-between font-mono px-1 py-1.5 rounded hover:bg-secondary/40 transition-colors gap-2 flex-wrap"
               title="Click for the Capacity Credits breakdown"
             >
-              <span className="flex items-center gap-1.5" title="Training credit — volume × quality. Engagement, not a cognitive measure.">
-                <span className="text-muted-foreground">g</span>
-                <strong className="text-emerald-300">{capacityCredits.totals.gTotal.toLocaleString()}</strong>
+              <span className="flex items-baseline gap-1.5" title="Training credit — volume × quality. Engagement, not a cognitive measure.">
+                <span className="text-[10px] uppercase tracking-widest text-muted-foreground">g</span>
+                <strong className="text-sm sm:text-base text-emerald-300">{capacityCredits.totals.gTotal.toLocaleString()}</strong>
               </span>
-              <span className="flex items-center gap-1.5" title="Training-estimated Δ-IQ trajectory. Updates on probe wins only; validated Δ-IQ comes from the Reasoning Index.">
-                <span className="text-muted-foreground">ΔIQ</span>
-                <strong className={capacityCredits.totals.iqCreditTotal >= 0 ? 'text-cyan-300' : 'text-amber-300'}>
+              <span className="flex items-baseline gap-1.5" title="Training-estimated Δ-IQ trajectory. Updates on probe wins only; validated Δ-IQ comes from the Reasoning Index.">
+                <span className="text-[10px] uppercase tracking-widest text-muted-foreground">ΔIQ</span>
+                <strong className={`text-sm sm:text-base ${capacityCredits.totals.iqCreditTotal >= 0 ? 'text-cyan-300' : 'text-amber-300'}`}>
                   {capacityCredits.totals.iqCreditTotal >= 0 ? '+' : ''}{capacityCredits.totals.iqCreditTotal.toFixed(2)}
                 </strong>
               </span>
-              <span className="flex items-center gap-1.5" title="Far Transfer Score — rolling probe-win % across switch + recheck probes.">
-                <span className="text-muted-foreground">FT</span>
+              <span className="flex items-baseline gap-1.5" title="Far Transfer Score — rolling probe-win % across switch + recheck probes.">
+                <span className="text-[10px] uppercase tracking-widest text-muted-foreground">FT</span>
                 {capacityCredits.totals.farTransferPct == null ? (
-                  <strong className="text-muted-foreground/70">—</strong>
+                  <strong className="text-sm sm:text-base text-muted-foreground/70">—</strong>
                 ) : (
-                  <strong className="text-fuchsia-300">{capacityCredits.totals.farTransferPct}% <span className="text-muted-foreground/60 font-normal">{tierLabel(capacityCredits.totals.tier)}</span></strong>
+                  <strong className="text-sm sm:text-base text-fuchsia-300">
+                    {capacityCredits.totals.farTransferPct}%
+                    <span className="ml-1 text-[10px] text-muted-foreground/60 font-normal">{tierLabel(capacityCredits.totals.tier)}</span>
+                  </strong>
                 )}
               </span>
             </button>

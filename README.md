@@ -162,6 +162,26 @@ Item bank: [src/lib/sandiaBank.js](src/lib/sandiaBank.js); images under `public/
 
 ---
 
+# Capacity Credits — probe-based far-transfer + training-IQ trajectory + g
+
+A scoring trio shown on the Coach card and in Stats. Three numbers, three questions, three signals:
+
+- **`g` — training credit.** Cumulative engagement. Per session: `difficulty × (accuracy / 100) × duration × mode-diversity`. Grows on every session. **Engagement metric, not a cognitive measure** — don't read it as an IQ proxy.
+- **`ΔIQ` — training-estimated trajectory.** Updates *only* on probe sessions, scaled by phase difficulty. Drop probes subtract a small amount. Playing the same config repeatedly grows `g` but does not move `ΔIQ`. So the trajectory is honest — it requires transfer evidence to register.
+- **`FT %` — Far Transfer Score.** EMA of the last 12 probe outcomes, scaled to 0–100. Tier bands: Early → Consolidating → Transferring → Broadly transferred.
+
+**Probes** fire automatically. A **switch probe** fires when this session's config (mode set, N-band, NRINT rule, stream count, has-CCT/RST/TJN/Decoy/NRINT flags) differs from your recent baseline by ≥ 2 features. A **recheck** fires when you replay a phase whose mastery record is ≥ 5 sessions old. Each probe's outcome is graded vs. your baseline accuracy for that fingerprint:
+
+- **Hold** — accuracy held under the switch (Δ ≥ −5%)
+- **Partial** — small drop (−15% ≤ Δ < −5%)
+- **Drop** — large drop (Δ < −15%)
+
+**Ground truth.** The validated Δ-IQ is the **Reasoning Index** (Sandia Matrices) Δ with 95% CI + Reliable Change Index. The Stats panel surfaces both side-by-side: training estimate vs. validated. If the training number runs hot vs. the validated CI, a calibration banner says so. The Reasoning Index is the only number in this app you should treat as a real Δ-IQ.
+
+Implementation: [src/lib/farTransfer.js](src/lib/farTransfer.js) — pure, deterministic. Persists per-session credit fields onto the session record at finish time. References on n-back transfer hygiene: Jaeggi et al. 2008, Au et al. 2015, Owen et al. 2010, Soveri et al. 2017.
+
+---
+
 # Other systems
 
 - **Relation library**: 92+ relations across 7 categories — SPATIAL · SPATIAL_3D · TRAIT · QUANT · VERBAL · SOUND (10: pitch / rhythm / volume / duration / timbre — all pair-asymmetric except timbre which is opposition) · COMPLEX. 67 marked as transitive (used by RINT). Full inverse mapping (`BIGGER_THAN ↔ SMALLER_THAN` etc.) — see [src/lib/gameConstants.js](src/lib/gameConstants.js).
@@ -174,7 +194,7 @@ Item bank: [src/lib/sandiaBank.js](src/lib/sandiaBank.js); images under `public/
 - **5 wrapper themes**: Cyberpunk Neon · Minimal Stark · Glassmorphic Frost · Sunset Glow · Matrix Terminal.
 - **Synaesthesia engine**: per-character color map (A–Z, 0–9) applied to verbal tokens, CCT digits, 3D text sprites. Custom color picker, persisted in localStorage.
 - **Token blending**: 8 token types — meaningful · nonsense · garbage · emoji · voronoi_emoji · random_string · voronoi · scrap (junk-journal procedural clipart).
-- **Stats dashboard**: Overview / Coach / Stressors tabs. SVG accuracy trend chart; mastery-color-coded phase ladder; JSON export/import.
+- **Stats dashboard**: Overview / Coach / Stressors tabs. SVG accuracy trend chart; mastery-color-coded phase ladder; JSON export/import. Capacity Credits panel surfaces g · ΔIQ · FT + a probe ledger + ground-truth comparison vs. the validated Reasoning Index Δ.
 - **Per-stream scoring axes**: REL · POS · CCT · RST — tracked independently with hit/miss/FA/CR + Lure subcounts + RST family breakdown.
 
 ---
@@ -183,7 +203,7 @@ Item bank: [src/lib/sandiaBank.js](src/lib/sandiaBank.js); images under `public/
 
 | Key | What |
 |---|---|
-| `nback_sessions` | Full session array with every trial recorded |
+| `nback_sessions` | Full session array with every trial recorded + per-session Capacity Credits (`gThisSession`, `iqCreditThisSession`, `probeKind`, `probeOutcome`, `probeDelta`, `probeBaselineAcc`) |
 | `nback_settings` | Last-used config (modes, N, stream layout, RST difficulty, etc.) |
 | `goated_coach_state` | Coach progress: `phaseIndex`, `sessionCount`, `phaseMastery{}`, `rankName` |
 | `nback_theme` | Light/dark |
